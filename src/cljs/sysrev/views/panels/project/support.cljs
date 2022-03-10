@@ -1,16 +1,16 @@
 (ns sysrev.views.panels.project.support
   (:require [ajax.core :refer [GET]]
-            [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe]]
+            [reagent.core :as r]
             [sysrev.accounting :as accounting]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.macros :refer-macros [setup-panel-state]]
             [sysrev.state.nav :refer [project-uri]]
+            [sysrev.stripe :as stripe]
+            [sysrev.util :as util :refer [ensure-prefix in? wrap-prevent-default]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Form FormGroup FormInput FormRadio]]
-            [sysrev.stripe :as stripe]
-            [sysrev.util :as util :refer [in? ensure-prefix wrap-prevent-default]]
-            [sysrev.macros :refer-macros [setup-panel-state]]))
+             [Form FormGroup FormInput FormRadio]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -21,35 +21,35 @@
   "Get the current support subscriptions for user"
   []
   (GET "/api/user-support-subscriptions"
-       {:handler (fn [response]
-                   (reset! (r/cursor state [:user-support-subscriptions])
-                           (:result response)))}))
+    {:handler (fn [response]
+                (reset! (r/cursor state [:user-support-subscriptions])
+                        (:result response)))}))
 
 (defn get-current-support
   "Get the current support level"
   []
   (GET (str "/api/current-support")
-       {:params {:project-id @(subscribe [:active-project-id])}
-        :handler (fn [response]
-                   (let [{:keys [quantity]} (:result response)
-                         current-support-level (r/cursor state [:current-support-level])
-                         support-level (r/cursor state [:support-level "monthly"])
-                         user-support-level (r/cursor state [:user-support-level])]
-                     (reset! current-support-level quantity)
-                     (cond
+    {:params {:project-id @(subscribe [:active-project-id])}
+     :handler (fn [response]
+                (let [{:keys [quantity]} (:result response)
+                      current-support-level (r/cursor state [:current-support-level])
+                      support-level (r/cursor state [:support-level "monthly"])
+                      user-support-level (r/cursor state [:user-support-level])]
+                  (reset! current-support-level quantity)
+                  (cond
                        ;; the support level is at a fixed amount
-                       (in? [500 1000 5000] @current-support-level)
-                       (do (reset! support-level quantity)
-                           (reset! user-support-level (accounting/cents->string 100)))
+                    (in? [500 1000 5000] @current-support-level)
+                    (do (reset! support-level quantity)
+                        (reset! user-support-level (accounting/cents->string 100)))
                        ;; the support level is at variable amount
-                       @current-support-level
-                       (do (reset! support-level :user-defined)
-                           (reset! user-support-level (accounting/cents->string quantity)))
+                    @current-support-level
+                    (do (reset! support-level :user-defined)
+                        (reset! user-support-level (accounting/cents->string quantity)))
                        ;; quantity is nil, but default something for support-level
                        ;; but only if the support-level is currently nil
-                       (and (nil? @current-support-level)
-                            (nil? @support-level))
-                       (reset! support-level 500))))}))
+                    (and (nil? @current-support-level)
+                         (nil? @support-level))
+                    (reset! support-level 500))))}))
 
 (def-action :support/support-plan
   :uri (fn [] "/api/support-project")
@@ -192,62 +192,6 @@
            "Stop Support"]]])
       (when @error-message
         [:div.ui.red.header @error-message])]]))
-
-(defn ^:unused SupportFormOnce [state]
-  (let [support-level (r/cursor state [:support-level "once"])
-        user-defined-support-level (r/cursor state [:user-defined-support-level])
-        error-message (r/cursor state [:error-message "once"])
-        need-card? (r/cursor stripe/state [:need-card?])
-        loading? (r/cursor state [:loading?])
-        frequency "once"
-        project-id (subscribe [:active-project-id])]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        [:div.ui.segment
-         [:h4.ui.dividing.header "Add Funds"]
-         [Form {:on-submit
-                #(let [cents (accounting/string->cents @user-defined-support-level)]
-                   (cond (and (= @support-level :user-defined)
-                              (= cents 0))
-                         (reset! user-defined-support-level "$0.00")
-                         (and (= @support-level :user-defined)
-                              (> cents 0))
-                         (do (reset! loading? true)
-                             (dispatch [:action [:support/support-plan cents frequency]]))
-                         :else
-                         (do (reset! loading? true)
-                             (dispatch
-                              [:action [:support/support-plan @support-level frequency]]))))}
-          [FormGroup
-           [FormInput {:id "paypal-amount"
-                       :value @user-defined-support-level
-                       :on-change (util/on-event-value
-                                   #(reset! user-defined-support-level
-                                            (ensure-prefix % "$")))
-                       :on-click #(reset! support-level :user-defined)}]]
-          [:div.field
-           (when-not @need-card?
-             [:button.ui.primary.button {:class (when @loading? "disabled")}
-              "Continue"])
-           (when @need-card?
-             [:div.ui.primary.button.update-payment
-              {:on-click
-               (wrap-prevent-default
-                #(do (dispatch [:stripe/set-calling-route!
-                                (project-uri @project-id "/compensations")])
-                     (dispatch [:nav "/user/payment"])))}
-              "Update Payment Information"])]
-          (when @error-message
-            [:div.ui.red.header @error-message])]])
-      :get-initial-state
-      (fn [_this]
-        (reset! support-level :user-defined)
-        (reset! user-defined-support-level "$1.00")
-        (reset! loading? false)
-        (reset! need-card? false)
-        (reset! error-message "")
-        {})})))
 
 (defn Support []
   (get-current-support)

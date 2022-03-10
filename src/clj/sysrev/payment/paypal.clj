@@ -1,7 +1,6 @@
 (ns sysrev.payment.paypal
   (:require [clj-http.client :as http]
             [clj-time.coerce :as c]
-            [clj-time.core :as t]
             [clj-time.format :as f]
             [sysrev.config :refer [env]]
             [sysrev.project.funds :as funds]
@@ -88,44 +87,10 @@
               :as :json
               :coerce :always}))
 
-(defn date->paypal-start-date
-  [date]
-  (->> date (f/parse (f/formatters :date)) .toString))
-
-(defn date->paypal-end-date
-  [date]
-  (-> (f/parse (f/formatter :date) date)
-      (t/plus (t/hours 23))
-      (t/plus (t/minutes 59))
-      (t/plus (t/seconds 59))
-      .toString))
-
 (defn paypal-date->unix-epoch
   [paypal-date]
   (-> (f/parse (f/formatter :date-time-no-ms) paypal-date)
       c/to-epoch))
-
-;; this won't show direct deposits
-(defn ^:repl get-transactions
-  "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
-  [& {:keys [start-date end-date]
-      :or {start-date "2018-01-01" end-date "2018-05-11"}}]
-  (http/get (str (paypal-url) "/v1/reporting/transactions")
-            {:content-type :json
-             :headers (default-headers (:access_token @current-access-token))
-             :query-params {"start_date" (date->paypal-start-date start-date)
-                            "end_date" (date->paypal-end-date end-date)}
-             :throw-exceptions false
-             :as :json
-             :coerce :always}))
-
-(defn ^:repl get-transactions-max
-  []
-  (let [today (f/unparse (f/formatter :year-month-day) (t/now))
-        thirty-one-days-ago (-> (t/now) (t/minus (t/days 31))
-                                (->> (f/unparse (f/formatter :year-month-day))))]
-    (get-transactions :start-date thirty-one-days-ago :end-date today)))
-
 
 ;; a payment-response from get-payment
 ;; (def payment-response (-> (get-payment "PAY-7EP79122MX509154MLPZOESQ") (paypal-oauth-request)))

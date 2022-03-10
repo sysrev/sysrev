@@ -145,10 +145,4 @@
                      :study study})))
 
   ;; Daily updates.
-  (doseq [study (get-new-updated-studies)]
-    (prn
-     (import-study! url {:auth-header (str "Bearer " (System/getenv "SYSREV_DEV_KEY"))
-                         :dataset-id "1"
-                         :study study}))))
-
-
+  (import-new-updated-studies!))

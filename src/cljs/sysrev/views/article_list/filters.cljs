@@ -1,21 +1,22 @@
 (ns sysrev.views.article-list.filters
-  (:require ["jquery" :as $]
+  (:require [clojure.set :as set]
             [clojure.string :as str]
-            [clojure.set :as set]
-            [reagent.core :as r]
+            ["jquery" :as $]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
+             [dispatch dispatch-sync reg-event-db
+              reg-event-fx reg-sub subscribe trim-v]]
+            [reagent.core :as r]
             [sysrev.action.core :as action]
+            [sysrev.shared.labels :refer [predictable-label-types]]
+            [sysrev.state.label :refer [project-overall-label-id]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.state.label :refer [project-overall-label-id]]
-            [sysrev.views.components.core :as ui :refer [UiHelpIcon]]
-            [sysrev.views.article-list.base :as al]
-            [sysrev.views.semantic :as S]
-            [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.util :as util :refer
-             [in? map-values css space-join wrap-parens parse-integer parse-number
-              when-test to-uuid]]))
+             [css in? map-values parse-integer parse-number
+              space-join to-uuid when-test wrap-parens]]
+            [sysrev.views.article-list.base :as al]
+            [sysrev.views.components.core :as ui :refer [UiHelpIcon]]
+            [sysrev.views.semantic :as S]))
 
 (reg-sub ::inputs
          (fn [[_ context path]]
@@ -652,7 +653,7 @@
                  [:has-label "Labels" "tags"]
                  [:has-user "User Content" "user"]
                  [:prediction "Prediction" "chart bar"]
-                 #_ [:has-annotation "Annotation" "quote left"]]]
+                 #_[:has-annotation "Annotation" "quote left"]]]
       [:div.ui.small.form.new-filter
        [S/Dropdown {:button true, :fluid true, :floating true
                     :class "primary add-filter"
@@ -707,7 +708,7 @@
                           (util/wrap-user-event
                            #(dispatch-sync [:article-list/load-settings
                                             context (merge preset {:text-search text-search})])))}
-             #_ [:i {:class (str icon-class " icon")}]
+             #_[:i {:class (str icon-class " icon")}]
              text]))
         member? @(subscribe [:self/member?])]
     [:div.ui.segments>div.ui.segment.filter-presets
@@ -761,77 +762,6 @@
                         (al/reload-list context :transition))}
         [:i.arrow.down.icon]]]]]))
 
-(defn ^:unused ResetReloadForm [context]
-  (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
-        any-filters? (not-empty @(subscribe [::filters-input context]))
-        display @(subscribe [::al/display-options (al/cached context)])
-        can-reset? (or any-filters? (not= display (:display al/default-options)))
-        reloading? (= recent-nav-action :refresh)]
-    [:div.ui.small.form>div.sixteen.wide.field>div.ui.grid.reset-reload
-     [:div.thirteen.wide.column
-      [:button.ui.small.fluid.icon.labeled.button
-       {:on-click (when can-reset? #(do (dispatch [::al/reset-all context])
-                                        (al/reload-list context :transition)
-                                        (dispatch [::reset-filters-input context])))
-        :class (css [(not can-reset?) "disabled"])}
-       [:i.times.icon] "Reset All"]]
-     [:div.three.wide.column
-      [:button.ui.small.fluid.icon.button
-       {:class (css [reloading? "loading"])
-        :on-click (util/wrap-user-event #(al/reload-list context :refresh))}
-       [:i.repeat.icon]]]]))
-
-#_
-(defn- ArticleListFiltersRow [context]
-  (let [get-val #(deref (subscribe [::al/get context %]))
-        recent-nav-action (get-val [:recent-nav-action])
-        {:keys [expand-filters] :as display-options} @(subscribe [::al/display-options context])
-        loading? (= recent-nav-action :refresh)
-        view-button (fn [option-key label]
-                      (let [status (get display-options option-key)]
-                        [:button.ui.small.labeled.icon.button
-                         {:on-click (util/wrap-user-event
-                                     #(dispatch [::al/set-display-option
-                                                 context option-key (not status)]))}
-                         [:i {:class (css [status "green" :else "grey"] "circle icon")}]
-                         label]))]
-    [:div.ui.segments.article-filters.article-filters-row
-     [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal>div.row
-      [:div.one.wide.column.medium-weight.filters-header "Filters"]
-      [:div.nine.wide.column.filters-summary
-       [:span #_ (doall (for [filter-idx ...]
-                          [FilterDescribeElement context filter-idx]))]]
-      [:div.six.wide.column.right.aligned.control-buttons
-       [:button.ui.small.icon.button
-        {:class (css [loading? "loading"])
-         :on-click (util/wrap-user-event #(al/reload-list context :refresh))}
-        [:i.repeat.icon]]
-       [:button.ui.small.icon.button
-        {:on-click (util/wrap-user-event #(do (dispatch [::al/reset-all context])
-                                              (al/reload-list context :transition)))}
-        [:i.times.icon]]]]
-     [:div.ui.secondary.segment.no-padding
-      [:button.ui.tiny.fluid.icon.button
-       {:style (cond-> {:border-top-left-radius "0"
-                        :border-top-right-radius "0"}
-                 expand-filters (merge {:border-bottom-left-radius "0"
-                                        :border-bottom-right-radius "0"}))
-        :on-click (util/wrap-user-event
-                   #(dispatch [::al/set-display-option
-                               context :expand-filters (not expand-filters)]))}
-       [:i {:class (css "chevron" [expand-filters "up" :else "down"] "icon")}]]]
-     (when expand-filters
-       [:div.ui.secondary.segment.filters-content>div.ui.small.form>div.field>div.fields
-        [:div.four.wide.field
-         [:label "Text search"]
-         [TextSearchInput context]]
-        [:div.six.wide.field
-         [:label "View Options"]
-         [view-button :show-inclusion "Inclusion"]
-         [view-button :show-labels "Labels"]
-         [view-button :show-notes "Notes"]]
-        [:div.six.wide.field]])]))
-
 (defn- FilterColumnCollapsed [context]
   [:div.ui.segments.article-filters.article-filters-column.collapsed
    {:on-click (util/wrap-user-event
@@ -839,8 +769,6 @@
    [:div.ui.center.aligned.header.segment "Filters"]
    [:div.ui.one.column.center.aligned.grid.segment.expand-filters
     [:div.column>i.fitted.angle.double.right.icon]]])
-
-
 
 (def export-type-default-filters
   {:group-answers    [{:has-label {:confirmed true}}
@@ -918,8 +846,8 @@
        [:div.ui.secondary.segment.expanded>div.ui.small.form.export-type
         (doall (map-indexed (fn [i x] (when x ^{:key i} [x]))
                             (ExportSettingsFields
-                              context export-type file-format
-                              (:separator options))))
+                             context export-type file-format
+                             (:separator options))))
         [:div.field>div.fields.export-actions
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button
@@ -994,7 +922,7 @@
                                     ^{:key [:filter-editor filter-idx]}
                                     [FilterEditElement context filter-idx]))
                                 input-filters)))
-          #_ [ResetReloadForm context]]]]]
+          #_[ResetReloadForm context]]]]]
       [SortOptionsForm context]
       [:div.ui.segment.reset-all
        [:button.ui.small.fluid.right.labeled.icon.button

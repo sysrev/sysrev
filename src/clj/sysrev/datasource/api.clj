@@ -11,14 +11,8 @@
              :as
              util
              :refer
-             [assert-pred
-              gquery
-              index-by
-              map-keys
-              opt-keys
-              parse-integer
-              req-un
-              url-join]]
+             [assert-pred gquery index-by map-keys opt-keys
+              parse-integer req-un url-join]]
             [venia.core :as venia])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
@@ -95,9 +89,9 @@
 (defn-spec fetch-pubmed-articles (s/map-of int? map?)
   "Queries datasource API to return article data for sequence `pmids`,
    returning a map of pmid -> article."
-  [pmids ::pmids, & {:keys [fields]} (opt-keys ::fields) ]
+  [pmids ::pmids, & {:keys [fields]} (opt-keys ::fields)]
   (let [pmids (mapv parse-integer pmids)]
-    #_ (log/infof "fetching %d pubmed articles" (count pmids))
+    #_(log/infof "fetching %d pubmed articles" (count pmids))
     (->> (query-api {:name :pubmedEntities
                      :args {:pmids pmids}
                      :fields (concat [:id :pmid] (or fields (all-pubmed-fields)))})
@@ -289,12 +283,3 @@
      :venia/queries [[:updateAccount {:apiKey api-key
                                       :email email}
                       [:email :apiKey :enabled]]]})))
-
-;; note: only for testing purposes
-;; ONLY DISABLE ACCOUNT, NEVER DELETE THEM
-(defn delete-account! [{:keys [email]}]
-  (graphql-query
-   (venia/graphql-query
-    {:venia/operation {:operation/type :mutation
-                       :operation/name "M"}
-     :venia/queries [[:deleteAccount {:email email}]]})))

@@ -2,10 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
-            [sysrev.label.answer :as answer]
-            [sysrev.shared.labels :refer [sort-project-labels]]
-            [sysrev.util :refer [index-by]]))
+            [sysrev.label.answer :as answer]))
 
 ;;;
 ;;; article_resolve migration
@@ -62,21 +59,3 @@
   (db/with-transaction
     (doseq [project-id (projects-with-resolve)]
       (migrate-project-article-resolve project-id))))
-
-(defn ^:migrate migrate-labels-project-ordering
-  "Set label.project_ordering values to match legacy label ordering logic.
-  Should only be run manually one time to avoid reverting new and
-  reordered labels."
-  []
-  (doseq [project-id (project/project-ids-where-labels-defined)]
-    (db/with-clear-project-cache project-id
-      (let [labels (q/find :label {:project-id project-id})
-            labels-enabled (filter :enabled labels)
-            enabled-ids-sorted (sort-project-labels (index-by :label-id labels-enabled))
-            disabled-ids (mapv :label-id (remove :enabled labels))]
-        (log/infof "migrating label ordering for project #%d (%d+%d labels)"
-                   project-id (count enabled-ids-sorted) (count disabled-ids))
-        (doseq [[i label-id] (map-indexed vector enabled-ids-sorted)]
-          (q/modify :label {:label-id label-id} {:project-ordering i}))
-        (when (seq disabled-ids)
-          (q/modify :label {:label-id disabled-ids} {:project-ordering nil}))))))

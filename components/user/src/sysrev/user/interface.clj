@@ -42,9 +42,6 @@
 (defn delete-user [user-id]
   (user/delete-user user-id))
 
-(defn delete-user-by-email [email]
-  (user/delete-user-by-email email))
-
 (defn dev-user? [user-id]
   (user/dev-user? user-id))
 

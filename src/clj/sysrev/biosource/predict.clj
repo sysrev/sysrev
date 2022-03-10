@@ -1,19 +1,19 @@
 (ns sysrev.biosource.predict
   (:require [clj-http.client :as http]
             [clojure.data.json :as json]
-            [clojure.tools.logging :as log]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [sysrev.biosource.core :refer [api-host]]
+            [sysrev.config :as config :refer [env]]
+            [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
             [sysrev.label.core :as label]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
-            [sysrev.config :as config :refer [env]]
-            [sysrev.biosource.core :refer [api-host]]
-            [sysrev.datasource.api :as ds-api]
+            [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [predictable-label-types]]
-            [sysrev.util :as util :refer [in? map-values map-kv uuid-from-string]]))
+            [sysrev.util :as util :refer [in? map-kv map-values uuid-from-string]]))
 
 (defonce predict-api (agent nil))
 
@@ -43,7 +43,7 @@
        (map-values (fn [{:keys [primary-title secondary-title abstract keywords]}]
                      (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
                           (remove empty?)
-                          (str/join " \n " ))))))
+                          (str/join " \n "))))))
 
 (defn- predict-model-request-body [project-id]
   (db/with-transaction
@@ -61,28 +61,28 @@
           articles (->> article-ids
                         (map (fn [article-id]
                                (let [tags (mapcat
-                                            (fn [{:keys [global-label-id label-id value-type]}]
-                                              (let [answer (get-in answers [label-id article-id])]
-                                                (when (some? answer)
-                                                  (let [values (case value-type
-                                                                 "categorical" answer
-                                                                 "annotation" [] #_(mapv (fn [annotation-answer]
-                                                                                      {"start-offset" (get-in annotation-answer [:context :start-offset])
-                                                                                       "client-field" (get-in annotation-answer [:context :client-field])
-                                                                                       "end-offset" (get-in annotation-answer [:context :start-offset])
-                                                                                       "value" (:value annotation-answer)
-                                                                                       "semantic-class" (:semantic-class annotation-answer)})
-                                                                                    (vals answer))
-                                                                 "boolean" [(if answer "TRUE" "FALSE")]
-                                                                 [])]
-                                                    (map #(assoc {}
-                                                                 "label_id" (if global-label-id
-                                                                              (str global-label-id)
-                                                                              label-id)
-                                                                 "label_type" value-type
-                                                                 "value" %)
-                                                         values)))))
-                                            labels)]
+                                           (fn [{:keys [global-label-id label-id value-type]}]
+                                             (let [answer (get-in answers [label-id article-id])]
+                                               (when (some? answer)
+                                                 (let [values (case value-type
+                                                                "categorical" answer
+                                                                "annotation" [] #_(mapv (fn [annotation-answer]
+                                                                                          {"start-offset" (get-in annotation-answer [:context :start-offset])
+                                                                                           "client-field" (get-in annotation-answer [:context :client-field])
+                                                                                           "end-offset" (get-in annotation-answer [:context :start-offset])
+                                                                                           "value" (:value annotation-answer)
+                                                                                           "semantic-class" (:semantic-class annotation-answer)})
+                                                                                        (vals answer))
+                                                                "boolean" [(if answer "TRUE" "FALSE")]
+                                                                [])]
+                                                   (map #(assoc {}
+                                                                "label_id" (if global-label-id
+                                                                             (str global-label-id)
+                                                                             label-id)
+                                                                "label_type" value-type
+                                                                "value" %)
+                                                        values)))))
+                                           labels)]
                                  {"text" (texts article-id)
                                   "tags" tags}))))]
 
@@ -145,33 +145,17 @@
       (binding [db/*conn* nil]
         (update-project-predictions project-id)))))
 
-(defn ^:repl force-predict-update-all-projects []
-  (let [project-ids (project/all-project-ids)]
-    (log/info "Updating predictions for projects:"
-              (pr-str project-ids))
-    (doseq [project-id project-ids]
-      (log/info "Loading for project #" project-id "...")
-      (let [predict-run-id (update-project-predictions project-id)]
-        (if (nil? predict-run-id)
-          (log/info "... no predictions loaded")
-          (let [meta (report/predict-summary predict-run-id)]
-            (if (empty? meta)
-              (log/info "... predict results not found (?)")
-              (log/info "... success:" meta))))))
-    (log/info "Finished updating predictions for"
-              (count project-ids) "projects")))
-
 (defn project-prediction-histogram [project-id buckets]
   (let [predict-run-id (q/project-latest-predict-run-id (int project-id))
-    raw-predictions (->
-      (format
-        (str "SELECT l.label_id,l.name,l.short_label,al.answer, label_value, width_bucket(val,0,1,%s) as bucket, count(*)
+        raw-predictions (->
+                         (format
+                          (str "SELECT l.label_id,l.name,l.short_label,al.answer, label_value, width_bucket(val,0,1,%s) as bucket, count(*)
                       FROM label_predicts lp
                       inner join label l on lp.label_id = l.label_id
                       left join (SELECT * FROM article_label WHERE answer <> 'null') as al on al.article_id = lp.article_id and al.label_id = lp.label_id
                       WHERE project_id = %s and predict_run_id = %s
                       group by bucket, l.label_id, l.short_label, lp.label_value, al.answer;")
-        buckets (int project-id) predict-run-id)
-      db/raw-query)]
+                          buckets (int project-id) predict-run-id)
+                         db/raw-query)]
     (mapv (fn [raw-pred]
             (merge raw-pred {:bucket (util/round 3 (/ (:bucket raw-pred) buckets))})) raw-predictions)))

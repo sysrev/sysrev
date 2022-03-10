@@ -1,25 +1,26 @@
 (ns sysrev.pdf
   (:require ["jquery" :as $]
+            [re-frame.core :refer
+             [dispatch reg-event-db reg-sub subscribe
+              trim-v]]
             ["react-pdf" :refer [Document Page] :as react-pdf]
             [reagent.core :as r]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.state.ui :as ui-state]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.macros :refer-macros [with-loader]]
             [sysrev.state.article :as article]
+            [sysrev.state.ui :as ui-state]
+            [sysrev.util :as util :refer [css wrap-user-event]]
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
-            [sysrev.views.semantic :refer [Checkbox]]
-            [sysrev.util :as util :refer [wrap-user-event parse-integer css]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.views.semantic :refer [Checkbox]]))
 
 ;;; `npm install react-pdf` will install the version of pdfjs-dist that it requires
 ;;; - check in node_modules/pdfjs-dist/package.json to set this
-#_ (let [pdfjs-dist-version "2.5.207"]
-     (set! pdfjs/GlobalWorkerOptions.workerSrc
-           (util/format "https://unpkg.com/pdfjs-dist@%s/build/pdf.worker.min.js"
-                        pdfjs-dist-version)))
+#_(let [pdfjs-dist-version "2.5.207"]
+    (set! pdfjs/GlobalWorkerOptions.workerSrc
+          (util/format "https://unpkg.com/pdfjs-dist@%s/build/pdf.worker.min.js"
+                       pdfjs-dist-version)))
 
 ;;; this should exist in resources/public/js/
 (set! react-pdf/pdfjs.GlobalWorkerOptions.workerSrc
@@ -32,30 +33,12 @@
   [pdf-url]
   (boolean (re-matches #"/api/open-access/(\d+)/view/.*" pdf-url)))
 
-(defn pdf-url->article-id
-  "Given a pdf-url, return the article-id"
-  [pdf-url]
-  (parse-integer
-   (if (pdf-url-open-access? pdf-url)
-     (second (re-find #"/api/open-access/(\d+)/view" pdf-url))
-     (second (re-find #"/api/files/.*/article/(\d+)/view" pdf-url)))))
-
 (defn pdf-url->key
   "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
   [pdf-url]
   (if (pdf-url-open-access? pdf-url)
     (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
     (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
-
-(defn ^:unused get-ann-context
-  "This function is left over from PDF annotation functionality which was removed
-  when the PDF render library was replaced."
-  [pdf-url & [project-id]]
-  (when pdf-url
-    {:class "pdf"
-     :project-id (or project-id @(subscribe [:active-project-id]))
-     :article-id (pdf-url->article-id pdf-url)
-     :pdf-key (pdf-url->key pdf-url)}))
 
 (reg-sub ::pdf-cache
          (fn [db [_ url]]
@@ -179,12 +162,12 @@
                             (remove :open-access?)))]
     [:div
      (doall (map-indexed
-                  (fn [i file-map] ^{:key i}
-                    [:div.field>div.fields>div
-                     [ArticlePdfEntryS3 {:article-id article-id
-                                         :key (:key file-map)
-                                         :filename (:filename file-map)}]])
-                  pdfs))]))
+             (fn [i file-map] ^{:key i}
+               [:div.field>div.fields>div
+                [ArticlePdfEntryS3 {:article-id article-id
+                                    :key (:key file-map)
+                                    :filename (:filename file-map)}]])
+             pdfs))]))
 
 (defn ArticlePdfListFull [article-id]
   (when article-id
@@ -193,7 +176,7 @@
                     [:pdf/article-pdfs project-id article-id]] {}
         (let [project-id @(subscribe [:active-project-id])
               full-size? (util/full-size?)
-              #_ loading? #_ #(loading/any-loading? :only :pdf/open-access-available?)
+              #_loading? #_#(loading/any-loading? :only :pdf/open-access-available?)
               upload-form (fn []
                             [:div.field>div.fields
                              [UploadButton
@@ -258,13 +241,13 @@
                                                      (reset! page-number-preload nil))
                                                 25))
                    :show-message? false}]]
-                #_ [Pagination
-                    (merge {:style (merge {:float "right"} (:style props))
-                            :total-pages @num-pages
-                            :active-page @page-number
-                            :on-page-change (fn [_ data]
-                                              (reset! page-number (.-activePage data)))}
-                           (dissoc props :style))]))
+                #_[Pagination
+                   (merge {:style (merge {:float "right"} (:style props))
+                           :total-pages @num-pages
+                           :active-page @page-number
+                           :on-page-change (fn [_ data]
+                                             (reset! page-number (.-activePage data)))}
+                          (dissoc props :style))]))
             (single-page-checkbox [& [props]]
               [Checkbox {:label "Single Page" :as "h4" :toggle true
                          :style (merge {} (:style props))
@@ -278,7 +261,7 @@
        [:div.pdf-page
         (if @checked?
           (doall (for [i (range 1 (inc @num-pages))] ^{:key (str "page-" i)}
-                   [RPage {:pageNumber i :width @width}]))
+                      [RPage {:pageNumber i :width @width}]))
           (let [n @page-number
                 total @num-pages]
             (when (and (integer? n) (integer? total))
@@ -287,10 +270,10 @@
                                   (filter integer?)
                                   distinct)]
                        (when (<= 1 i total) ^{:key (str "page-" i)}
-                         [:div {:class (css [(not= i n) "no-display"])
-                                :style {:margin-top "0"
-                                        :margin-bottom "1em"}}
-                          [RPage {:pageNumber i :width @width}]]))))))]
+                             [:div {:class (css [(not= i n) "no-display"])
+                                    :style {:margin-top "0"
+                                            :margin-bottom "1em"}}
+                              [RPage {:pageNumber i :width @width}]]))))))]
        [:div.pdf-bottom-toolbar
         [single-page-checkbox {:style {:margin-top "0.75rem"}}]
         [pager]]

@@ -8,6 +8,7 @@
   (:import
    (java.io Reader Writer)))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn read
   "Returns a single item of JSON data from a java.io.Reader. `opts` are
   the same as the options to `insilica.data.json/read`.
@@ -24,6 +25,7 @@
   [^String s & {:as opts}]
   (core/read-str s opts))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn write
   "Write JSON-formatted output to a `java.io.Writer`. `opts` are
    the same as the options to `insilica.data.json/write`."

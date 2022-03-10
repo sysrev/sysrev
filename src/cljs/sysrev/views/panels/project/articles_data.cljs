@@ -1,9 +1,9 @@
 (ns sysrev.views.panels.project.articles-data
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
-            [sysrev.views.article-list.base :as al]
-            [sysrev.views.article-list.core :refer [ArticleListPanel]]
+  (:require [re-frame.core :refer [dispatch reg-sub subscribe]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.views.article-list.base :as al]
+            [sysrev.views.article-list.core :refer [ArticleListPanel]]))
 
 ;; for clj-kondo
 (declare panel)

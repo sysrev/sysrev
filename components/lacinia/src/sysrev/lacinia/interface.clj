@@ -14,6 +14,7 @@
   [context]
   (core/current-selection-names context))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn denamespace-keys
   "Removes namespaces from keywords and symbols in the map(s).
 

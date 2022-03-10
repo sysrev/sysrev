@@ -2,6 +2,7 @@
   (:require [sysrev.fda-drugs.core :as core])
   (:import (java.nio.file Path)))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn applications
   "Takes the data returned by parse-data and returns a map of
   {ApplNo application-map} with data from other files (ApplicationDocs,
@@ -21,6 +22,7 @@
   [^Path path]
   (core/parse-applications path))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn parse-data
   "Parses a zip file containing the FDA@Drugs data and returns a map. The
   contents of the file are described at

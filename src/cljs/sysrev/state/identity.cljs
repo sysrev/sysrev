@@ -1,9 +1,9 @@
 (ns sysrev.state.identity
-  (:require [re-frame.core :refer [reg-sub reg-event-db trim-v]]
-            [sysrev.state.core :refer [store-user-map]]
-            [sysrev.data.core :refer [def-data]]
+  (:require [re-frame.core :refer [reg-event-db reg-sub trim-v]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :as util :refer [in? to-uuid dissoc-in]]))
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.state.core :refer [store-user-map]]
+            [sysrev.util :as util :refer [dissoc-in in? to-uuid]]))
 
 (defn have-identity? [db]
   (contains? (:state db) :identity))
@@ -28,14 +28,14 @@
                            (apply concat)
                            (apply hash-map))]
       (cond->
-          {:db (cond-> (-> db
-                           (assoc-in [:state :identity] identity)
-                           (assoc-in [:state :self :projects] projects)
-                           (assoc-in [:state :self :orgs] orgs))
-                 have-user? (store-user-map identity))
-           :dispatch-n (list [:load-project-url-ids url-ids-map]
-                         (when have-user?
-                           [:require [:notifications/new (:user-id identity)]]))}
+       {:db (cond-> (-> db
+                        (assoc-in [:state :identity] identity)
+                        (assoc-in [:state :self :projects] projects)
+                        (assoc-in [:state :self :orgs] orgs))
+              have-user? (store-user-map identity))
+        :dispatch-n (list [:load-project-url-ids url-ids-map]
+                          (when have-user?
+                            [:require [:notifications/new (:user-id identity)]]))}
         theme-changed? (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in
@@ -92,12 +92,6 @@
          some?)
 
 (reg-sub ::self-state #(get-in % [:state :self]))
-
-(defn get-self-projects [db & {:keys [include-available?]}]
-  (let [{:keys [projects]} (get-in db [:state :self])]
-    (if include-available?
-      projects
-      (->> projects (filterv :member?)))))
 
 (reg-sub :self/projects
          :<- [::self-state]

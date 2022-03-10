@@ -38,6 +38,7 @@
 (j/defjob LivingDataSourcesJob [ctx]
   (check-new-articles :config (get (qc/from-job-data ctx) "config")))
 
+#_:clj-kondo/ignore
 (defn schedule-living-data-sources [{:keys [config quartz-scheduler]}]
   (let [job (j/build
               (j/of-type LivingDataSourcesJob)

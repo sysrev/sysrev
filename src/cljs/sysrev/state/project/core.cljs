@@ -1,10 +1,8 @@
 (ns sysrev.state.project.core
   (:require [medley.core :as medley :refer [find-first]]
-            [re-frame.core :refer [subscribe reg-sub]]
+            [re-frame.core :refer [reg-sub subscribe]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :as nav]
-            [sysrev.state.project.base :refer [get-project-raw]]
-            [sysrev.state.identity :refer [get-self-projects]]
             [sysrev.util :refer [short-uuid]]))
 
 (reg-sub :project/name
@@ -34,12 +32,7 @@
                       (filter #(= (:project-id %) project-id))
                       first :url-ids first)]
     (or project-url self-url)))
-;;
-(defn ^:unused project-active-url-id [db project-id]
-  (let [project (get-project-raw db project-id)
-        self-projects (get-self-projects db :include-available? true)]
-    (project-active-url-id-impl project-id project self-projects)))
-;;
+
 (reg-sub :project/active-url-id
          (fn [[_ project-id]]
            [(subscribe [:project/raw project-id])

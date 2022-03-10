@@ -31,6 +31,7 @@
   [driver q & more-qs]
   (apply core/clear-visible driver q more-qs))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn click
   "Clicks on an element.
 
@@ -90,6 +91,7 @@
   [driver q & [opt msg]]
   `(core/is-click-visible ~driver ~q ~opt ~msg))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defmacro is-exists?
   "Asserts that `etaoin.api/exists?` returns true."
   [driver q & [msg]]
@@ -107,6 +109,7 @@
   [driver q & [msg]]
   `(core/is-not-exists? ~driver ~q ~msg))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defmacro is-not-pred
   "Asserts that pred, when called with driver as the first argument, returns
   false. Catches etaoin timeout exceptions and causes a test pass instead.
@@ -123,6 +126,7 @@
   [driver q & [msg]]
   `(core/is-not-visible? ~driver ~q ~msg))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defmacro is-pred
   "Asserts that pred, when called with driver as the first argument, returns
   true.
@@ -136,6 +140,7 @@
   [driver msg pred & args]
   `(core/is-pred ~driver ~msg ~pred ~@args))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defmacro is-visible?
   "Asserts that `etaoin.api/visible?` returns true."
   [driver q & [msg]]

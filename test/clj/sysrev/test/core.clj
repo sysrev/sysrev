@@ -1,30 +1,29 @@
 (ns sysrev.test.core
-  (:require
-   [clj-time.core :as time]
-   [clojure.data.json :as json]
-   [clojure.string :as str]
-   [clojure.tools.logging :as log]
-   [com.stuartsierra.component :as component]
-   [kaocha.repl :as kr]
-   [kaocha.testable :as kt]
-   [kaocha.watch :as kw]
-   [medley.core :as medley]
-   [next.jdbc :as jdbc]
-   [orchestra.spec.test :as st]
-   [ring.mock.request :as mock]
-   [sysrev.config :refer [env]]
-   [sysrev.datasource.api :refer [ds-auth-key]]
-   [sysrev.db.core :as db]
-   [sysrev.db.migration :as migration]
-   [sysrev.file-util.interface :as file-util]
-   [sysrev.junit.interface :as junit]
-   [sysrev.main :as main]
-   [sysrev.payment.plans :as plans]
-   [sysrev.postgres.interface :as pg]
-   [sysrev.test.fixtures :as test-fixtures]
-   [sysrev.user.interface :as user]
-   [sysrev.util :as util :refer [in? shell]]
-   [sysrev.web.core :as web]))
+  (:require [clj-time.core :as time]
+            [clojure.data.json :as json]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [com.stuartsierra.component :as component]
+            [kaocha.repl :as kr]
+            [kaocha.testable :as kt]
+            [kaocha.watch :as kw]
+            [medley.core :as medley]
+            [next.jdbc :as jdbc]
+            [orchestra.spec.test :as st]
+            [ring.mock.request :as mock]
+            [sysrev.config :refer [env]]
+            [sysrev.datasource.api :refer [ds-auth-key]]
+            [sysrev.db.core :as db]
+            [sysrev.db.migration :as migration]
+            [sysrev.file-util.interface :as file-util]
+            [sysrev.junit.interface :as junit]
+            [sysrev.main :as main]
+            [sysrev.payment.plans :as plans]
+            [sysrev.postgres.interface :as pg]
+            [sysrev.test.fixtures :as test-fixtures]
+            [sysrev.user.interface :as user]
+            [sysrev.util :as util]
+            [sysrev.web.core :as web]))
 
 (def test-dbname "sysrev_auto_test")
 
@@ -44,18 +43,8 @@
   (-> system :postgres :datasource
       (pg/execute-one! sqlmap)))
 
-(defn plan [system sqlmap]
-  (-> system :postgres :datasource
-      (pg/plan sqlmap)))
-
 (defn sysrev-handler [system]
   (web/sysrev-handler (:web-server system)))
-
-(defn cpu-count []
-  (.availableProcessors (Runtime/getRuntime)))
-
-(defn get-default-threads []
-  (max 4 (quot (cpu-count) 2)))
 
 (defn get-selenium-config [system]
   (let [{:keys [test-remote]} (:config system)
@@ -67,25 +56,6 @@
            :port (-> system :web-server :bound-port)})]
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/"))))
-
-(defn full-tests? []
-  (let [{:keys [sysrev-full-tests profile]} env]
-    (boolean
-     (or (= profile :dev)
-         (not (in? [nil "" "0" 0] sysrev-full-tests))))))
-
-(defn test-profile? []
-  (in? [:test :remote-test] (-> env :profile)))
-
-(defn test-db-shell-args [& [postgres-overrides]]
-  (let [{:keys [dbname user host port]}
-        (merge (:postgres env) postgres-overrides)]
-    ["-h" (str host) "-p" (str port) "-U" (str user) (str dbname)]))
-
-(defn db-shell [cmd & [extra-args postgres-overrides]]
-  (let [args (concat [cmd] (test-db-shell-args postgres-overrides) extra-args)]
-    (log/info "db-shell:" (->> args (str/join " ") pr-str))
-    (apply shell args)))
 
 (defn start-test-system! []
   (let [system
@@ -320,6 +290,7 @@
 (defn create-target-dir! []
   (file-util/create-directories! (file-util/get-path "target")))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn run-tests-cli! [& [{:keys [extra-config]}]]
   (find-invalid-tests-cli! extra-config)
   (create-target-dir!)

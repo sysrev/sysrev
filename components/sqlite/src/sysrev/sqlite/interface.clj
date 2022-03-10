@@ -13,6 +13,7 @@
   [connectable sqlmap]
   (core/execute-one! connectable sqlmap))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn plan
   "Returns the result of `next.jdbc/plan` on the connectable and
   the result of (`honey.sql/format` sqlmap)."

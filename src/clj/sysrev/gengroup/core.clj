@@ -1,14 +1,11 @@
 (ns sysrev.gengroup.core
-  (:require [sysrev.db.core :as db :refer [with-transaction clear-project-cache]]
+  (:require [sysrev.db.core :as db :refer [clear-project-cache with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.util :as util]))
 
 (defn create-gengroup! [gengroup-name gengroup-description]
   (q/create :gengroup {:name gengroup-name :description gengroup-description}
             :returning :gengroup-id))
-
-(defn read-gengroup [gengroup-id]
-  (q/find-one :gengroup {:gengroup-id gengroup-id}))
 
 (defn update-gengroup! [gengroup-id gengroup-name gengroup-description]
   (q/modify :gengroup {:gengroup-id gengroup-id}
@@ -32,7 +29,7 @@
 
 (defn delete-project-member-gengroup! [project-id gengroup-id]
   (with-transaction
-    (q/delete :project-member-gengroup {:project-id project-id :gengroup-id gengroup-id}) 
+    (q/delete :project-member-gengroup {:project-id project-id :gengroup-id gengroup-id})
     (delete-gengroup! gengroup-id)
     (clear-project-cache project-id)))
 

@@ -1,29 +1,15 @@
 (ns sysrev.formats.pubmed
-  (:require [clojure.string :as str]
+  (:require [clj-http.client :as http]
             [clojure.data.json :as json]
-            [clj-http.client :as http]
+            [clojure.string :as str]
             [hickory.core :as hickory]
             [hickory.select :as hs]
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
             [sysrev.config :as config]
-            [sysrev.util :as util :refer [parse-integer xml-find]]))
+            [sysrev.util :as util :refer [parse-integer]]))
 
 (def e-util-api-key (:e-util-api-key config/env))
-
-(defn ^:unused extract-article-location-entries
-  "Extracts entries for article_location from parsed PubMed API XML article."
-  [pxml]
-  (distinct
-   (concat
-    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
-         (map (fn [{_tag :tag, {source :EIdType} :attrs, content :content}]
-                (map #(hash-map :source source, :external-id %) content)))
-         (apply concat))
-    (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
-         (map (fn [{_tag :tag, {source :IdType} :attrs, content :content}]
-                (map #(hash-map :source source, :external-id %) content)))
-         (apply concat)))))
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query

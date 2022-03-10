@@ -305,6 +305,7 @@
      (assoc opts :sqlite (init-db! "fda-drugs.db"))
      docs)))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (comment
   (do
     (def apps (get-applications!))

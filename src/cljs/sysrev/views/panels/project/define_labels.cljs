@@ -1,25 +1,24 @@
 (ns sysrev.views.panels.project.define-labels
-  (:require [clojure.string :as str]
-            [clojure.walk :as walk]
-            [medley.core :refer [find-first]]
-            [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch-sync dispatch reg-event-db reg-sub trim-v]]
-            [re-frame.db :refer [app-db]]
+  (:require ["@insilica-org/material-table" :refer [default] :rename {default MaterialTable}]
             ["@material-ui/core" :as mui]
-            ["@insilica-org/material-table" :refer [default] :rename {default MaterialTable}]
+            [clojure.string :as str]
+            [clojure.walk :as walk]
+            [re-frame.core :refer [dispatch dispatch-sync reg-event-db reg-sub
+                                   subscribe trim-v]]
+            [re-frame.db :refer [app-db]]
+            [reagent.core :as r]
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data]
-            [sysrev.state.nav :refer [project-uri active-project-id]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.shared.plans-info :as plans-info]
+            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.util :as util :refer [css in? map-values parse-integer]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.review :refer [label-help-popup]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :as S :refer [Divider Button Message Segment
-                                           Modal ModalHeader ModalContent ModalDescription Form
-                                           FormField TextArea]]
-            [sysrev.util :as util :refer [in? parse-integer map-values map-kv css]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.views.semantic :as S :refer [Button Divider Form FormField Modal
+                                                 ModalContent ModalDescription
+                                                 ModalHeader Segment TextArea]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the
@@ -34,7 +33,7 @@
 (declare panel state)
 
 (setup-panel-state panel [:project :project :labels :edit] :state state
-                   :get [panel-get ::get] 
+                   :get [panel-get ::get]
                    :set [panel-set ::set])
 
 (reg-sub      ::error-message #(panel-get % :error-message))
@@ -49,7 +48,7 @@
            [(subscribe [::get :labels]) (subscribe [::get :editing-label-id]) (subscribe [::get :editing-root-label-id])])
          (fn [[labels-aux editing-label-id editing-root-label-id]]
            (let [labels (if editing-root-label-id
-                          (-> (find-label editing-root-label-id (vals labels-aux)) :labels vals)  
+                          (-> (find-label editing-root-label-id (vals labels-aux)) :labels vals)
                           (vals labels-aux))]
              (find-label editing-label-id labels))))
 
@@ -125,45 +124,6 @@
     "string"       []
     "categorical"  []
     nil))
-
-(defn move-label-to
-  "Reorder labels, moving `src-label-id` to the current position of
-  `dest-label-id` and shifting others as needed."
-  [src-label-id dest-label-id]
-  (when (not= (str src-label-id) (str dest-label-id))
-    (let [labels (get-local-labels)
-          src-label (or (get labels src-label-id)
-                        (get labels (uuid src-label-id)))
-          dest-label (or (get labels dest-label-id)
-                         (get labels (uuid dest-label-id)))
-          src-pos (:project-ordering src-label)
-          dest-pos (:project-ordering dest-label)]
-      (when-not (or (= (:name dest-label) "overall include")
-                    (= (:name src-label) "overall include"))
-        (->> (reset! (r/cursor state [:labels])
-                     (map-kv (fn [label-id label]
-                               (let [this-pos (:project-ordering label)]
-                                 [label-id
-                                  (cond
-                                    ;; update src-label, set ordering from dest-label
-                                    (= (str label-id) (str src-label-id))
-                                    (assoc label :project-ordering dest-pos)
-                                    ;; moving src-label closer to start;
-                                    ;; increment values between src and dest to make room
-                                    (and (< dest-pos src-pos)
-                                         (>= this-pos dest-pos)
-                                         (< this-pos src-pos))
-                                    (update label :project-ordering inc)
-                                    ;; moving src-label closer to end;
-                                    ;; decrement values between src and dest to make room
-                                    (and (> dest-pos src-pos)
-                                         (<= this-pos dest-pos)
-                                         (> this-pos src-pos))
-                                    (update label :project-ordering dec)
-                                    ;; leave other labels unchanged
-                                    :else label)]))
-                             labels))
-             (map-values #(select-keys % [:project-ordering :short-label])))))))
 
 (defn create-blank-group-label [value-type label-id]
   {:definition {:multi? true}
@@ -296,9 +256,9 @@
       [:button.ui.small.fluid.labeled.icon.button.secondary
        {:type "button"
         :on-click (util/wrap-user-event
-                    #(dispatch [:action [:labels/detach project-id
+                   #(dispatch [:action [:labels/detach project-id
                                         {:label-id label-id}]])
-                    :prevent-default true)}
+                   :prevent-default true)}
        [:i {:class (css "unlink" "icon")}]
        "Detach Label"])))
 
@@ -370,23 +330,6 @@
                     :primary true}
             "Copy"])]]])))
 
-(defn EditLabelButton
-  "label is a cursor into the state representing the label"
-  [label allow-edit?]
-  (let [{:keys [editing? label-id short-label]} @label
-        synced? (labels-synced?)]
-    [:div.ui.small.icon.button.edit-label-button
-     {:class (css [(not allow-edit?) "disabled"])
-      :style {:margin-left 0 :margin-right 0}
-      :data-label-id (str label-id)
-      :data-short-label short-label
-      :on-click (util/wrap-user-event #(do (when editing? (sync-to-server))
-                                           (swap! (r/cursor label [:editing?]) not)))}
-     [:i {:class (css [(not editing?) "edit"
-                       (not synced?)  "green circle check"
-                       :else          "circle check"]
-                      "icon")}]]))
-
 (defn- AddLabelButton [value-type add-label-fn & [max-ordering]]
   [:button.ui.fluid.large.labeled.icon.button
    {:on-click  (fn [e]
@@ -420,22 +363,22 @@
                                      :opts {:error true}}]]}))
 
 (def-action :labels/detach
-            :uri (fn [] "/api/detach-label")
-            :content (fn [project-id {:keys [label-id]}] {:project-id project-id
-                                                          :label-id label-id})
-            :process (fn [_ [_] {:keys [success labels message]}]
-                       (if success
-                         (do
-                           (set-app-db-labels! labels)
-                           (set-local-labels! labels)
-                           {:dispatch-n [[:alert {:content "Label detached successfully!"
-                                                  :opts {:success true}}]]})
-                         {:dispatch-n [[:alert {:content message
-                                                :opts {:error true}}]]}))
-            :on-error (fn [{:keys [db error]} _ _]
-                        {:dispatch-n [[:alert {:content (str "There was an error detaching this label, "
-                                                             "please try again later.")
-                                               :opts {:error true}}]]}))
+  :uri (fn [] "/api/detach-label")
+  :content (fn [project-id {:keys [label-id]}] {:project-id project-id
+                                                :label-id label-id})
+  :process (fn [_ [_] {:keys [success labels message]}]
+             (if success
+               (do
+                 (set-app-db-labels! labels)
+                 (set-local-labels! labels)
+                 {:dispatch-n [[:alert {:content "Label detached successfully!"
+                                        :opts {:success true}}]]})
+               {:dispatch-n [[:alert {:content message
+                                      :opts {:error true}}]]}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:dispatch-n [[:alert {:content (str "There was an error detaching this label, "
+                                                   "please try again later.")
+                                     :opts {:error true}}]]}))
 
 (defn- ImportLabelButton []
   (let [modal-state-path [:import-label-modal]
@@ -444,14 +387,14 @@
         share-code (r/atom "")]
     (fn []
       [Modal {:trigger (r/as-element
-                         [:button.ui.fluid.large.labeled.icon.button
-                          {:on-click  (fn [e]
-                                        (when (.-preventDefault e)
-                                          (.preventDefault e))
-                                        (when (.-stopPropagation e)
-                                          (.stopPropagation e)))}
-                          [:i.file.import.icon]
-                          "Import Label"])
+                        [:button.ui.fluid.large.labeled.icon.button
+                         {:on-click  (fn [e]
+                                       (when (.-preventDefault e)
+                                         (.preventDefault e))
+                                       (when (.-stopPropagation e)
+                                         (.stopPropagation e)))}
+                         [:i.file.import.icon]
+                         "Import Label"])
               :class "tiny"
               :open @modal-open
               :on-open #(reset! modal-open true)
@@ -460,8 +403,8 @@
        [ModalContent
         [ModalDescription
          [Form {:on-submit (util/wrap-prevent-default
-                             #(dispatch [:action [:labels/import project-id
-                                                  {:share-code @share-code}]]))}
+                            #(dispatch [:action [:labels/import project-id
+                                                 {:share-code @share-code}]]))}
           [FormField
            [:label "Please input your share code:"]
            [TextArea {:label "Share code"
@@ -487,21 +430,6 @@
              {})
   :on-error (fn [{:keys [error]} _ _]
               {:dispatch-n [[::set [:error-message] (:message error)]]}))
-
-(defn InclusionTag [{:keys [category answer definition value-type]}]
-  (let [{:keys [inclusion-values]} definition
-        criteria? (= category "inclusion criteria")
-        inclusion (if (or (nil? answer) (empty? inclusion-values)) nil
-                      (case value-type
-                        "boolean"      (boolean (in? inclusion-values answer))
-                        "categorical"  (if (empty? answer) nil
-                                           (boolean (some (in? inclusion-values) answer)))
-                        nil))]
-    [:i {:class (css "left floated fitted" [(not criteria?)     "grey"
-                                            (true? inclusion)   "green circle plus"
-                                            (false? inclusion)  "orange circle minus"
-                                            :else               "grey circle outline"]
-                     "icon")}]))
 
 (defn FormLabelWithTooltip [text tooltip-content]
   [ui/UiHelpTooltip [:label text [ui/UiHelpIcon]]
@@ -532,7 +460,7 @@
    :default-value {:path [:definition :default-value]
                    :display "Default label value"
                    :tooltip ["Default label value"]
-                  :optional true}
+                   :optional true}
    :all-values   {:path [:definition :all-values]
                   :display "Categories (comma-separated options)"
                   :tooltip ["List of values allowed for label."
@@ -610,13 +538,13 @@
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
         is-owned? (or is-new? (= (:owner-project-id @label) (:project-id @label)))]
     [:form.ui.form.define-label {:on-submit (util/wrap-user-event
-                                              (fn [_]
-                                                (if (and is-owned? (not (labels-synced?)))
+                                             (fn [_]
+                                               (if (and is-owned? (not (labels-synced?)))
                                                   ;; save on server
-                                                  (sync-to-server)
+                                                 (sync-to-server)
                                                   ;; just reset editing
-                                                  (reset! (r/cursor label [:editing?]) false)))
-                                              :prevent-default true)}
+                                                 (reset! (r/cursor label [:editing?]) false)))
+                                             :prevent-default true)}
      (when (string? @value-type)
        [:h5.ui.dividing.header.value-type
         (str (str/capitalize @value-type) " Label")])
@@ -654,7 +582,7 @@
                    {:value (or (not-empty (first @regex)) "")
                     :disabled (not is-owned?)
                     :on-change (util/on-event-value
-                                 #(reset! regex (some-> % str/trim not-empty vector)))}
+                                #(reset! regex (some-> % str/trim not-empty vector)))}
                    errors)])
      ;; examples on a string label
      (when (= @value-type "string")
@@ -694,9 +622,9 @@
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
 
-     
-     
-      
+
+
+
      ;; required
      [ui/LabeledCheckboxField
       (make-args :required
@@ -750,10 +678,10 @@
                     {:checked? (contains? (set @inclusion-values) option-value)
                      :disabled (not is-owned?)
                      :on-change
-                               #(reset! inclusion-values
-                                        (if (-> % .-target .-checked)
-                                          (into [] (conj @inclusion-values option-value))
-                                          (into [] (remove (partial = option-value) @inclusion-values))))
+                     #(reset! inclusion-values
+                              (if (-> % .-target .-checked)
+                                (into [] (conj @inclusion-values option-value))
+                                (into [] (remove (partial = option-value) @inclusion-values))))
                      :label option-value}]))
           [show-error-msg error]]))
 
@@ -828,14 +756,14 @@
         (make-args :default-value
                    {:value (str/join "," @default-value)
                     :display "Default label value (comma-separated)"
-                    :prompt "Comma separated default values" 
+                    :prompt "Comma separated default values"
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! default-value nil)
                                     (reset! default-value (str/split value #"," -1))))}
                    errors)]
-       
+
        "string"
        [ui/TextInputField
         (make-args :default-value
@@ -848,28 +776,28 @@
                                     (reset! default-value nil)
                                     (reset! default-value (str/split value #"," -1))))}
                    errors)]
-       
+
        [:span])
      (let [error (get-in @errors [:definition :hidden-label?])]
-        [:div.field.validatable-label {:class (when error "error")
-                                            :style {:width "100%"}}
-          [FormLabelWithTooltip
-           "Hide label?"
-           ["Hide label from the reviewer"]]
-          
-          [ui/LabeledCheckbox
-           {:checked? (not @hidden-label?)
-            :disabled (not is-owned?)
-            :on-change #(let [checked? (-> % .-target .-checked)]
-                          (reset! hidden-label? (not checked?)))
-            :label "No"}]
-          [ui/LabeledCheckbox
-           {:checked? @hidden-label?
-            :disabled (not is-owned?)
-            :on-change #(let [checked? (-> % .-target .-checked)]
-                          (reset! hidden-label? checked?))
-            :label "Yes"}]
-          [show-error-msg error]])
+       [:div.field.validatable-label {:class (when error "error")
+                                      :style {:width "100%"}}
+        [FormLabelWithTooltip
+         "Hide label?"
+         ["Hide label from the reviewer"]]
+
+        [ui/LabeledCheckbox
+         {:checked? (not @hidden-label?)
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (reset! hidden-label? (not checked?)))
+          :label "No"}]
+        [ui/LabeledCheckbox
+         {:checked? @hidden-label?
+          :disabled (not is-owned?)
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (reset! hidden-label? checked?))
+          :label "Yes"}]
+        [show-error-msg error]])
      (when is-owned?
        [:div.field {:style {:margin-bottom "0.75em"}}
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
@@ -925,8 +853,8 @@
           [Divider]
           [:div "Disabled Labels"
            (doall (for [label disabled-labels] ^{:key (:label-id label)}
-                    [:div [LabelEditForm labels @root-label-id
-                           (r/cursor labels [(:label-id label)])]]))]))
+                       [:div [LabelEditForm labels @root-label-id
+                              (r/cursor labels [(:label-id label)])]]))]))
       [Divider]
       [:div.ui.one.column.stackable.grid
        [:div.column.group [AddLabelButton "boolean" (partial add-new-group-label! labels)
@@ -940,264 +868,15 @@
         [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
          [:div.column {:id "group-id-submit" :style {:padding "0.5em"}}
           [SaveLabelButton label :on-click (util/wrap-user-event
-                                             (fn [_]
-                                               (if (not (labels-synced?))
+                                            (fn [_]
+                                              (if (not (labels-synced?))
                                                  ;; save on server
-                                                 (sync-to-server)
+                                                (sync-to-server)
                                                  ;; just reset editing
-                                                 (reset! (r/cursor label [:editing?]) false)))
-                                             :prevent-default true) ]]
+                                                (reset! (r/cursor label [:editing?]) false)))
+                                            :prevent-default true)]]
          [:div.column {:style {:padding "0.5em"}}
           [CancelDiscardButton labels-atom "na" label]]])]]))
-
-;; this corresponds to
-;; (defmethod sysrev.views.review/label-input-el "string" ...)
-(defn StringLabelForm [{:keys [set-answer! value label-id definition]}]
-  (let [{:keys [multi?]} definition
-        left-action? true
-        right-action? (if multi? true false)]
-    ;; ^{:key [label-id]}
-    [:div.ui.form.string-label {:key label-id}
-     [:div.field.string-label
-      [:div.ui.fluid.labeled.input
-       {:class (css [(and left-action? right-action?) "labeled right action"
-                     left-action?                     "left action"])}
-       (when left-action?
-         [:div.ui.label.icon.button.input-remove
-          {:class (css [(or (empty? @value) (every? empty? @value)) "disabled"])
-           :on-click (util/wrap-user-event #(reset! value [""]))}
-          [:i.times.icon]])
-       [:input {:type "text"
-                :name (str label-id)
-                :value (first @value)
-                :on-change set-answer!}]
-       (when right-action?
-         [:a.ui.icon.button.input-row {:class "disabled"} [:i.plus.icon]])]]]))
-
-;; this corresponds to `sysrev.views.review/CategoricalLabelInput`
-(defn CategoricalLabelForm [{:keys [definition label-id required value on-change]}]
-  (let [{:keys [all-values]} definition
-        special-value? #(in? ["none" "other"] (str/lower-case %))
-        values (if (every? string? all-values)
-                 (concat
-                  (->> all-values (filter special-value?))
-                  (->> all-values (remove special-value?)
-                       (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
-                 all-values)
-        current-values (into [] @value)
-        touchscreen?   @(subscribe [:touchscreen?])
-        dom-id (str "label-edit-" label-id)]
-    [S/Dropdown {:id dom-id
-                 :size "small" :fluid true
-                 :selection true :multiple true :icon "dropdown"
-                 :search (not touchscreen?)
-                 :options (vec (for [[i v] (map-indexed vector values)]
-                                 {:key i
-                                  :value v
-                                  :text v}))
-                 :value current-values
-                 :close-on-change true
-                 :placeholder (when (empty? current-values)
-                                (str "No answer selected"
-                                     (when required " (required)")))
-                 :on-change (fn [_e x] (on-change (js->clj (.-value x))))}]))
-
-(defn AnnotationLabelForm [{:keys [definition label-id required value onAdd onRemove]}]
-  (let [{:keys [all-values]} definition
-        special-value? #(in? ["none" "other"] (str/lower-case %))
-        values (if (every? string? all-values)
-                 (concat
-                  (->> all-values (filter special-value?))
-                  (->> all-values (remove special-value?)
-                       (sort #(compare (str/lower-case %1) (str/lower-case %2)))))
-                 all-values)
-        current-values (into [] @value)
-        dom-id (str "label-edit-" label-id)
-        search? (or (and (util/desktop-size?) (>= (count values) 25))
-                    (>= (count values) 40))]
-    [S/Dropdown {:id dom-id
-                 :size "small" :fluid true
-                 :selection true :multiple true :icon "dropdown"
-                 :search search?
-                 :value current-values
-                 :placeholder (str "No answer selected"
-                                   (when required " (required)"))}]))
-
-(defn SharedLabelNotice [{:keys [owner-project-id project-id]}]
-  (when (not= owner-project-id project-id)
-    [:a {:href (project-uri owner-project-id "")
-         :target "_blank"}
-     [:span.ui.text.small.grey {:title (str "Shared from project ID: " owner-project-id)} " [Shared P#" owner-project-id "]"]]))
-
-;;; this corresponds to `sysrev.views.review/LabelColumn`
-(defn Label [label]
-  (let [{:keys [label-id value-type question short-label definition]} @label
-        answer (r/cursor label [:answer])
-        on-click-help (util/wrap-user-event #(do nil))]
-    [:div.ui.middle.aligned.grid.label-edit
-     [ui/Tooltip
-      {:class "label-help"
-       :basic true
-       :hoverable false
-       :position "top center"
-       :mouse-enter-delay 600
-       :distance-away 6
-       :trigger (let [name-content [:span.name {:class (css [(>= (count short-label) 30)
-                                                             "small-text"])}
-                                    [:span.inner.short-label (str short-label)]
-                                    [SharedLabelNotice @label]]]
-                  (if (and (util/mobile?) (>= (count short-label) 30))
-                    [:div.ui.row.label-edit-name {:on-click on-click-help}
-                     [InclusionTag @label]
-                     [:span.name " "]
-                     (when (seq question)
-                       [:i.right.floated.fitted.grey.circle.question.mark.icon])
-                     [:div.clear name-content]]
-                    [:div.ui.row.label-edit-name {:on-click on-click-help
-                                                  :style {:cursor "help"}}
-                     [InclusionTag @label]
-                     name-content
-                     (when (seq question)
-                       [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
-       :tooltip [label-help-popup
-                 {:category @(subscribe [:label/category "na" label-id])
-                  :required @(subscribe [:label/required? "na" label-id])
-                  :question @(subscribe [:label/question "na" label-id])
-                  :definition {:examples @(subscribe [:label/examples
-                                                      "na" label-id])}}]}]
-     [:div.ui.row.label-edit-value {:class (case value-type
-                                             "boolean"      "boolean"
-                                             "categorical"  "category"
-                                             "annotation"   "annotation"
-                                             "string"       "string"
-                                             "group"        "group"
-                                             nil)}
-      [:div.inner
-       (case value-type
-         "boolean"      [ui/ThreeStateSelection
-                         {:value answer
-                          :set-answer! #(reset! answer %)}]
-         "string"       [StringLabelForm
-                         {:value answer
-                          :set-answer! #(reset! answer [(-> % .-target .-value)])
-                          :label-id label-id
-                          :definition definition}]
-         "categorical"  [CategoricalLabelForm
-                         {:value answer
-                          :definition definition
-                          :label-id label-id
-                          :on-change (fn [values _t] (reset! answer values))}]
-         "annotation"  [AnnotationLabelForm
-                        {:value answer
-                         :definition definition
-                         :label-id label-id
-                         :onAdd (fn [v _t] (swap! answer conj v))
-                         :onRemove
-                         (fn [v _t] (swap! answer #(into [] (remove (partial = v) %))))}]
-         "group"
-         (let [sub-label-vals (->> (vals @(r/cursor label [:labels]))
-                                   (sort-by :project-ordering <))
-               move-label-fn (fn [sub-label-id direction]
-                               (let [this-label (r/cursor label [:labels sub-label-id])
-                                     this-label-ordering (:project-ordering @this-label)
-                                     this-label-new-ordering (if (= direction "up")
-                                                               (- this-label-ordering 1)
-                                                               (+ this-label-ordering 1))
-                                     above-label
-                                     (r/cursor label [:labels (-> (find-first
-                                                                   #(= (:project-ordering %)
-                                                                       this-label-new-ordering)
-                                                                   sub-label-vals)
-                                                                  :label-id)])]
-                                 (reset! (r/cursor this-label [:project-ordering])
-                                         this-label-new-ordering)
-                                 (reset! (r/cursor above-label [:project-ordering])
-                                         this-label-ordering)
-                                 (sync-to-server)))
-               max-ordering-value (->> (map :project-ordering sub-label-vals)
-                                       sort reverse first)]
-           (for [sub-label (filter :enabled sub-label-vals)]
-             (let [sub-label-id (:label-id sub-label)]
-               ^{:key sub-label-id}
-               [:div.sub-label {:id (str "sub-label-" sub-label-id)
-                                :data-label-id (str (:label-id sub-label))
-                                :data-short-label (:short-label sub-label)}
-                (when-not (= 0 (:project-ordering sub-label))
-                  [Button {:on-click #(move-label-fn sub-label-id "up")
-                           :attached "top"} "Move Up"])
-                [Label (r/cursor label [:labels sub-label-id])]
-                (when-not (= max-ordering-value (:project-ordering sub-label))
-                  [Button {:on-click #(move-label-fn sub-label-id "down")
-                           :attached "bottom"} "Move Down"])])))
-         (pr-str label))]]]))
-
-(defn GroupLabel [label]
-  (let [{:keys [short-label required question]} @label
-        on-click-help (util/wrap-user-event #(do nil))
-        sub-label-vals (->> (vals @(r/cursor label [:labels]))
-                            (sort-by :project-ordering <))
-        move-label-fn (fn [sub-label-id direction]
-                        (let [this-label (r/cursor label [:labels sub-label-id])
-                              this-label-ordering (:project-ordering @this-label)
-                              this-label-new-ordering (if (= direction "up")
-                                                        (dec this-label-ordering)
-                                                        (inc this-label-ordering))
-                              above-label (->> [:labels (:label-id
-                                                         (find-first
-                                                          #(= (:project-ordering %)
-                                                              this-label-new-ordering)
-                                                          sub-label-vals))]
-                                               (r/cursor label))]
-                          (reset! (r/cursor this-label [:project-ordering]) this-label-new-ordering)
-                          (reset! (r/cursor above-label [:project-ordering]) this-label-ordering)
-                          (sync-to-server)))
-        max-ordering-value (->> (map :project-ordering sub-label-vals)
-                                sort reverse first)]
-    [:div.column.label-edit.group-label {:class (css [required "required"])
-                                         :style {:padding "0"
-                                                 :border "none"}}
-     [:div.ui.middle.aligned.grid.label-edit
-      (let [shortened? (and (util/mobile?) (>= (count short-label) 30))
-            name-content [:span.name {:class (css [(>= (count short-label) 30)
-                                                   "small-text"])}
-                          [:span.inner.short-label (str short-label)]
-                          [SharedLabelNotice @label]]]
-        [:div.ui.row.label-edit-name {:on-click on-click-help
-                                      :style {:cursor "help"}}
-         [InclusionTag @label]
-         (if shortened?
-           [:span.name " "]
-           name-content)
-         (when (seq question)
-           [:i.right.floated.fitted.grey.circle.question.mark.icon])
-         (when shortened?
-           [:div.clear name-content])])]
-     [:div.inner>div
-      (when (and (empty? (filter :enabled sub-label-vals))
-                 (filter :disabled sub-label-vals))
-        [Message {:style {:margin-bottom "0.5rem"}}
-         "There are disabled labels, edit label to view them"])
-      (doall (for [sub-label (filter :enabled sub-label-vals)]
-               (let [sub-label-id (:label-id sub-label)
-                     label (r/cursor label [:labels sub-label-id])]
-                 ^{:key sub-label-id}
-                 [:div.sub-label {:id (str "sub-label-" sub-label-id)
-                                  :style {:border "solid 1px grey"
-                                          :border-radius ".28571429rem"
-                                          :margin-bottom "0.5rem"}
-                                  :data-label-id (str sub-label-id)
-                                  :data-short-label (:short-label sub-label)}
-                  (when-not (= 0 (:project-ordering sub-label))
-                    [Button {:on-click #(move-label-fn sub-label-id "up")
-                             :attached "top"
-                             :color "grey"} "Move Up"])
-                  [:div.ui.column.label-edit {:class (css [(:required @label) "required"])
-                                              :style {:border "none"}}
-                   [Label label]]
-                  (when-not (= max-ordering-value (:project-ordering sub-label))
-                    [Button {:on-click #(move-label-fn sub-label-id "down")
-                             :attached "bottom"
-                             :color "grey"} "Move Down"])])))]]))
 
 (defn- UpgradeMessage []
   [Segment {:style {:text-align "center"}
@@ -1218,7 +897,7 @@
 
 (defn SideEditableView [labels-atom]
   (let [editing-label (subscribe [::editing-label])
-        editing-root-label-id (subscribe [::get :editing-root-label-id]) ]
+        editing-root-label-id (subscribe [::get :editing-root-label-id])]
     (when @editing-label
       [:div.column
        [:div.ui.segment
@@ -1254,8 +933,8 @@
                          indexed-labels)]
     (if (= root-label-id "na")
       (doall
-        (for [label new-labels]
-          (reset! (r/cursor labels-atom [(:label-id label) :project-ordering]) (:project-ordering label))))
+       (for [label new-labels]
+         (reset! (r/cursor labels-atom [(:label-id label) :project-ordering]) (:project-ordering label))))
       (reset! (r/cursor labels-atom [root-label-id :labels])
               (->> new-labels
                    (map #(vector (:label-id %) %))
@@ -1280,79 +959,79 @@
                                       (some status-filter-fn labels))))
                                 labels))
         cols (concat
-               (when self-email
-                 [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
-                   :render (fn [rowData]
-                             (let [v (aget rowData "ordering-display-1")]
-                               (when-not (str/blank? v)
-                                 (r/as-element
-                                   [:div {:style {:text-align "center"
-                                                  :min-width "110px"}} 
-                                    [:> mui/IconButton
-                                     {:on-click (fn [ev]
-                                                  (.stopPropagation ev)
-                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
-                                     [:> mui/Icon "keyboard_arrow_up"]]
-                                    " " v " "
-                                    [:> mui/IconButton
-                                     {:on-click (fn [ev]
-                                                  (.stopPropagation ev)
-                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
-                                     [:> mui/Icon "keyboard_arrow_down"]]]))))
-                   :headerStyle {:width "10px"}}
-                  {:field "ordering-display-2" :title "#" :width "10px"
-                   :defaultSort "asc" :type "numeric"
-                   :render (fn [rowData]
-                             (let [v (aget rowData "ordering-display-2")]
-                               (when-not (str/blank? v)
-                                 (r/as-element
-                                   [:div {:style {:text-align "center"
-                                                  :min-width "110px"}}
-                                    [:> mui/IconButton
-                                     {:on-click (fn [ev]
-                                                  (.stopPropagation ev)
-                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
-                                     [:> mui/Icon "keyboard_arrow_up"]]
-                                    " " v " "
-                                    [:> mui/IconButton
-                                     {:on-click (fn [ev]
-                                                  (.stopPropagation ev)
-                                                  (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
-                                     [:> mui/Icon "keyboard_arrow_down"]]]))))}])
-               [{:field "short-label" :title "Name"}
-                {:field "value-type" :title "Type" :hidden is-editing-label?}
-                {:field "consensus" :title "Consensus" :hidden is-editing-label?}
-                {:field "inclusion" :title "Inclusion" :hidden is-editing-label?}
-                {:field "required" :title "Required" :hidden is-editing-label?}])
+              (when self-email
+                [{:field "ordering-display-1" :title "#"  :defaultSort "asc" :type "numeric"
+                  :render (fn [rowData]
+                            (let [v (aget rowData "ordering-display-1")]
+                              (when-not (str/blank? v)
+                                (r/as-element
+                                 [:div {:style {:text-align "center"
+                                                :min-width "110px"}}
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                   [:> mui/Icon "keyboard_arrow_up"]]
+                                  " " v " "
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                   [:> mui/Icon "keyboard_arrow_down"]]]))))
+                  :headerStyle {:width "10px"}}
+                 {:field "ordering-display-2" :title "#" :width "10px"
+                  :defaultSort "asc" :type "numeric"
+                  :render (fn [rowData]
+                            (let [v (aget rowData "ordering-display-2")]
+                              (when-not (str/blank? v)
+                                (r/as-element
+                                 [:div {:style {:text-align "center"
+                                                :min-width "110px"}}
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) -1))}
+                                   [:> mui/Icon "keyboard_arrow_up"]]
+                                  " " v " "
+                                  [:> mui/IconButton
+                                   {:on-click (fn [ev]
+                                                (.stopPropagation ev)
+                                                (re-order labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData) 1))}
+                                   [:> mui/Icon "keyboard_arrow_down"]]]))))}])
+              [{:field "short-label" :title "Name"}
+               {:field "value-type" :title "Type" :hidden is-editing-label?}
+               {:field "consensus" :title "Consensus" :hidden is-editing-label?}
+               {:field "inclusion" :title "Inclusion" :hidden is-editing-label?}
+               {:field "required" :title "Required" :hidden is-editing-label?}])
         rows (->> @labels-atom vals
                   filter-labels
                   (mapcat
-                    (fn [label]
-                      (let [is-new? (and (string? (:label-id label)) (str/starts-with? (:label-id label) new-label-id-prefix))
-                            is-owned? (or is-new? (= (:owner-project-id label) (:project-id label)))]
-                        (concat
-                          [(-> label 
-                               (assoc :id (:label-id label))
-                               (assoc :isNew is-new?)
-                               (assoc :isOwned is-owned?)
-                               (assoc :valueType (:value-type label))
-                               (assoc :name (:name label))
-                               (assoc :ordering-display-1 (inc (:project-ordering label))))]
-                          (->> label :labels vals filter-labels
-                               (mapv #(assoc %
-                                             :id (:label-id %)
-                                             :short-label-2 (str " — " (:short-label label))
-                                             :ordering-display-2 (inc (:project-ordering %))
-                                             :isNew is-new?  
-                                             :isOwned is-owned?  
-                                             :parentId (:label-id label)))))))))]
+                   (fn [label]
+                     (let [is-new? (and (string? (:label-id label)) (str/starts-with? (:label-id label) new-label-id-prefix))
+                           is-owned? (or is-new? (= (:owner-project-id label) (:project-id label)))]
+                       (concat
+                        [(-> label
+                             (assoc :id (:label-id label))
+                             (assoc :isNew is-new?)
+                             (assoc :isOwned is-owned?)
+                             (assoc :valueType (:value-type label))
+                             (assoc :name (:name label))
+                             (assoc :ordering-display-1 (inc (:project-ordering label))))]
+                        (->> label :labels vals filter-labels
+                             (mapv #(assoc %
+                                           :id (:label-id %)
+                                           :short-label-2 (str " — " (:short-label label))
+                                           :ordering-display-2 (inc (:project-ordering %))
+                                           :isNew is-new?
+                                           :isOwned is-owned?
+                                           :parentId (:label-id label)))))))))]
     [:div.ui.equal.width.aligned.grid
      [:div.row
       [:div.column.override-dark
        [:> MaterialTable
         {:title "Labels"
          :components {:Toolbar (fn []
-                                (r/as-element
+                                 (r/as-element
                                   [:div.ui.attached.stackable
                                    {:style {:padding "5px 10px"}}
                                    [:h3 "Labels"
@@ -1371,33 +1050,33 @@
          :actions (when self-email
                     [(fn [rowData]
                        (clj->js
-                         {:icon "share"
-                          :disabled (some? (.-parentId ^js rowData))
-                          :tooltip "Share label"
-                          :onClick (fn [event rowData]
-                                     (.stopPropagation event)
-                                     (dispatch [:action [:labels/get-share-code project-id (.-id ^js rowData)]]))}))
+                        {:icon "share"
+                         :disabled (some? (.-parentId ^js rowData))
+                         :tooltip "Share label"
+                         :onClick (fn [event rowData]
+                                    (.stopPropagation event)
+                                    (dispatch [:action [:labels/get-share-code project-id (.-id ^js rowData)]]))}))
                      (fn [rowData]
                        (if (.-enabled ^js rowData)
                          (clj->js
-                           {:icon "block"
-                            :tooltip "Disable label"
-                            :disabled (or (= (.-name ^js rowData) "overall include")
-                                          (= (.-valueType ^js rowData) "group"))
-                            :onClick (fn [event rowData]
-                                       (.stopPropagation event)
-                                       (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                       (sync-to-server))})
+                          {:icon "block"
+                           :tooltip "Disable label"
+                           :disabled (or (= (.-name ^js rowData) "overall include")
+                                         (= (.-valueType ^js rowData) "group"))
+                           :onClick (fn [event rowData]
+                                      (.stopPropagation event)
+                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                      (sync-to-server))})
                          (clj->js
-                           {:icon "check_circle"
-                            :tooltip "Enable label"
-                            :disabled (= (.-valueType ^js rowData) "group")
-                            :onClick (fn [event rowData]
-                                       (.stopPropagation event)
-                                       (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                       (sync-to-server))})))])
+                          {:icon "check_circle"
+                           :tooltip "Enable label"
+                           :disabled (= (.-valueType ^js rowData) "group")
+                           :onClick (fn [event rowData]
+                                      (.stopPropagation event)
+                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                      (sync-to-server))})))])
          :onRowClick (fn [_event rowData]
                        (when self-email
                          (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])

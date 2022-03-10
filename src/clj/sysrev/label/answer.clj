@@ -158,27 +158,6 @@
       (db/clear-project-cache project-id)
       true)))
 
-;; FIX: can inclusion-values be changed with existing answers?
-;;      if yes, need to run this.
-;;      if no, can delete this.
-#_
-(defn ^:unused update-label-answer-inclusion [label-id]
-  (with-transaction
-    (let [entries (-> (select :article-label-id :answer)
-                      (from :article-label)
-                      (where [:= :label-id label-id])
-                      do-query)]
-      (->> entries
-           (map
-            (fn [{:keys [article-label-id answer]}]
-              (let [inclusion (label-answer-inclusion label-id answer)]
-                (-> (sqlh/update :article-label)
-                    (sset {:inclusion inclusion})
-                    (where [:= :article-label-id article-label-id])
-                    do-execute))))
-           doall))))
-
-
 ;; Sets and optionally confirms label values for an article
 (def exponential-steps (into [15] (->> (range 0 20) (map #(Math/pow 1.7 %)) (filter #(>= % 30)) (map int))))
 

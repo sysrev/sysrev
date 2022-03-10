@@ -1,13 +1,11 @@
 (ns sysrev.etaoin-test.core
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.test :refer [is]]
-   [etaoin.api :as ea]
-   [etaoin.keys :as keys]
-   [sysrev.etaoin-test.interface.spec :as spec]
-   [sysrev.util :as util])
-  (:import
-   (clojure.lang ExceptionInfo)))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [clojure.test :refer [is]]
+            [etaoin.api :as ea]
+            [etaoin.keys :as keys]
+            [sysrev.etaoin-test.interface.spec :as spec])
+  (:import (clojure.lang ExceptionInfo)))
 
 (defn retry-stale-element
   "Calls f, and retries it up to several times if a stale element reference
@@ -26,16 +24,20 @@
           (retry-stale-element f (inc (or retries 0))))
         (throw e)))))
 
+(defn mac? []
+  (-> (System/getProperty "os.name")
+      (str/includes? "Mac")))
+
 (defn clear [driver q & more-qs]
   (doseq [query (cons q more-qs)]
-    (if (util/mac?)
+    (if (mac?)
       (ea/fill driver query (keys/with-command \a) keys/backspace)
       (ea/fill driver query (keys/with-ctrl \a) keys/backspace))))
 
 (defn clear-visible [driver q & more-qs]
   (doseq [query (cons q more-qs)]
     (ea/wait-visible driver query)
-    (if (util/mac?)
+    (if (mac?)
       (ea/fill driver query (keys/with-command \a) keys/backspace)
       (ea/fill driver query (keys/with-ctrl \a) keys/backspace))))
 

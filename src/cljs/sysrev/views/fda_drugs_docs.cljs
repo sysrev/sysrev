@@ -273,27 +273,8 @@
            [:h3 "No documents match your search terms"]]
           :else [SearchResultsView])))
 
-(defn TextFilter [{:keys [cursor label]}]
-  [:div.ui.segments>div.ui.segment
-   [:div.ui.small.form
-    [:div.sixteen.wide.field
-     [:label label]
-     [:div.nine.wide.field
-      [S/FormInput
-       {:on-change (fn [_event x]
-                     (let [v (.-value x)]
-                       (reset! cursor v)
-                       (dispatch [::fetch-results])))
-        :value (or @cursor "")}]]]]])
-
 (defn SearchFilters []
   [:<>
-   #_[TextFilter
-    {:cursor (r/cursor state [:filters :active-ingredient])
-     :label "Active Ingredient"}]
-   #_[TextFilter
-    {:cursor (r/cursor state [:filters :drug-name])
-     :label "Drug Name"}]
    [comp/MultiSelect
     {:cursor (r/cursor state [:filters :application-type])
      :label "Application Type"

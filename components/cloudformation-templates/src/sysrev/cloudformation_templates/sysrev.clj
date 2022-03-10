@@ -1,7 +1,6 @@
 (ns sysrev.cloudformation-templates.sysrev
   (:refer-clojure :exclude [ref])
-  (:require [clojure.java.io :as io]
-            [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
+  (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
 (defn import-regional [export-name]
   (import-value (str "Sysrev-Regional-Resources-" export-name)))

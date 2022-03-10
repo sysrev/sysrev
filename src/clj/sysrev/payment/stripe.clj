@@ -88,48 +88,8 @@
     (log/warnf "Error in %s: no stripe-id associated with user=%d"
                (current-function-name) user-id)))
 
-;; !!! WARNING !!!
-;; !! This is only a util for dev environemnt !!
-;; !! DO NOT RUN IN PRODUCTION !!
-;;
-;; Beware, you could delete all of our customers if you are using
-;; a production stripe-secret-key in your profiles.clj, which you should
-;; absolutely NEVER DO IN THE FIRST PLACE!!!!
-;;
-;; Because of the sensitive nature of this fn, it is hardcoded to only use a
-;; key extracted from profiles.clj
-;;
-;;
-;; !!! WARNING !!
-(defn delete-all-customers! []
-  (assert (and (re-matches #"pk_test_.*" (env :stripe-public-key))
-               (re-matches #"sk_test_.*" (env :stripe-secret-key)))
-          (str "Error in" (current-function-name) "- attempt to run with non-test keys"))
-  ;; note that even the limit-count is hard coded here
-  ;; you may have to run this function more than once
-  ;; if you have created a lot of stray stripe customers
-  (let [customers (-> (stripe-get "/customers"
-                                  {:limit 100})
-                      :data)]
-    (mapv #(delete-customer! {:stripe-id (:id %)
-                              :user-id "delete-all-customers! override"})
-          customers)))
-
-(defn ^:unused list-subscriptions [& {:keys [limit] :or {limit 10}}]
-  (stripe-get "/subscriptions" {:limit (str limit)}))
-
 (defn delete-subscription! [subscription-id]
   (stripe-delete (str "/subscriptions/" subscription-id)))
-
-(defn delete-all-subscriptions! [& {:keys [limit] :or {limit 10}}]
-  (if (and (re-matches #"pk_test_.*" (env :stripe-public-key))
-           (re-matches #"sk_test_.*" (env :stripe-secret-key)))
-    (let [subscriptions (:data (list-subscriptions :limit limit))
-          subscription-ids (doall (map #(-> % :id) subscriptions))]
-      (doall (map delete-subscription! subscription-ids))
-      "done")
-    (log/infof "Error in %s: attempt to run with non-test keys"
-               (current-function-name))))
 
 (defn get-plans
   "Get all site plans"
@@ -180,7 +140,7 @@
 
 ;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
 
-(defn ^:unused support-project-monthly!
+(defn support-project-monthly!
   "User supports a project-id for amount (integer cents). Does not
   handle overhead of increasing / decreasing already supported
   projects"
@@ -227,7 +187,7 @@
                  quantity (assoc "quantity" quantity)
                  plan-id (assoc "plan" plan-id))))
 
-(defn ^:unused cancel-subscription! [sub-id]
+(defn cancel-subscription! [sub-id]
   (let [{:keys [project-id user-id]} (db-plans/lookup-support-subscription sub-id)
         {:keys [status body]} (http/delete (str stripe-url "/subscriptions/" sub-id)
                                            default-req)]
@@ -245,7 +205,7 @@
       ;; there is an error, report it
       (:error (util/read-json body)))))
 
-(defn ^:unused support-project-once!
+(defn support-project-once!
   "Make a one-time contribution to a project for amount"
   [{:keys [user-id stripe-id] :as _user} project-id amount]
   (try (let [transaction-source (:stripe-charge funds/transaction-source-descriptor)
@@ -272,7 +232,7 @@
          {:error {:message (.getMessage e)}})))
 
 ;;https://stripe.com/docs/connect/quickstart?code=ac_Dqv4kl5grW1R7eRtNRQHahcuO6TGcQIq&state=state#express-account-creation
-(defn ^:unused finalize-stripe-user!
+(defn finalize-stripe-user!
   "finalize the stripe user on stripe, return the stripe customer-id"
   [stripe-code]
   (http/post "https://connect.stripe.com/oauth/token"
@@ -282,62 +242,8 @@
                      "code" stripe-code
                      "grant_type" "authorization_code"})))
 
-;; https://stripe.com/docs/api/transfers/create
-(defn ^:unused pay-stripe-user! [stripe-account-id amount]
-  (stripe-post "/transfers"
-             {:amount amount
-              :currency "usd"
-              :destination stripe-account-id}))
-
-;;https://stripe.com/docs/api/balance/balance_retrieve
-(defn ^:unused current-balance []
-  (stripe-get "/balance"))
-
-;;; charge for payments: (- 1000 (* (/ 2.9 100) 1000) 30)
-
-;; https://stripe.com/docs/api/transfers/retrieve
-(defn ^:unused retrieve-transfer [transfer-id]
-  (stripe-get (str "/transfers/" transfer-id)))
-
-(defn ^:unused retrieve-charge [charge-id]
-  (stripe-get (str "/charges/" charge-id)))
-
-(defn ^:unused transaction-history
-  "Given a charge-id (ch_*), return the balance history"
-  [charge-id]
-  (let [{:keys [body]} (retrieve-charge charge-id)
-        balance-transaction (:balance_transaction body)]
-    (http/get (str stripe-url "/balance/history/" balance-transaction) default-req)))
-
 (defn get-setup-intent []
   (stripe-post "/setup_intents"))
-
-(defn get-invoice [invoice-id]
-  (stripe-get (str "/invoices/" invoice-id)))
-
-(defn get-payment-intent [intent-id]
-  (stripe-get (str "/payment_intents/" intent-id)))
-
-(defn ^:unused get-subscription-latest-invoice-intent [subscription-id]
-  (-> (get-subscription subscription-id)
-      :latest_invoice
-      (get-invoice)
-      :payment_intent
-      (get-payment-intent)))
-
-(defn ^:unused get-invoices [stripe-id]
-  (stripe-get "/invoices" {:customer stripe-id}))
-
-(defn ^:unused get-invoice-ids [stripe-id]
-  (map :id (:data (get-invoices stripe-id))))
-
-;; "You can't delete invoices created by subscriptions."
-(defn ^:unused delete-invoice! [invoice-id]
-  (stripe-delete (str "/invoices/" invoice-id)))
-
-(defn user-has-pro? [user-id]
-  (let [user-current-plan (db-plans/user-current-plan user-id)]
-    (plans-info/pro? (:product-name user-current-plan))))
 
 (defn update-subscription [subscription-id]
   (let [subscription (get-subscription subscription-id)]

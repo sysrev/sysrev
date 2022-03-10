@@ -12,7 +12,7 @@
             [sysrev.shared.labels :refer [predictable-label-types]]
             [sysrev.data.cursors :refer [map-from-cursors]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.annotation :as annotation]
+            [sysrev.annotation :as ann]
             [sysrev.pdf :as pdf]
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components.core :as ui]
@@ -122,7 +122,7 @@
                     @(subscribe [:annotator/label-annotations ann-context])
                      field-name text)]
     [annotator/AnnotationCapture ann-context field-name
-     [annotation/AnnotatedText (vals annotations) text
+     [ann/AnnotatedText (vals annotations) text
       :reader-error-render reader-error-render
       :field field-name]]))
 

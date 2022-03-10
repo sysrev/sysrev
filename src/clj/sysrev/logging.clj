@@ -76,5 +76,6 @@
   (log/info "logging initialized")
   true)
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defonce ^:init-once logging-initialized
   (init-logging))

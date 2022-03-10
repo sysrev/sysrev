@@ -1,4 +1,17 @@
-{:linters {:redefined-var {:level :off}
+{:linters {:clojure-lsp/unused-public-var
+           {:exclude #{datapub.main
+                       datapub.test
+                       sysrev.base
+                       sysrev.chartjs
+                       sysrev.core
+                       sysrev.main
+                       sysrev.postgres.embedded
+                       sysrev.sysrev-api.main
+                       sysrev.user
+                       sysrev.util/add-dropzone-file-blob
+                       sysrev.views.components.core
+                       sysrev.views.semantic}}
+           :redefined-var {:level :off}
            :reduce-without-init {:level :warning}
            :redundant-do {:level :off}
            :redundant-fn-wrapper {:level :warning}
@@ -6,7 +19,7 @@
            :use {:level :off}
            :unresolved-var {:level :off}
            :unresolved-symbol {:exclude
-                               [ ;; ignore unresolved symbols inside these macro forms
+                               [;; ignore unresolved symbols inside these macro forms
                                 (sysrev.db.queries/def-find-type nil)
                                 (sysrev.util/with-print-time-elapsed nil)
                                 (sysrev.macros/sr-defroute nil)
@@ -32,8 +45,7 @@
            :unused-referred-var {:exclude {clojure.test [is deftest testing]
                                            re-frame.core [dispatch subscribe]}}
            :used-underscored-binding {:level :error}
-           :consistent-alias {:aliases {
-;;; clojure api namespaces
+           :consistent-alias {:aliases {;;; clojure api namespaces
                                         clojure.data.json              json
                                         clojure.data.xml               dxml
                                         clojure.edn                    edn
@@ -63,6 +75,7 @@
                                         reagent.core                   r
                                         reagent.ratom                  ratom
 ;;; sysrev namespaces  [CLJ]
+                                        sysrev.annotation              ann
                                         sysrev.article.core            article
                                         sysrev.config                  config
                                         sysrev.datasource.api          ds-api

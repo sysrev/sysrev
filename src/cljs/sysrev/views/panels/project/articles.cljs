@@ -1,12 +1,13 @@
 (ns sysrev.views.panels.project.articles
-  (:require [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer
-             [subscribe dispatch reg-sub reg-sub-raw reg-event-fx trim-v reg-fx]]
-            [sysrev.state.nav :refer [project-uri active-project-id]]
-            [sysrev.views.article-list.base :as al]
-            [sysrev.views.article-list.core :as al-c :refer [ArticleListPanel]]
+  (:require [re-frame.core :refer
+             [dispatch reg-event-fx reg-fx reg-sub
+                                   reg-sub-raw subscribe trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
+            [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.views.article-list.base :as al]
+            [sysrev.views.article-list.core :as al-c :refer [ArticleListPanel]]))
 
 ;; for clj-kondo
 (declare panel)

@@ -15,11 +15,6 @@
 (defn project-funds [project-id]
   (sum (q/find :project-fund {:project-id project-id} :amount)))
 
-(defn ^:unused create-project-fund-pending-entry!
-  [{:keys [project-id user-id amount transaction-id transaction-source status created]
-    :as fields}]
-  (q/create :project-fund-pending fields))
-
 (defn pending-funds [project-id]
   (q/find :project-fund-pending {:project-id project-id} :*
           :where [:!= :status "completed"]))

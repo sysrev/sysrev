@@ -2,9 +2,6 @@
   (:require [sysrev.db.core :as db]
             [sysrev.db.queries :as q]))
 
-(defn ^:repl create-predict-version [note]
-  (q/create :predict-version {:note note}))
-
 (defn create-predict-run
   "Adds a new predict-run entry to the database, and returns the entry."
   [project-id predict-version-id]
@@ -21,7 +18,7 @@
                                   :article-id article-id
                                   :label-id label-id
                                   :stage 1
-                                  :val value 
+                                  :val value
                                   :label-value label-value})
                                (partition-all 500))]
       (q/create :label-predicts entries-group))))

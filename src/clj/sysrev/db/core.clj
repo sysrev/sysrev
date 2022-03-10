@@ -1,25 +1,25 @@
 (ns sysrev.db.core
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [clojure.tools.logging :as log]
-            [clojure.string :as str]
+  (:require clj-postgresql.core
+            clj-postgresql.types
+            [clj-time.coerce :as tc]
             [clojure.data.json :as json]
             [clojure.java.jdbc :as j]
-            [clj-time.coerce :as tc]
-            clj-postgresql.core
-            clj-postgresql.types
-            [hikari-cp.core :refer [make-datasource close-datasource]]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [hikari-cp.core :refer [close-datasource]]
             honey.sql
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [select from where]]
-            [honeysql.format :as sqlf]
             honeysql-postgres.format
+            [honeysql.core :as sql]
+            [honeysql.format :as sqlf]
+            [honeysql.helpers :as sqlh :refer [where]]
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as result-set]
+            [orchestra.core :refer [defn-spec]]
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.postgres.interface :as pg]
-            [sysrev.util :as util :refer [map-values in?]])
+            [sysrev.util :as util :refer [in? map-values]])
   (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
            (org.postgresql.util PGobject PSQLException)))
@@ -35,11 +35,10 @@
   java.lang.Number
   (set-parameter [num ^java.sql.PreparedStatement s ^long i]
     (.setObject s i num)
-    #_
-    (let [_conn (.getConnection s)
-          meta (.getParameterMetaData s)
-          _type-name (.getParameterTypeName meta i)]
-      (.setObject s i num))))
+    #_(let [_conn (.getConnection s)
+            meta (.getParameterMetaData s)
+            _type-name (.getParameterTypeName meta i)]
+        (.setObject s i num))))
 
 ;; https://github.com/seancorfield/next-jdbc/blob/develop/doc/tips-and-tricks.md
 (defn <-pgobject
@@ -83,27 +82,6 @@
 
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
-
-(defn make-db-config
-  "Creates a Postgres db pool object to use with JDBC.
-
-  Defaults to the configuration contained in `(:postgres env)`,
-  overriding with any field values passed in `postgres-overrides`."
-  [{:keys [dbname user password host port] :as postgres-overrides}]
-  (let [postgres-defaults (:postgres env)
-        postgres-config (merge postgres-defaults postgres-overrides)
-        options
-        (-> {:minimum-idle 4
-             :maximum-pool-size 10
-             :adapter "postgresql"}
-            (assoc :username (:user postgres-config)
-                   :password (:password postgres-config)
-                   :database-name (:dbname postgres-config)
-                   :server-name (:host postgres-config)
-                   :port-number (:port postgres-config)))]
-    {:datasource (make-datasource (assoc options :leak-detection-threshold 30000))
-     :datasource-long-running (make-datasource options)
-     :config postgres-config}))
 
 (defn close-active-db []
   (when-let [ds (:datasource @*active-db*)]
@@ -259,30 +237,6 @@
           (let [~name-sym conn#]
             ~@body))))))
 
-(defmacro with-rollback-transaction
-  "Like with-transaction, but sets rollback-only option on the transaction,
-  and will throw an exception if used within an existing transaction."
-  [& body]
-  (assert body "with-rollback-transaction: body must not be empty")
-  `(do (assert (nil? *conn*)
-               "with-rollback-transaction: can't be used within existing transaction")
-       (j/with-db-transaction [conn# @*active-db*]
-         (j/db-set-rollback-only! conn#)
-         (binding [*conn* conn#]
-           (do ~@body)))))
-
-(defmacro ^:unused with-transaction-on-db
-  "Like with-transaction, but takes a db value as an argument instead
-  of using the value from the active-db atom."
-  [db & body]
-  (assert db "with-transaction-on-db: db must not be nil")
-  (assert body "with-transaction-on-db: body must not be empty")
-  `(do (if *conn*
-         (do ~@body)
-         (j/with-db-transaction [conn# ~db]
-           (binding [*conn* conn#]
-             (do ~@body))))))
-
 (def sql-now (sql/call :now))
 
 ;;
@@ -405,19 +359,6 @@
             sql
             (map-indexed (fn [i param] [i param])
                          params))))
-
-(defn terminate-db-connections
-  "Disconnect all clients from named Postgres database"
-  [& [postgres-overrides]]
-  (let [{:keys [dbname]} (merge (:postgres env) postgres-overrides)]
-    (try (set-active-db! (make-db-config (assoc postgres-overrides
-                                                :dbname "postgres")))
-         (-> (select (sql/call "pg_terminate_backend" :pid))
-             (from :pg-stat-activity)
-             (where [:= :datname dbname])
-             do-query
-             count)
-         (finally (close-active-db)))))
 
 (defmethod sqlf/fn-handler "textmatch" [_ a b & more]
   (assert (nil? more))

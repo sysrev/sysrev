@@ -2,12 +2,13 @@
   (:require [cljs-time.core :as time]
             [re-frame.core :refer [dispatch subscribe]]
             [reagent.core :as r]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.nav :refer [make-url]]
             [sysrev.shared.plans-info :as plans-info]
-            [sysrev.views.semantic :refer [Segment Column Row Grid Icon Button Popup Divider
-                                           ListUI ListItem ListContent Header]]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.views.semantic :refer [Button Column Divider Grid Header
+                                           Icon ListContent ListItem ListUI
+                                           Popup Row Segment]]))
 
 (declare panel)
 (setup-panel-state panel [:pricing])
@@ -37,24 +38,6 @@
    [PricingItem {:content "Project management"}]
    [PricingItem {:content "Free lifetime storage for public projects"
                  :icon "cloud"}]])
-
-(defn ProBenefits []
-  [ListUI
-   [PricingItem {:icon "check" :content [PublicProjects]}]
-   [PricingItem {:icon "check" :content [PrivateProjects]}]
-   [PricingItem {:content "Unlimited project reviewers"}]
-   [PricingItem {:icon "check" :content "Project management"}]
-   [PricingItem {:icon "check"
-                 :content [:span "Sysrev Analytics - "
-                           [:a {:href "https://youtu.be/FgxJ4zTVUn4"
-                                :target "_blank"}
-                            "analytics demo"]]}]
-   [PricingItem {:icon "tags" :content [:span "Group Labels - "
-                                        [:a {:href "https://youtu.be/3FzJIXGOXq0"
-                                             :target "_blank"}
-                                         "group labels demo"]]}]
-   [PricingItem {:icon "cloud" :content "Free lifetime storage for public projects"}]
-   [PricingItem {:icon "cloud" :content "Free lifetime storage for private projects"}]])
 
 (defn TeamProBenefits []
   [ListUI
@@ -144,8 +127,8 @@
                                          :redirect_message
                                          "Create a free account to upgrade to Premium Plan"}))
                       :fluid true :primary true
-                      :disabled (plans-info/user-pro? current-plan)}
-              (if (plans-info/user-pro? current-plan)
+                      :disabled (plans-info/pro? current-plan)}
+              (if (plans-info/pro? current-plan)
                 "Already signed up!" "Choose Premium")]))
            (PricingSegment
             :class "pricing-enterprise"

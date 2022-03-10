@@ -1,27 +1,27 @@
 (ns sysrev.project.core
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [honeysql.helpers
-    :as sqlh
-    :refer [from join merge-join select sset where]]
-   [medley.core :as medley]
-   [orchestra.core :refer [defn-spec]]
-   [sysrev.db.core
-    :as db
-    :refer [do-query with-project-cache with-transaction]]
-   [sysrev.db.queries :as q]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.shared.spec.core :as sc]
-   [sysrev.shared.spec.keywords :as skw]
-   [sysrev.shared.spec.labels :as sl]
-   [sysrev.shared.spec.notes :as snt]
-   [sysrev.shared.spec.project :as sp]
-   [sysrev.util
-    :as
-    util
-    :refer
-    [filter-values index-by map-values opt-keys]]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [honeysql.helpers
+             :as sqlh
+             :refer [from join merge-join select sset where]]
+            [medley.core :as medley]
+            [orchestra.core :refer [defn-spec]]
+            [sysrev.db.core
+             :as db
+             :refer [do-query with-project-cache
+                     with-transaction]]
+            [sysrev.db.queries :as q]
+            [sysrev.shared.keywords :refer [canonical-keyword]]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.notes :as snt]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.util
+             :as
+             util
+             :refer
+             [index-by map-values opt-keys]]))
 
 ;; for clj-kondo
 (declare delete-project)
@@ -30,18 +30,6 @@
 
 (def default-project-settings {:second-review-prob 0.5
                                :public-access true})
-
-(defn ^:repl all-project-ids []
-  (q/find :project {} :project-id, :order-by :project-id))
-
-(defn ^:repl all-projects
-  "Returns seq of short info on all projects, for interactive use."
-  []
-  (q/find [:project :p] {}
-          [:p.project-id :p.name [:%count.a.article-id :n-articles]]
-          :left-join [[:article :a] :p.project-id]
-          :group :p.project-id
-          :order-by :p.project-id))
 
 (s/def ::parent-project-id ::sp/project-id)
 
@@ -121,7 +109,7 @@
   (with-project-cache project-id [:labels :all include-disabled]
     (let [check-enabled #(if include-disabled % (merge % {:enabled true}))
           labels (q/find :label (check-enabled {:project-id project-id
-                                                     :root-label-id-local nil})
+                                                :root-label-id-local nil})
                          :*, :index-by :label-id, :where [:!= :value-type "group"])
           group-labels (->> (q/find :label (check-enabled {:project-id project-id
                                                            :value-type "group"})
@@ -162,7 +150,7 @@
                                                     :pn.project-note-id :an.project-note-id}))
     nil))
 
-(defn-spec ^:unused add-project-keyword map?
+(defn-spec add-project-keyword map?
   "Creates an entry in `project-keyword` table, to be used by web client
   to highlight important words and link them to labels."
   [project-id int?, text string?, category string? &
@@ -256,44 +244,8 @@
   (or (util/parse-integer url-id)
       (first (q/find :project-url-id {:url-id url-id} :project-id))))
 
-(defn ^:unused add-project-url-id
-  "Adds a project-url-id entry (custom URL)"
-  [project-id url-id & {:keys [user-id]}]
-  (db/with-clear-project-cache project-id
-    (q/delete :project-url-id {:project-id project-id :url-id url-id})
-    (q/create :project-url-id {:project-id project-id :url-id url-id :user-id user-id})))
-
-(defn get-single-user-project-ids [user-id]
-  (let [project-ids (q/find :project-member {:user-id user-id} :project-id)
-        p-members (when (seq project-ids)
-                    (q/find :project-member {:project-id project-ids} [:user-id :project-id]
-                            :group-by :project-id))]
-    (keys (filter-values #(= 1 (count %)) p-members))))
-
-;;;
-;;; These are intended only for testing
-;;;
-(defn delete-all-projects-with-name [project-name]
-  (db/with-transaction
-    (q/delete :project {:name (not-empty project-name)})))
-
-(defn delete-compensation-by-id [_project-id compensation-id]
-  (q/delete :compensation-user-period      {:compensation-id compensation-id})
-  (q/delete :compensation-project-default  {:compensation-id compensation-id})
-  (q/delete :compensation-project          {:compensation-id compensation-id})
-  (q/delete :compensation                  {:compensation-id compensation-id}))
-
-(defn delete-project-compensations [project-id]
-  (doseq [id (q/find :compensation-project {:project-id project-id} :compensation-id)]
-    (delete-compensation-by-id project-id id)))
-
 (defn member-count [project-id]
   (q/find-count :project-member {:project-id project-id}))
-
-(defn delete-solo-projects-from-user [user-id]
-  (doseq [project-id (get-single-user-project-ids user-id)]
-    (delete-project-compensations project-id)
-    (delete-project project-id)))
 
 (defn project-article-ids
   "Returns list of all article ids in project. enabled may optionally be
@@ -361,11 +313,11 @@
     (-> (select [:md.string :description] :p.project_id :p.name :p.settings)
         (from [::important-terms :it])
         (sqlh/join
-          [:project-important-terms :pit] [:= :pit.term-id :it.term-id])
+         [:project-important-terms :pit] [:= :pit.term-id :it.term-id])
         (sqlh/left-join
-          [:project_description :pd] [:= :pd.project-id :pit.project-id]
-          [:markdown :md] [:= :md.markdown-id :pd.markdown-id]
-          [:project :p] [:= :p.project-id :pit.project-id])
+         [:project_description :pd] [:= :pd.project-id :pit.project-id]
+         [:markdown :md] [:= :md.markdown-id :pd.markdown-id]
+         [:project :p] [:= :p.project-id :pit.project-id])
         (where [:in :it.term tokens])
         db/do-query)))
 
@@ -392,14 +344,6 @@
        (concat (search-projects-important-terms q :limit limit))
        distinct))
 
-
-
-(defn project-ids-where-labels-defined
-  "Returns ids of all projects with at least one user-defined label."
-  []
-  (q/find [:project :p] {} :p.project-id
-          :where [:< 1 (q/find-count [:label :l] {:l.project-id :p.project-id}
-                                     :return :query)]))
 (defn project-admin-or-owner?
   "Is user-id an owner or admin of project-id?"
   [user-id project-id]

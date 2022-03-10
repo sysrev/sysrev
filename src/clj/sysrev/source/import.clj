@@ -1,16 +1,16 @@
 (ns sysrev.source.import
-  (:require [sysrev.source.interface :refer [import-source]]
-            sysrev.source.ctgov
+  (:require sysrev.source.ctgov
             sysrev.source.datasource
             sysrev.source.endnote
             sysrev.source.extra
             sysrev.source.fda-drugs-docs
+            [sysrev.source.interface :refer [import-source]]
             sysrev.source.json
             sysrev.source.pdf-zip
-            sysrev.source.pmid
-            sysrev.source.pubmed
             sysrev.source.pdfs
+            sysrev.source.pmid
             sysrev.source.project-filter
+            sysrev.source.pubmed
             sysrev.source.ris))
 
 (defn import-pubmed-search
@@ -57,22 +57,6 @@
   [request project-id {:keys [search-term] :as input} & [{:as options}]]
   (import-source request :ctgov project-id input options))
 
-(defn ^:unused import-datasource-query
-  [request project-id {:keys [query entities] :as input} & [{:as options}]]
-  (import-source request :datasource-query project-id input options))
-
-(defn ^:unused import-datasource
-  [request project-id {:keys [datasource-id datasource-name entities] :as input} & [{:as options}]]
-  (import-source request :datasource project-id input options))
-
-(defn ^:unused import-dataset
-  [request project-id {:keys [dataset-id dataset-name entities] :as input} & [{:as options}]]
-  (import-source request :dataset project-id input options))
-
 (defn import-fda-drugs-docs-search
   [request project-id {:keys [search-term] :as input} & [{:as options}]]
   (import-source request :fda-drugs-docs project-id input options))
-
-(defn ^:unused import-project-filter
-  [request project-id {:keys [url-filter source-project-id] :as input} & [{:as options}]]
-  (import-source request :project-filter project-id input options))

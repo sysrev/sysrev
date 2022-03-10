@@ -217,9 +217,6 @@
 (defmethod notification-topic-name :system [_]
   ":all-users")
 
-(defn notification-topic [notification]
-  (topic-for-name (notification-topic-name notification) :create? true))
-
 (defmulti subscriber-ids-to-skip :type)
 
 (defmethod subscriber-ids-to-skip :default [_]

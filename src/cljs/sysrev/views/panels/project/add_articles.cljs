@@ -1,27 +1,27 @@
 (ns sysrev.views.panels.project.add-articles
   (:require [cljs-time.core :as t]
             [clojure.string :as str]
+            [re-frame.core :refer [dispatch dispatch-sync reg-event-db
+                                   reg-event-fx reg-sub subscribe trim-v]]
             [reagent.core :as r]
-            [re-frame.core :refer [dispatch dispatch-sync subscribe reg-sub
-                                   reg-event-db reg-event-fx trim-v]]
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
-            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
+                                          sr-defroute-project]]
             [sysrev.nav :as nav]
+            [sysrev.shared.plans-info :as plans-info]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :as util :refer [css]]
+            [sysrev.views.components.core :as ui]
             [sysrev.views.ctgov :as ctgov]
             [sysrev.views.fda-drugs-docs :as fda-drugs-docs]
-            [sysrev.views.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
-            [sysrev.views.uppy :as uppy]
-            [sysrev.shared.plans-info :as plans-info]
-            [sysrev.views.components.core :as ui]
-            [sysrev.views.semantic :refer [Popup Icon ListUI ListItem Button
-                                           Modal ModalHeader ModalContent ModalDescription
-                                           Form Checkbox FormField TextArea]]
-            [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel
-                                          sr-defroute-project]]))
+            [sysrev.views.pubmed :as pubmed]
+            [sysrev.views.semantic :refer [Button Checkbox Form FormField Icon
+                                           ListItem ListUI Modal ModalContent
+                                           ModalDescription ModalHeader Popup TextArea]]
+            [sysrev.views.uppy :as uppy]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -145,28 +145,26 @@
                                       {:header "Pro plan required"
                                        :content "This feature is only available for pro users."
                                        :opts {:info true}}])
-                           #_
-                           (dispatch [:toast
-                                      {:title "Pro plan required"
-                                       :class "blue"
-                                       :message "This feature is only available for pro users."
-                                       :displayTime 0
-                                       :actions [{:text "Maybe later"}
-                                                 {:text "Purchase plan"
-                                                  :class "black"
-                                                  :click #(dispatch [:nav "/user/plans"])}]}]))
+                           #_(dispatch [:toast
+                                        {:title "Pro plan required"
+                                         :class "blue"
+                                         :message "This feature is only available for pro users."
+                                         :displayTime 0
+                                         :actions [{:text "Maybe later"}
+                                                   {:text "Purchase plan"
+                                                    :class "black"
+                                                    :click #(dispatch [:nav "/user/plans"])}]}]))
                          true))}]
            " "
            (when-not has-pro?
              [:i.chess.king.icon.yellow {:title "Pro feature"}])]
-          #_
-          [FormField
-           [Checkbox
-            {:label "Auto import new results"
-             :id "import-new-results-checkbox"
-             :disabled (not @source-check-new-results?)
-             :checked @source-import-new-results?
-             :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
+          #_[FormField
+             [Checkbox
+              {:label "Auto import new results"
+               :id "import-new-results-checkbox"
+               :disabled (not @source-check-new-results?)
+               :checked @source-import-new-results?
+               :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
           [FormField
            [:label "Notes"]
            [TextArea {:label "Notes"
@@ -326,20 +324,6 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
        [:i.circle.icon {:class (css [enabled? "green" :else "grey"])}])
      (if enabled? "Enabled" "Disabled")]))
 
-;; TODO: these (:source meta) values should be stored as identifiers
-;;       from an enforced set of possible values and shouldn't be
-;;       mistakable for a description intended for users
-(defn ^:unused meta->source-name-vector [{:keys [source] :as meta}]
-  (condp = source
-    "PubMed search"  ["PubMed Search" (str (:search-term meta))]
-    "PMID file"      ["PMIDs from File" (:filename meta)]
-    "PMID vector"    ["PMIDs from API" nil]
-    "fact"           ["PMIDs from FACTS" nil]
-    "EndNote file"   ["EndNote XML" (:filename meta)]
-    "legacy"         ["Legacy Import" nil]
-    "PDF Zip file"   ["PDF Zip File" (:filename meta)]
-    [source nil]))
-
 (reg-sub :source/display-type
          (fn [[_ source-id project-id]]
            (subscribe [:project/sources source-id project-id]))
@@ -362,7 +346,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
            (case (:source meta)
              "PubMed search"      (str (:search-term meta))
              ("PMID file" "EndNote file" "PDF Zip file"
-              "RIS file")         (str (:filename meta))
+                          "RIS file")         (str (:filename meta))
              "Datasource Query"   (str (:query meta))
              "Dataset"            (str "Dataset ID: " (:dataset-id meta))
              "Datasource"         (str "Datasource ID: " (:datasource-id meta))
@@ -421,13 +405,6 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
                  [:pre {:style {:font-size "0.95em" :margin 0}} import-label]
                  :else
                  import-label)]])]]]))
-
-(defn ^:unused source-name
-  "Given a source-id, return the source name vector"
-  [source-id]
-  (->> @(subscribe [:project/sources])
-       (filter #(= source-id (:source-id %)))
-       first :meta meta->source-name-vector))
 
 (defonce polling-sources? (r/atom false))
 
@@ -600,7 +577,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
               "&body=Hi, I would like to know more about using"
               " ClinicalTrials.gov in sysrev to conduct reviews."
               " Please let me know how I can enable this feature. Thanks!")
-         :target "_blank"} " contact us"]"."]])
+         :target "_blank"} " contact us"] "."]])
 
 (defn CustomDatasource []
   [:div.ui.segment {:style {:margin-left "auto"
@@ -624,7 +601,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
 (defn DatasourceIconList [options]
   [:div {:style {:padding-bottom 20}}
    (for [option options] ^{:key (:value option)}
-     [DatasourceIcon option])])
+        [DatasourceIcon option])])
 
 (defn ImportArticlesView []
   (let [active-tab (subscribe [:add-articles/import-tab])

@@ -1,7 +1,6 @@
 (ns sysrev.sysrev-api.core
-  (:require
-   [next.jdbc :as jdbc]
-   [sysrev.postgres.interface :as pg]))
+  (:require [next.jdbc :as jdbc]
+            [sysrev.postgres.interface :as pg]))
 
 (defmacro with-tx-context
   "Either use an existing :tx in the context, or create a new transaction
@@ -15,14 +14,8 @@
          (let [~name-sym (assoc context# ::tx tx#)]
            ~@body)))))
 
-(defn execute! [context sqlmap]
-  (pg/execute! (::tx context) sqlmap))
-
 (defn execute-one! [context sqlmap]
   (pg/execute-one! (::tx context) sqlmap))
-
-(defn plan [context sqlmap]
-  (pg/plan (::tx context) sqlmap))
 
 (defn inv-cols [m]
   (reduce (fn [m [k v]] (assoc m v k)) {} m))

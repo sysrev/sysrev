@@ -14,8 +14,6 @@
    ["Letter" "Letter"]
    ["Review" "Review"]])
 
-(def document-type-options-map (into {} document-type-options))
-
 (def review-document-type-options
   [["chemistry review" "Chemistry"]
    ["integrated review" "Integrated"]

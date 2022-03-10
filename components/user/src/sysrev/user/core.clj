@@ -1,33 +1,27 @@
 (ns sysrev.user.core
-  (:require
-   [buddy.core.codecs :as codecs]
-   [buddy.core.hash :as hash]
-   [buddy.hashers]
-   [clj-time.coerce :as tc]
-   [clojure.set :refer [rename-keys]]
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [crypto.random]
-   [honeysql.core :as sql]
-   [honeysql.helpers
-    :as sqlh
-    :refer [from join merge-join order-by select where]]
-   [orchestra.core :refer [defn-spec]]
-   [sysrev.db.core :as db :refer [do-query with-transaction]]
-   [sysrev.db.queries :as q]
-   [sysrev.payment.stripe :as stripe]
-   [sysrev.project.core :as project]
-   [sysrev.user.interface.spec :as su]
-   [sysrev.util :as util :refer [in? map-values]]))
+  (:require [buddy.core.codecs :as codecs]
+            [buddy.core.hash :as hash]
+            [buddy.hashers]
+            [clj-time.coerce :as tc]
+            [clojure.set :refer [rename-keys]]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [crypto.random]
+            [honeysql.core :as sql]
+            [honeysql.helpers
+             :as sqlh
+             :refer [from join merge-join order-by select
+                     where]]
+            [orchestra.core :refer [defn-spec]]
+            [sysrev.db.core :as db :refer [do-query with-transaction]]
+            [sysrev.db.queries :as q]
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.project.core :as project]
+            [sysrev.user.interface.spec :as su]
+            [sysrev.util :as util :refer [in? map-values]]))
 
 (def user-public-cols
   [:date-created :introduction :user-id :user-uuid :username])
-
-(defn ^:repl all-users
-  "Returns seq of short info on all users, for interactive use."
-  []
-  (->> (q/find :web-user {})
-       (map #(select-keys % [:user-id :email :permissions]))))
 
 (defn user-by-email [email & [fields]]
   (q/find-one :web-user {} (or fields :*)
@@ -165,11 +159,6 @@
     (q/delete :web-user {:user-id user-id})
     (doseq [project-id project-ids] (db/clear-project-cache project-id))))
 
-(defn delete-user-by-email [email]
-  (assert (string? email))
-  (some-> (q/find-one :web-user {:email email} :user-id)
-          (delete-user)))
-
 (defn create-password-reset-code [user-id]
   (q/modify :web-user {:user-id user-id} {:reset-code (crypto.random/hex 16)}))
 
@@ -271,13 +260,6 @@
                       :exception e}}))
       {:error {:message (str "No customer id returned by stripe.com for email: "
                              email " and uuid: " user-uuid)}})))
-
-;; for testing purposes
-(defn delete-user-stripe-customer! [{:keys [stripe-id user-id] :as _user}]
-  (stripe/delete-customer! {:stripe-id stripe-id
-                            :user-id user-id})
-  (with-transaction
-    (q/modify :web-user {:user-id user-id} {:stripe-id nil})))
 
 (defn update-member-access-time [user-id project-id]
   (q/modify :project-member {:user-id user-id :project-id project-id}

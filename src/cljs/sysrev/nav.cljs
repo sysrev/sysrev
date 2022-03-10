@@ -56,6 +56,7 @@
               (js/setTimeout reload-page delay-ms)
               (reload-page)))))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn ^:export set-token [path]
   (pushy/set-token! base/history path))
 

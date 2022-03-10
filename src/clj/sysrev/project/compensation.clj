@@ -1,16 +1,16 @@
 (ns sysrev.project.compensation
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
-            [clojure.string :as str]
-            [clj-time.coerce :as tc]
-            [clj-time.local :as l]
+  (:require [clj-time.coerce :as tc]
             [clj-time.core :as t]
             [clj-time.format :as f]
+            [clj-time.local :as l]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [honeysql.helpers :as sqlh :refer [modifiers]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.funds :refer [transaction-source-descriptor]]
-            [sysrev.util :as util :refer [index-by nilable-coll sum]]))
+            [sysrev.util :as util :refer [nilable-coll sum]]))
 
 ;; for clj-kondo
 (declare create-project-compensation! read-project-compensations)
@@ -60,12 +60,6 @@
 (defn- project-users [project-id]
   (q/find [:project-member :pm] {:project-id project-id} [:pm.user-id :u.email]
           :join [[:web-user :u] :pm.user-id]))
-
-(defn ^:unused start-compensation-period-for-all-users!
-  "Begin the compensation period for compensation-id for all users in project-id"
-  [project-id compensation-id]
-  (mapv #(start-compensation-period-for-user! compensation-id (:user-id %))
-        (project-users project-id)))
 
 (defn end-compensation-period-for-all-users!
   "End the compensation period for compensation-id for all users in project-id"
@@ -142,18 +136,6 @@
                 :articles (compensation-owed-for-articles-for-user
                            user-id project-id compensation-id start-date end-date)}))))
 
-(defn project-compensation-for-users
-  "Return the amount-owed to users of project-id over start-date and end-date"
-  [project-id & [start-date end-date]]
-  (let [project-users (project-users project-id)
-        users-map (index-by :user-id project-users)]
-    (->> project-users
-         (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
-         flatten
-         (map #(assoc % :name (-> (:email (get users-map (:user-id %)))
-                                  (str/split #"@")
-                                  first))))))
-
 (defn- project-user-total-paid [project-id user-id]
   (sum (q/find :project-fund {:project-id project-id
                               :user-id user-id
@@ -181,10 +163,6 @@
               :compensation-owed compensation-owed
               :admin-fee admin-fee
               :last-payment (project-user-last-payment project-id user-id)})))))
-
-(defn ^:unused project-total-paid [project-id]
-  (sum (q/find :project-fund {:project-id project-id}
-               :amount, :where [:< :amount 0])))
 
 (defn project-total-owed [project-id]
   (sum (map :compensation-owed (compensation-owed-by-project project-id))))

@@ -1,22 +1,22 @@
 (ns sysrev.views.panels.project.overview
-  (:require [clojure.string :as str]
+  (:require [cljs-time.core :as time]
+            [cljs-time.format :as time-format]
+            [clojure.string :as str]
+            [re-frame.core :refer [dispatch reg-sub subscribe]]
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
-            [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.data.core :as data :refer [def-data]]
-            [sysrev.views.panels.project.description :refer [ProjectDescription]]
-            [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.components.core :as ui]
-            [sysrev.views.charts :as charts]
-            [sysrev.views.panels.project.articles :as articles]
-            [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]
-            [sysrev.views.email-invite :refer [InviteEmails]]
-            [sysrev.util :as util :refer [css format wrap-user-event]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
-            [cljs-time.core :as time]
-            [cljs-time.format :as time-format]
-            [sysrev.shared.components :refer [colors]]))
+            [sysrev.nav :as nav]
+            [sysrev.shared.components :refer [colors]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :as util :refer [css format wrap-user-event]]
+            [sysrev.views.charts :as charts]
+            [sysrev.views.components.core :as ui]
+            [sysrev.views.email-invite :refer [InviteEmails]]
+            [sysrev.views.panels.project.articles :as articles]
+            [sysrev.views.panels.project.description :refer [ProjectDescription]]
+            [sysrev.views.panels.project.documents :refer [ProjectFilesBox]]))
 
 ;; for clj-kondo
 (declare panel state)

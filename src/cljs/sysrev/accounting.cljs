@@ -11,11 +11,6 @@
   [string]
   (accounting/unformat string))
 
-(defn ^:unused to-fixed
-  "Converts a number to a fixed value string to n decimal places"
-  [number n]
-  (accounting/toFixed number n))
-
 (defn string->cents
   "Convert a string to a number in cents"
   [string]

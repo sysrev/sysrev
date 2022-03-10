@@ -61,8 +61,8 @@
     ;; delete current entry
     (when-let [current (user-active-avatar-image user-id)]
       ;; can't delete this safely, file could be shared
-      #_ (do (s3-file/delete-file (:key current) :image)
-             (file/delete-s3-id (:s3-id current)))
+      #_(do (s3-file/delete-file (:key current) :image)
+            (file/delete-s3-id (:s3-id current)))
       (q/delete :user-avatar-image {:user-id user-id :s3-id (:s3-id current)}))
     ;; save new file/entry
     (let [{:keys [key s3-id]} (file/save-s3-file :image filename {:file file})]
@@ -71,12 +71,6 @@
       (when meta (some-> (:s3-id (user-active-profile-image user-id))
                          (set-profile-image-meta meta)))
       {:user-id user-id :filename filename :s3-id s3-id :key key})))
-
-(defn delete-user-avatar-image [user-id]
-  (db/with-transaction
-    (when-let [{:keys [s3-id]} (user-active-avatar-image user-id)]
-      (file/delete-s3-file :image s3-id)
-      true)))
 
 ;;;
 ;;; gravatar

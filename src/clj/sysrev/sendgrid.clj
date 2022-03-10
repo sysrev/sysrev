@@ -53,14 +53,7 @@
         {:success true})
       (request "mail/send" request-params))))
 
-(defn ^:unused send-text-email
-  [to subject message
-   & {:keys [from]
-      :or {from sendgrid-default-from}}]
-  (send-email to from subject
-              {:content [{:type "text" :value message}]}))
-
-(defn ^:unused send-html-email
+(defn send-html-email
   [to subject message
    & {:keys [from]
       :or {from sendgrid-default-from}}]

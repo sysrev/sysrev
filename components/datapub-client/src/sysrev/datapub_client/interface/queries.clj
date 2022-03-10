@@ -64,16 +64,6 @@
   [return]
   (q/q-list-datasets return))
 
-(defn return->string
-  "Returns a string representation of the GraphQL return field names for a
-  given string or seq. A string argument is returned unchanged.
-
-  Examples:
-  (return->string \"id\") => \"id\"
-  (return->string [:id :name]) => \"id name\""
-  [return]
-  (q/return->string return))
-
 (defn s-dataset-entities
   "Returns the string representation of a datasetEntities subscription.
 

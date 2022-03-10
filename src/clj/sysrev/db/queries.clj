@@ -1,14 +1,15 @@
 (ns sysrev.db.queries
   (:refer-clojure :exclude [find group-by])
   (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
             [clojure.string :as str]
-            [honeysql.helpers :as sqlh :refer [select from where merge-where values sset
-                                               join merge-join merge-left-join collify]]
             [honeysql-postgres.helpers :as sqlh-pg]
-            [sysrev.db.core :as db :refer [do-query do-execute sql-field]]
-            [sysrev.util :as util :refer [in? map-values apply-keyargs when-test
-                                          assert-pred opt-keys ensure-vector]]))
+            [honeysql.helpers :as sqlh :refer [collify from join merge-join
+                                               merge-left-join merge-where select sset values
+                                               where]]
+            [orchestra.core :refer [defn-spec]]
+            [sysrev.db.core :as db :refer [do-execute do-query sql-field]]
+            [sysrev.util :as util :refer [apply-keyargs assert-pred ensure-vector in?
+                                          map-values opt-keys when-test]]))
 
 ;; for clj-kondo
 (declare merge-join-args filter-user-permission filter-admin-user
@@ -41,7 +42,7 @@
                            :full   (s/cat :table ::named-id, :cond ::db/cond)))
 (s/def ::join-spec (s/or :single ::join-single
                          :multi  (s/coll-of ::join-single, :distinct true)))
-#_ (s/conform ::join-spec [[:project-member :pm] :u.user-id])
+#_(s/conform ::join-spec [[:project-member :pm] :u.user-id])
 
 ;;; top-level function args
 (s/def ::table ::named-id)
@@ -250,7 +251,7 @@
          select-fields (as-> (concat fields
                                      (some->> index-by (when-test keyword?) (list))
                                      (some->> group-by (when-test keyword?) (list)))
-                           select-fields
+                             select-fields
                          (if (in? select-fields :*) [:*] select-fields)
                          (distinct select-fields))
          map-fields (cond index-by  map-values
@@ -315,14 +316,14 @@
 ;;;     101 "FACTS: Factors Affecting Combination Trial Success",
 ;;;     102 "MnSOD in Cancer and Antioxidant Therapy"}
 ;;;
-#_ (find [:project :p] {:p.project-id 100} :pm.user-id
-         :join [[:project-member :pm] :p.project-id]
-         :order-by :user-id, :limit 5)
+#_(find [:project :p] {:p.project-id 100} :pm.user-id
+        :join [[:project-member :pm] :p.project-id]
+        :order-by :user-id, :limit 5)
 ;;; => (9 26 33 35 37)
-#_ (find [:project :p] {:p.project-id 100} :u.user-id
-         :join [[[:project-member :pm] [:= :p.project-id :pm.project-id]]
-                [[:web-user :u] :pm.user-id]]
-         :order-by :user-id, :limit 5)
+#_(find [:project :p] {:p.project-id 100} :u.user-id
+        :join [[[:project-member :pm] [:= :p.project-id :pm.project-id]]
+               [[:web-user :u] :pm.user-id]]
+        :order-by :user-id, :limit 5)
 ;;; => (9 26 33 35 37)
 
 (defn-spec find-one any?
@@ -385,7 +386,7 @@
 
   See `find` for description of all arguments."
   [table ::table, match-by ::match-by
-   & {:keys [join left-join where prepare]:as opts} ::opts-exists]
+   & {:keys [join left-join where prepare] :as opts} ::opts-exists]
   [:not (apply-keyargs exists table match-by opts)])
 
 (defn-spec create any?
@@ -842,14 +843,3 @@
   (db/with-project-cache project-id [:predict :latest-predict-run-id]
     (first (find :predict-run {:project-id project-id} :predict-run-id
                  :order-by [:create-time :desc] :limit 1))))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; -- Label prediction queries
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; ++ Utility functions
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn table-exists? [table]
-  (try (find table {} :*, :limit 1) true
-       (catch Throwable _ false)))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

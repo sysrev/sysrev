@@ -319,9 +319,6 @@
 (defn init-data []
   (dispatch [:fetch [:identity]]))
 
-(defn fetch [& item]
-  (dispatch [:fetch (into [] item)]))
-
 (defn require-data [& item]
   (dispatch [:require (into [] item)]))
 

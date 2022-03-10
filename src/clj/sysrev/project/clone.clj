@@ -1,17 +1,19 @@
 (ns sysrev.project.clone
-  (:require [clojure.tools.logging :as log]
-            [clojure.set :refer [difference]]
-            [honeysql.helpers :as sqlh :refer [select from join insert-into values where]]
+  (:require [clojure.set :refer [difference]]
+            [clojure.tools.logging :as log]
+            [honeysql.helpers :as sqlh :refer [from insert-into join select values
+                                               where]]
+            [sysrev.article.core :as article]
+            [sysrev.biosource.predict :as predict-api]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction to-jsonb]]
+             [do-execute do-query to-jsonb
+              with-transaction]]
             [sysrev.db.queries :as q]
+            [sysrev.file.article :as article-file]
+            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
-            [sysrev.file.article :as article-file]
-            [sysrev.article.core :as article]
-            [sysrev.label.core :as label]
             [sysrev.source.core :as source]
-            [sysrev.biosource.predict :as predict-api]
             [sysrev.util :refer [in? index-by]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
@@ -256,37 +258,6 @@
       (when (and articles answers)
         (predict-api/schedule-predict-update dest-id))
       dest-id)))
-
-(defn ^:unused clone-subproject-articles
-  "Creates a copy of a project with a subset of the articles from a parent project.
-
-  Copies most project definition entries over from the parent project
-  (eg. project members, label definitions, keywords)."
-  [project-name src-id article-uuids &
-   {:keys [user-ids-only admin-members-only labels? answers?]
-    :or {labels? false answers? false}}]
-  (with-transaction
-    (let [dest-id
-          (:project-id (project/create-project
-                        project-name :parent-project-id src-id))]
-      (project/add-project-note dest-id {})
-      (log/info (format "created project (#%d, '%s')"
-                        dest-id project-name))
-      (populate-child-project-articles
-       src-id dest-id article-uuids)
-      (log/info (format "loaded %d articles"
-                        (project/project-article-count dest-id)))
-      (copy-project-members src-id dest-id
-                            :user-ids-only user-ids-only
-                            :admin-members-only admin-members-only)
-      (if labels?
-        (copy-project-label-defs src-id dest-id)
-        (label/add-label-overall-include dest-id))
-      (when labels?
-        (copy-project-keywords src-id dest-id))
-      (when (and labels? answers?)
-        (copy-project-article-labels src-id dest-id))))
-  (log/info "clone-subproject-articles done"))
 
 (defn copy-article-source-defs!
   "Given a src-project-id and dest-project-id, create source entries in dest-project-id and return a map of

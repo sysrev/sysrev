@@ -1,9 +1,8 @@
 (ns sysrev.views.reagent-json-view
   (:require [clojure.string :as str]
-            [sysrev.views.html :refer [html]]
-            [sysrev.views.semantic :refer [Icon]]
             [reagent.core :as r]
-            [sysrev.util :as util :refer [wrap-stop-propagation]]))
+            [sysrev.util :as util :refer [wrap-stop-propagation]]
+            [sysrev.views.semantic :refer [Icon]]))
 
 (defn ns-str
   "Create a new namespace given a root and leaf"
@@ -15,14 +14,6 @@
 ;; MIT License
 (defn render-keyword [k]
   (str (->> k ((juxt namespace name)) (remove nil?) (str/join "/"))))
-
-(def url-regex ;; good enough...
-  (re-pattern "(\\b(https?|ftp|file|ldap)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|])"))
-
-(defn linkify-links
-  "Make links clickable."
-  [string]
-  (str/replace string url-regex "<a class='jh-type-string-link' href=$1>$1</a>"))
 
 (defprotocol Render
   (render [this] "Renders the element a Hiccup structure"))
@@ -148,12 +139,6 @@
           (satisfies? ICollection v) (render-collection v context)
           (= t js/Object)            (render-html (obj->clj v) context)
           (= t nil)                  [:span.jh-empty nil])))
-
-(defn edn->hiccup [edn]
-  [:div.jh-root (render-html edn "")])
-
-(defn edn->html [edn]
-  (linkify-links (html (edn->hiccup edn))))
 
 (defn json->hiccup [json & [context]]
   [:div.jh-root

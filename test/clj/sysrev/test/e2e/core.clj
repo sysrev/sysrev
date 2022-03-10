@@ -1,20 +1,18 @@
 (ns sysrev.test.e2e.core
-  (:require
-   [cheshire.core :refer [generate-stream]]
-   [clojure.java.io :as io]
-   [clojure.string :as str]
-   [clojure.test :refer [is]]
-   [clojure.tools.logging :as log]
-   [etaoin.api :as ea]
-   [me.raynes.fs :as fs]
-   [remvee.base64 :as base64]
-   [sysrev.config :refer [env]]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.test.core :as test]
-   [sysrev.util :as util])
-  (:import
-   (java.net URL URLDecoder)
-   (java.util Date)))
+  (:require [cheshire.core :refer [generate-stream]]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [clojure.test :refer [is]]
+            [clojure.tools.logging :as log]
+            [etaoin.api :as ea]
+            [me.raynes.fs :as fs]
+            [remvee.base64 :as base64]
+            [sysrev.config :refer [env]]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.test.core :as test]
+            [sysrev.util :as util])
+  (:import (java.net URL URLDecoder)
+           (java.util Date)))
 
 (defn bytes->base64
   "Returns a base64-encoded string corresponding to `bytes`."
@@ -86,7 +84,7 @@
       (log/logp level "browser console errors: (none)"))))
 
 (defn check-browser-console-clean [driver]
-  (is (empty? (browser-console-errors driver)) "errors in browser console" )
+  (is (empty? (browser-console-errors driver)) "errors in browser console")
   (is (empty? (browser-console-warnings driver)) "warnings in browser console")
   (when-not (and (empty? (browser-console-errors driver))
                  (empty? (browser-console-warnings driver)))
@@ -101,10 +99,6 @@
 (defn exists? [driver q & {:keys [wait] :or {wait true}}]
   (when wait (wait-exists driver q))
   (ea/exists? driver q))
-
-(defn ajax-pending-requests [driver]
-  (some-> (js-execute driver "return sysrev.loading.all_pending_requests();")
-          (util/read-transit-str)))
 
 (defn ajax-activity-duration
   "Query browser for duration in milliseconds that ajax requests have
@@ -149,10 +143,6 @@
     ea/refresh
     wait-until-loading-completes
     check-browser-console-clean))
-
-(defn enabled? [driver q & {:keys [wait] :or {wait true}}]
-  (when wait (wait-exists driver q))
-  (ea/enabled? driver q))
 
 ;; used for local debug purposes
 (defn take-screenshot [driver]
@@ -233,7 +223,7 @@
   `(let [driver# ~driver
          pred# (fn [] ~pred-form)]
      (or (try-wait ea/wait-predicate pred# ~timeout ~interval)
-       (when driver# (take-screenshot driver# :error)))
+         (when driver# (take-screenshot driver# :error)))
      (is* (pred#))))
 
 (defmacro with-driver [[driver-sym opts] & body]
@@ -267,7 +257,7 @@
     (et/fill-visible {:css "#create-project div.project-name input"} project-name)
     (et/click-visible "//button[contains(text(),'Create Project')]")
     (ea/wait-exists (str "//div[contains(@class,'project-title')]"
-                             "//a[contains(text(),'" project-name "')]"))
+                         "//a[contains(text(),'" project-name "')]"))
     wait-until-loading-completes))
 
 (defn select-datasource [driver datasource-name]

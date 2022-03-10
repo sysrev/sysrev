@@ -1,71 +1,69 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
-  (:require
-   [clojure.data.json :as json]
-   [clojure.java.io :as io]
-   [clojure.set :as set]
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [clojure.tools.logging :as log]
-   [me.raynes.fs :as fs]
-   [medley.core :as medley]
-   [orchestra.core :refer [defn-spec]]
-   [ring.mock.request :as mock]
-   [ring.util.response :as response]
-   [sysrev.annotations :as ann]
-   [sysrev.api2 :as api2]
-   [sysrev.article.core :as article]
-   [sysrev.biosource.annotations :as api-ann]
-   [sysrev.biosource.concordance :as concordance-api]
-   [sysrev.biosource.countgroup :as biosource-contgroup]
-   [sysrev.biosource.importance :as importance]
-   [sysrev.biosource.predict :as predict-api]
-   [sysrev.cache :refer [db-memo]]
-   [sysrev.config :refer [env]]
-   [sysrev.datasource.api :as ds-api]
-   [sysrev.db.core :as db :refer [with-transaction]]
-   [sysrev.db.queries :as q]
-   [sysrev.encryption :as enc]
-   [sysrev.file.article :as article-file]
-   [sysrev.file.core :as file]
-   [sysrev.file.s3 :as s3-file]
-   [sysrev.file.user-image :as user-image]
-   [sysrev.formats.pubmed :as pubmed]
-   [sysrev.gengroup.core :as gengroup]
-   [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
-   [sysrev.group.core :as group]
-   [sysrev.label.core :as label]
-   [sysrev.label.define :as ldefine]
-   [sysrev.notification.interface :as notification]
-   [sysrev.payment.paypal :as paypal]
-   [sysrev.payment.plans :as plans]
-   [sysrev.payment.stripe :as stripe]
-   [sysrev.project.charts :as charts]
-   [sysrev.project.clone :as clone]
-   [sysrev.project.compensation :as compensation]
-   [sysrev.project.core :as project]
-   [sysrev.project.description :as description]
-   [sysrev.project.funds :as funds]
-   [sysrev.project.invitation :as invitation]
-   [sysrev.project.member :as member]
-   [sysrev.project.plan :as pplan]
-   [sysrev.sendgrid :as sendgrid]
-   [sysrev.shared.notifications :refer [combine-notifications]]
-   [sysrev.shared.spec.project :as sp]
-   [sysrev.shared.text :as shared]
-   [sysrev.source.core :as source]
-   [sysrev.source.import :as import]
-   [sysrev.stacktrace :refer [print-cause-trace-custom]]
-   [sysrev.sysrev-api-client.interface.queries :as sacq]
-   [sysrev.user.interface :as user :refer [user-by-email]]
-   [sysrev.user.interface.spec :as su]
-   [sysrev.util
-    :as
-    util
-    :refer
-    [in? index-by parse-integer req-un sum uuid-from-string]])
-  (:import
-   (java.util.zip ZipEntry ZipOutputStream)))
+  (:require [clojure.data.json :as json]
+            [clojure.java.io :as io]
+            [clojure.set :as set]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [me.raynes.fs :as fs]
+            [medley.core :as medley]
+            [orchestra.core :refer [defn-spec]]
+            [ring.mock.request :as mock]
+            [ring.util.response :as response]
+            [sysrev.annotations :as ann]
+            [sysrev.api2 :as api2]
+            [sysrev.article.core :as article]
+            [sysrev.biosource.annotations :as api-ann]
+            [sysrev.biosource.concordance :as concordance-api]
+            [sysrev.biosource.countgroup :as biosource-contgroup]
+            [sysrev.biosource.importance :as importance]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.cache :refer [db-memo]]
+            [sysrev.config :refer [env]]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.db.core :as db :refer [with-transaction]]
+            [sysrev.db.queries :as q]
+            [sysrev.encryption :as enc]
+            [sysrev.file.article :as article-file]
+            [sysrev.file.core :as file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.file.user-image :as user-image]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
+            [sysrev.group.core :as group]
+            [sysrev.label.core :as label]
+            [sysrev.label.define :as ldefine]
+            [sysrev.notification.interface :as notification]
+            [sysrev.payment.paypal :as paypal]
+            [sysrev.payment.plans :as plans]
+            [sysrev.payment.stripe :as stripe]
+            [sysrev.project.charts :as charts]
+            [sysrev.project.clone :as clone]
+            [sysrev.project.compensation :as compensation]
+            [sysrev.project.core :as project]
+            [sysrev.project.description :as description]
+            [sysrev.project.funds :as funds]
+            [sysrev.project.invitation :as invitation]
+            [sysrev.project.member :as member]
+            [sysrev.project.plan :as pplan]
+            [sysrev.sendgrid :as sendgrid]
+            [sysrev.shared.notifications :refer [combine-notifications]]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.shared.text :as shared]
+            [sysrev.source.core :as source]
+            [sysrev.source.import :as import]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.sysrev-api-client.interface.queries :as sacq]
+            [sysrev.user.interface :as user :refer [user-by-email]]
+            [sysrev.user.interface.spec :as su]
+            [sysrev.util
+             :as
+             util
+             :refer
+             [in? index-by parse-integer req-un sum
+                                 uuid-from-string]])
+  (:import (java.util.zip ZipEntry ZipOutputStream)))
 
 ;; HTTP error codes
 (def payment-required 402)
@@ -196,15 +194,6 @@
   (util/assert-single user-id group-id)
   (cond user-id   (change-project-owner-to-user project-id user-id)
         group-id  (change-project-owner-to-group project-id group-id)))
-
-(defn ^:unused transfer-user-projects [owner-user-id & {:keys [user-id group-id]}]
-  (util/assert-single user-id group-id)
-  (with-transaction
-    (let [users-projects (->> (user/user-projects owner-user-id [:permissions])
-                              (filter #(contains? (set (:permissions %)) "owner"))
-                              (mapv :project-id))]
-      (cond user-id   (mapv #(change-project-owner % :user-id user-id) users-projects)
-            group-id  (mapv #(change-project-owner % :group-id group-id) users-projects)))))
 
 (defn wrap-import-api [f args]
   (let [{:keys [error import]}
@@ -506,7 +495,7 @@
               (db/clear-project-cache project-id))
             {:stripe-body sub-resp :plan (plans/group-current-plan group-id)})))))
 
-(defn ^:unused support-project-monthly [user project-id amount]
+(defn support-project-monthly [user project-id amount]
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (cond
       (and (not (nil? amount))
@@ -580,7 +569,7 @@
   {:result (mapv #(select-keys % [:name :project-id :quantity])
                  (plans/user-support-subscriptions user))})
 
-(defn ^:unused cancel-user-project-support [user project-id]
+(defn cancel-user-project-support [user project-id]
   (let [{:keys [id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
     {:success true}))
@@ -601,7 +590,7 @@
 ;; Everyone is Premium (formerly team pro) now
 (def user-available-plans org-available-plans)
 
-(defn ^:unused finalize-stripe-user!
+(defn finalize-stripe-user!
   "Save a stripe user in our database for payouts"
   [user-id stripe-code]
   (let [{:keys [body] :as response} (stripe/finalize-stripe-user! stripe-code)]
@@ -642,16 +631,6 @@
     {:error {:status bad-request, :message "That compensation already exists"}}
     (do (compensation/create-project-compensation! project-id rate)
         {:success true, :rate rate})))
-
-(defn project-compensation-for-users
-  "Return all compensations owed for project-id using start-date and
-  end-date. start-date and end-date are of the form YYYY-MM-dd
-  e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of
-  the day (12:00:00AM) and end-date is until the end of the
-  day (11:59:59AM)."
-  [project-id start-date end-date]
-  {:amount-owed (compensation/project-compensation-for-users
-                 project-id start-date end-date)})
 
 (defn compensation-owed
   "Return compensations owed for all users by project-id"
@@ -1523,15 +1502,6 @@
      :message (if success?
                 (str response-count " invitation(s) successfully sent!")
                 (str failure-count " out of " (count responses) " invitation(s) failed to be sent"))}))
-
-(defn create-project-member-gengroup [project-id gengroup-name gengroup-description]
-  (cond (gengroup/read-project-member-gengroups project-id :gengroup-name gengroup-name)
-        {:error {:status conflict
-                 :message (str "A group with the name '" gengroup-name "' already exists for this project."
-                               " Please try using another name.")}}
-        :else (do
-                (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
-                {:success true})))
 
 (defn toggle-developer-account!
   [user-id enabled?]

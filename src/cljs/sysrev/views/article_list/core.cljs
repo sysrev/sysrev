@@ -1,19 +1,21 @@
 (ns sysrev.views.article-list.core
-  (:require [reagent.ratom :refer [reaction]]
+  (:require [clojure.string :as str]
             [re-frame.core :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v reg-fx]]
-            [clojure.string :as str]
+             [dispatch dispatch-sync reg-event-fx reg-fx
+                                   reg-sub reg-sub-raw subscribe trim-v]]
+            [reagent.ratom :refer [reaction]]
             [sysrev.data.core :as data]
+            [sysrev.macros :refer-macros [with-loader]]
+            [sysrev.util :as util :refer [css in? index-by]]
             [sysrev.views.article :refer [ArticleInfo ArticlePredictions]]
-            [sysrev.views.review :as review]
+            [sysrev.views.article-list.base :as al]
+            [sysrev.views.article-list.filters :as f]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.list-pager :refer [ListPager]]
             [sysrev.views.labels :as labels]
-            [sysrev.views.article-list.base :as al]
-            [sysrev.views.article-list.filters :as f]
-            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.util :as util :refer [in? css index-by]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.views.panels.user.profile :refer [Avatar
+                                                      UserPublicProfileLink]]
+            [sysrev.views.review :as review]))
 
 (reg-sub-raw ::prev-next-article-ids
              (fn [_ [_ context]]

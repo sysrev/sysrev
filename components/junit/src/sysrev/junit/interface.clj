@@ -8,6 +8,7 @@
   [out-file in-files]
   (core/merge-files! out-file in-files))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn merge-xml
   "Merge any number of JUnit XML documents."
   [& ms]

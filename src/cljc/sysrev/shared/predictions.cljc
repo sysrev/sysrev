@@ -1,6 +1,6 @@
 (ns sysrev.shared.predictions)
 
-#_{:clj-kondo/ignore [:unused-binding]}
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var :unused-binding]}
 (defprotocol ClassificationMetrics
   (true-positives [this])
   (true-negatives [this])
@@ -26,7 +26,7 @@
   (false-accuracy [this])
   (balanced-accuracy [this]))
 
-#_{:clj-kondo/ignore [:unused-binding]}
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var :unused-binding]}
 (defrecord AccuracyMetric [true-positives true-negatives false-positives false-negatives]
   ClassificationMetrics
   (true-positives [this] true-positives)

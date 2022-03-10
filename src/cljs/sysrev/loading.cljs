@@ -219,6 +219,7 @@
   (< (ajax-action-status) (- (or duration 25))))
 
 ;;; Exported for browser tests
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn ^:export all-pending-requests []
   (util/write-transit-str
    (->> {:data   (not-empty (pending-requests @ajax-data-counts))

@@ -14,13 +14,6 @@
                    :get [panel-get ::get] :set [panel-set ::set])
 
 (def minimum-amount "$1")
-(def ^:unused paypal-env
-  (some-> (.getElementById js/document "paypal-env")
-          (.getAttribute "data-paypal-env")))
-
-(def ^:unused paypal-client-id
-  (some-> (.getElementById js/document "paypal-client-id")
-          (.getAttribute "data-paypal-client-id")))
 
 (def-action :paypal/add-funds
   :uri (constantly "/api/paypal/add-funds")

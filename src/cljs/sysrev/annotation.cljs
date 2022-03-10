@@ -1,8 +1,6 @@
 (ns sysrev.annotation
   (:require cljs.reader
             [clojure.string :as str]
-            [reagent.core :as r]
-            [sysrev.views.semantic :refer [Popup]]
             [sysrev.util :as util :refer [index-by]]))
 
 ;; accessing state for testing:
@@ -12,7 +10,7 @@
 (defn within?
   "Given a coll of sorted numbers, determine if x is within (inclusive) the range of values"
   [x coll]
-  (and (>= x (first coll)) (<= x (last coll))) )
+  (and (>= x (first coll)) (<= x (last coll))))
 
 (defn overlap?
   "Given two vectors determine if they overlap"
@@ -26,122 +24,6 @@
   "Given an index vector, return its length"
   [index]
   (+ 1 (- (last index) (first index))))
-
-(defn word-indices
-  "Given a string and word, return a map of indices of the form
-  {:word <word>
-   :indices [[<begin end> ...]]"
-  ([string word]
-   ;; if the string or word is blank, this results in non-sense,
-   ;; return nil
-   (if (or (str/blank? string)
-           (str/blank? word))
-     nil
-     ;; otherwise, start processing
-     (word-indices string word [] 0)))
-  ([string word indices offset]
-   (let [begin-position (str/index-of (str/lower-case string)
-                                      (str/lower-case word))
-         end-position (+ begin-position (count word))
-         remaining-string (subs string end-position)
-         new-index [(+ begin-position offset)
-                    (+ end-position offset)]]
-     (cond
-;;; we're done
-       (str/blank? remaining-string)
-       {:word word
-        ;; if we are at the end of the string and have a capture, put
-        ;; it in indices
-        :indices
-        (if (nil? begin-position)
-          indices
-          (conj indices new-index))}
-       (nil? begin-position)
-       {:word word :indices indices}
-;;; processing
-       ;; at the beginning of the string with a match
-       (and (= begin-position 0)
-            (re-matches #"\W" (subs string
-                                    end-position
-                                    (+ end-position 1))))
-       (word-indices remaining-string word (conj indices new-index)
-                     (+ end-position offset))
-       ;; not at the beginning or ending of the string
-       ;; and not in the middle of a word
-       (and (re-matches #"\W" (subs string
-                                    (+ begin-position -1)
-                                    begin-position))
-            (re-matches #"\W" (subs string
-                                    end-position
-                                    (+ end-position 1))))
-       (word-indices remaining-string word (conj indices new-index) (+ end-position offset))
-       :else
-       (word-indices remaining-string word
-                     indices
-                     (+ end-position offset))))))
-
-(defn word-indices->word-indices-map
-  "Given a word-indices map returned by word-indices, create a vector of
-  {:word <word> :index <index>} maps"
-  [word-indices]
-  (mapv #(hash-map :word (:word word-indices)
-                   :index %)
-        (:indices word-indices)))
-
-(defn annotation-map->word-indices-maps
-  "Given a string and an annotation-map of the form:
-  {:word <string> :annotation <string>}
-
-  return a vector of maps of the form:
-
-  [{:word <string> :index [[<begin> <end>]..] :annotation <string>} ...]
-  which are indexed to string"
-  [string {:keys [word annotation color]}]
-  (mapv (partial merge {:annotation annotation
-                        :color color})
-        (word-indices->word-indices-map (word-indices string word))))
-
-(defn annotations->word-indices-maps
-  "Given a string and a vector of annotations maps of the form
-  [{:word <string> :annotation <string>}..]
-
-  return a vector of maps for the form
-  [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
-
-  which are indexed to string"
-  [annotations string]
-  (->> annotations
-       (mapv (partial annotation-map->word-indices-maps string))
-       flatten
-       (sort-by #(first (:index %)))
-       (into [])))
-
-(defn annotations->no-annotations-indices-maps
-  "Given a string and vector of indexed annotations,
-  return the indices for which there are no annotations in string.
-  Returns a vector of the form
-  [{:word nil :index [[<begin> <end>] ..] :annotation <string>} ...]"
-  [annotations _string]
-  (let [occupied-chars (sort (flatten (mapv :index
-                                            annotations)))
-        no-annotations-indices (merge (mapv vector
-                                            (take-nth 2 (rest occupied-chars))
-                                            (rest (take-nth 2 occupied-chars)))
-                                      [(last occupied-chars)])]
-    (-> (mapv #(hash-map :word nil :annotation nil :index %) no-annotations-indices)
-        (merge {:index [0 (first occupied-chars)]
-                :annotation nil
-                :word nil}))))
-
-(defn annotation-indices
-  "Given a coll of annotations and a string, return a vector of the form
-   [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
-  for annotations."
-  [annotations string]
-  (->> (annotations->word-indices-maps annotations string)
-       flatten
-       (sort-by #(first (:index %)))
-       (into [])))
 
 (defn remove-overlapping-indices
   "Given a coll of maps with a {:index [start end]} keyword-value sorted by :index,
@@ -171,54 +53,6 @@
                                    ;; starting over
                                    (first rest-maps))))))
 
-(defn process-annotations
-  "Given a set of annotations and a string, return a vector of the form
-  [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
-
-  non-annotated indices will have the value of nil for :word
-  overlapping maps will be resolved to the longest annotation"
-  [annotations string]
-  (let [annotation-indices (annotation-indices annotations string)
-        final-annotations (remove-overlapping-indices annotation-indices)
-        no-annotations-indices (annotations->no-annotations-indices-maps
-                                final-annotations
-                                string)]
-    (->>
-     (concat
-      final-annotations
-      no-annotations-indices)
-     (sort-by #(first (:index %)))
-     (into []))))
-
-(defn Annotation [{:keys [text content text-decoration]
-                   :or {text-decoration "underline dotted #909090"}}]
-  (let [highlight-text [:span {:style
-                               {:text-decoration text-decoration
-                                :cursor (if-not (str/blank? content)
-                                          "pointer" "text")}}
-                        text]]
-    (if-not (str/blank? content)
-      [Popup {:trigger (r/as-element highlight-text)
-              :content content}]
-      highlight-text)))
-
-#_(defn AnnotatedText
-  [text annotations & [text-decoration]]
-  (let [annotations (process-annotations annotations text)]
-    [:div.annotated-text
-     (map (fn [{:keys [word index annotation]}]
-            (let [key (str (gensym word))]
-              (if (= word nil)
-                ^{:key key}
-                (apply (partial subs text) index)
-                ^{:key key}
-                [Annotation (cond->
-                                {:text (apply (partial subs text) index)
-                                 :content annotation}
-                              text-decoration
-                              (merge {:text-decoration text-decoration}))])))
-          annotations)]))
-
 (defn convert-annotations
   "Given a coll of annotation maps in the form
    {:semantic-class <string> ; semantic class, optionally nil
@@ -232,7 +66,7 @@
     :end   <integer> ;; end index in text
     :annotation <string> ;; will contain semantic-class: annotation}]"
   [annotations text]
-  (let [ ;; get all contexts and determine their relative offset in selection
+  (let [;; get all contexts and determine their relative offset in selection
         contexts (->> annotations
                       (map #(get-in % [:context :text-context]))
                       set

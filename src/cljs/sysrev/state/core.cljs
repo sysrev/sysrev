@@ -6,6 +6,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :as util :refer [dissoc-in]]))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn ^:export re-frame-db-state
   "Exported for tests to use."
   []

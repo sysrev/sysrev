@@ -1,6 +1,7 @@
 (ns sysrev.datapub-client.interface
   (:require [sysrev.datapub-client.core :as core]))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn consume-subscription!
   "Return a vector of responses matching the subscription query. The
   subscription must terminate for this to return."
@@ -27,6 +28,7 @@
   [{:keys [auth-token endpoint query variables] :as args}]
   (apply core/execute! (mapcat identity args)))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn get-dataset
   "Retrieve a Dataset by its id."
   [^Long id return & {:keys [auth-token endpoint]}]

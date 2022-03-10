@@ -1,8 +1,8 @@
 (ns sysrev.util
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [clojure.walk :as walk]
             [clojure.test.check.generators :as gen]
+            [clojure.walk :as walk]
             [cognitect.transit :as transit]
             #?@(:clj  [[orchestra.core :refer [defn-spec]]
                        [clj-time.core :as t]
@@ -14,33 +14,29 @@
                        [cljs-time.format :as tf]])
             #?@(:clj  [[clojure.main :refer [demunge]]
                        [clojure.data.json :as json]
-                       [clojure.java.shell :refer [sh]]
                        [clojure.java.io :as io]
                        [clojure.pprint :as pp]
                        [clojure.tools.logging :as log]
                        [clojure.data.xml :as dxml]
                        [clojure.math.numeric-tower :as math]
-                       [me.raynes.fs :as fs]
                        [crypto.random]
                        [venia.core :as venia]
-                       [sysrev.config :refer [env]]
                        [sysrev.stacktrace :refer [print-cause-trace-custom]]]
                 :cljs [["jquery" :as $]
                        ["moment" :as moment]
                        ["dropzone" :as Dropzone]
-                       ["decamelize" :as decamelize]
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
                        [goog.uri.utils :as uri-utils]
-                       [re-frame.core :refer [subscribe reg-event-db reg-fx]]
+                       [re-frame.core :refer [reg-event-db reg-fx subscribe]]
                        [sysrev.base :refer [active-route sysrev-hostname]]]))
-  #?(:clj (:import [java.util UUID]
-                   [java.util.zip GZIPInputStream]
+  #?(:clj (:import [java.io File ByteArrayOutputStream ByteArrayInputStream]
                    [java.math BigInteger]
-                   [java.io File ByteArrayOutputStream ByteArrayInputStream]
-                   [org.joda.time DateTime]
-                   [java.security MessageDigest])))
+                   [java.security MessageDigest]
+                   [java.util UUID]
+                   [java.util.zip GZIPInputStream]
+                   [org.joda.time DateTime])))
 
 ;;;
 ;;; CLJ+CLJS code
@@ -157,13 +153,6 @@
    (into rescoll (->> m (map (fn [[k v]] (f k v))) (remove nil?))))
   ([f m]
    (map-kv f {} m)))
-
-(defn ^:unused check
-  "Returns val after running an assertion on (f val).
-  If f is not specified, checks that (not (nil? val))."
-  [val & [f]]
-  (assert ((or f (comp not nil?)) val))
-  val)
 
 (defn- uuid-str? [s]
   (boolean
@@ -331,6 +320,7 @@
        (apply concat)
        (apply hash-map)))
 
+#_:clj-kondo/ignore
 (defn write-transit-str [x]
   #?(:clj  (with-open [os (ByteArrayOutputStream.)]
              (let [w (transit/writer os :json)]
@@ -339,6 +329,7 @@
      :cljs (-> (transit/writer :json)
                (transit/write x))))
 
+#_:clj-kondo/ignore
 (defn read-transit-str [^String s]
   #?(:clj  (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
                (transit/reader :json)
@@ -448,9 +439,6 @@
                      (rest path))))
        (catch #?(:clj Throwable :cljs :default) _ nil)))
 
-(defn xml-find-value [roots path]
-  (-> (xml-find roots path) first :content first))
-
 (defn xml-find-vector [roots path]
   (->> (xml-find roots path)
        (mapv #(-> % :content first))))
@@ -534,57 +522,11 @@
 
 #?(:clj (defn parse-xml-str [s] (dxml/parse-str s)))
 
-#?(:clj (defn all-project-ns []
-          (->> (all-ns)
-               (map ns-name)
-               (map name)
-               (filter #(re-find #"sysrev" %))
-               (map symbol)
-               (map find-ns))))
-
-#?(:clj (defn ^:repl clear-project-symbols [syms]
-          (let [syms (if (coll? syms) syms [syms])]
-            (doseq [ns (all-project-ns)]
-              (doseq [sym syms]
-                (ns-unmap ns sym))))))
-
-#?(:clj (defn ^:repl clear-project-aliases [alias]
-          (doseq [ns (all-project-ns)]
-            (ns-unalias ns alias))))
-
-#?(:clj (defn ^:repl reload
-          "Reload sysrev.user namespace to update referred symbols."
-          []
-          (require 'sysrev.user :reload)))
-
-#?(:clj (defn ^:repl reload-all
-          "Reload code for all project namespaces."
-          []
-          (let [ ;; Reload project namespaces
-                failed (->> (all-project-ns)
-                            (mapv #(try (require (ns-name %) :reload)
-                                        nil
-                                        (catch Throwable e
-                                          (log/warn (ns-name %) "failed:" (.getMessage e))
-                                          %)))
-                            (remove nil?))]
-            ;; Try again for any that failed
-            ;; (may have depended on changes from another namespace)
-            (doseq [ns failed]
-              (require (ns-name ns) :reload))
-            ;; Update sysrev.user symbols
-            (reload))))
-
 #?(:clj (defn crypto-rand []
           (let [size 4
                 n-max (math/expt 256 size)
                 n-rand (BigInteger. 1 ^bytes (crypto.random/bytes size))]
             (double (/ n-rand n-max)))))
-
-#?(:clj (defn crypto-rand-int [n]
-          (let [size 4
-                n-rand (BigInteger. 1 ^bytes (crypto.random/bytes size))]
-            (int (mod n-rand n)))))
 
 ;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
 ;;      https://stackoverflow.com/questions/22116257/how-to-get-functions-name-as-string-in-clojure
@@ -626,21 +568,6 @@
           [precision d]
           (let [factor (Math/pow 10 precision)]
             (/ (Math/round (* d factor)) factor))))
-
-#?(:clj (defn round-to
-          "Round a double to the closest multiple of interval, then round to
-  precision (number of significant digits).
-
-  op controls which operation to use for the first round. Allowed
-  values are [:round :floor :ceil]."
-          [d interval precision & {:keys [op] :or {op :round}}]
-          (let [x ^Double (/ d interval)]
-            (->> interval
-                 (* (case op
-                      :round (Math/round x)
-                      :floor (Math/floor x)
-                      :ceil (Math/ceil x)))
-                 (round precision)))))
 
 ;; see: https://gist.github.com/jizhang/4325757
 #?(:clj (defn byte-array->md5-hash
@@ -707,68 +634,10 @@
                               (result-fn (inc retry-count)))))))]
             (result-fn 0))))
 
-#?(:clj (defn shell
-          "Runs a shell command, throwing exception on non-zero exit."
-          [& args]
-          (let [{:keys [exit] :as result}
-                (apply sh args)]
-            (if (zero? exit)
-              result
-              (throw (ex-info "shell command returned non-zero exit code"
-                              {:type :shell
-                               :command (vec args)
-                               :result result}))))))
-
 #?(:clj (defn create-tempfile [& {:keys [suffix]}]
           (let [file (File/createTempFile "sysrev-" suffix)]
             (.deleteOnExit file)
             file)))
-
-#?(:clj (defn ^:repl rename-flyway-files
-          "Handles renaming flyway sql files for formatting. Returns a sequence
-  of shell commands that can be used to rename all of the
-  files. directory should be path containing the sql
-  files. primary-width and extra-width control zero-padding on index
-  numbers in file names. mv argument sets shell command for mv
-  (e.g. \"git mv\")."
-          [directory & {:keys [primary-width extra-width mv]
-                        :or {primary-width 4 extra-width 3 mv "mv"}}]
-          (->> (fs/list-dir directory)
-               (map #(str (fs/name %) (fs/extension %)))
-               (map #(re-matches #"(V0\.)([0-9]+)(\.[0-9]+)*(__.*)" %))
-               (map (fn [[original start n extra end]]
-                      [(str start
-                            (format (str "%0" primary-width "d") (parse-integer n))
-                            (when extra
-                              (->> (str/split extra #"\.")
-                                   (map #(some->> (parse-integer %)
-                                                  (format (str "%0" extra-width "d"))))
-                                   (str/join ".")))
-                            end)
-                       original]))
-               (filter (fn [[changed original]] (not= changed original)))
-               sort
-               (map (fn [[changed original]] (str/join " " [mv original changed]))))))
-
-#?(:clj (defn ms-windows? []
-          (-> (System/getProperty "os.name")
-              (str/includes? "Windows"))))
-
-#?(:clj (defn linux? []
-          (-> (System/getProperty "os.name")
-              (str/lower-case)
-              (str/includes? "linux"))))
-
-#?(:clj (defn mac? []
-          (-> (System/getProperty "os.name")
-              (str/includes? "Mac"))))
-
-#?(:clj (defn temp-dir []
-          (str (or (:tmpdir env) (:java-io-tmpdir env))
-               (if (ms-windows?) "\\" "/"))))
-
-#?(:clj (defn tempfile-path [filename]
-          (str (temp-dir) filename)))
 
 #?(:clj (defmacro with-tempfile
           "Runs `body` with `file` bound to a new temporary file and ensures the
@@ -831,11 +700,6 @@
 
 #?(:cljs (def nbsp (unescapeEntities "&nbsp;")))
 
-#?(:cljs (defn ^:unused number-to-word [n]
-           (->> n (nth ["zero" "one" "two" "three" "four" "five" "six"
-                        "seven" "eight" "nine" "ten" "eleven" "twelve"
-                        "thirteen" "fourteen" "fifteen" "sixteen"]))))
-
 #?(:cljs (defn url-domain
            "Gets the example.com part of a url"
            [url]
@@ -887,38 +751,6 @@
              (if n
                (format "%d %s" n (pluralize n (name unit)))
                "just now"))))
-
-#?(:cljs (defn get-dom-elt [selector]
-           (-> ($ selector) (.get 0))))
-
-#?(:cljs (defn dom-elt-visible? [selector]
-           (when-let [el (get-dom-elt selector)]
-             (let [rect   (. el (getBoundingClientRect))
-                   width  (or (-> js/window .-innerWidth)
-                              (-> js/document .-documentElement .-clientWidth))
-                   height (or (-> js/window .-innerHeight)
-                              (-> js/document .-documentElement .-clientHeight))]
-               (and (>= (.-top rect) 0)
-                    (>= (.-left rect) 0)
-                    (<= (.-bottom rect) height)
-                    (<= (.-right rect) width))))))
-
-#?(:cljs (defn scroll-to-dom-elt [selector]
-           (some-> (get-dom-elt selector)
-                   (.scrollIntoView true))))
-
-#?(:cljs (defn ensure-dom-elt-visible
-           "Scrolls to the position of DOM element if it is not currently visible."
-           [selector]
-           (when (false? (dom-elt-visible? selector))
-             (scroll-to-dom-elt selector)
-             (. js/window (scrollBy 0 -10)))))
-
-#?(:cljs (defn ensure-dom-elt-visible-soon
-           "Runs `ensure-dom-elt-visible` using js/setTimeout at multiple delay times."
-           [selector]
-           (doseq [ms [10 25 50 100]]
-             (js/setTimeout #(ensure-dom-elt-visible selector) ms))))
 
 #?(:cljs (defn continuous-update-until
            "Call f continuously every n milliseconds until pred is satisified. pred
@@ -1004,16 +836,6 @@
            (doseq [ms (range 3 40 8)]
              (js/setTimeout clear-text-selection ms))))
 
-#?(:cljs (defn wrap-clear-text
-           "Wraps any function to clear text selection before and after running."
-           [f]
-           (when f
-             (fn [& args]
-               (clear-text-selection)
-               (let [result (apply f args)]
-                 (clear-text-selection-soon)
-                 result)))))
-
 #?(:cljs (defn wrap-prevent-default
            "Wraps an event handler function to prevent execution of a default
   event handler. Tested for on-submit event."
@@ -1023,7 +845,7 @@
                (f event)
                (when (.-preventDefault event)
                  (.preventDefault event))
-               #_ (set! (.-returnValue event) false)
+               #_(set! (.-returnValue event) false)
                false))))
 
 #?(:cljs (defn wrap-stop-propagation
@@ -1194,11 +1016,6 @@
                  (pos? (.-length ($ "link[href='/css/style.default.css']")))
                  "Default")))
 
-#?(:cljs (defn log
-           "Wrapper to run js/console.log using printf-style formatting."
-           [format-string & args]
-           (js/console.log (apply format format-string args)) nil))
-
 #?(:cljs (defn log-err
            "Wrapper to run js/console.error using printf-style formatting."
            [format-string & args]
@@ -1214,20 +1031,6 @@
                  blob (to-blob base64-image "image / png")]
              (.addFile zone blob))))
 
-#?(:cljs (defn clojurize-map
-           "Ensures that (1) `val` is a Clojure value, then if `val` is a map
-  (2) converts any keys from camel-case to dash-separated, and from
-  string to keyword. Recurses into values which are themselves maps."
-           [val]
-           (let [val (js->clj val)]
-             (->> (cond-> val
-                    (map? val)
-                    (->> (map-keys #(cond-> %
-                                      (or (keyword? %) (string? %))
-                                      (-> name (decamelize "-") keyword)))
-                         (map-values #(if (map? %)
-                                        (clojurize-map %)
-                                        %))))))))
 #?(:cljs (defn base64->uint8 [base64]
            (-> base64 js/atob (js/Uint8Array.from #(.charCodeAt % 0)))))
 
@@ -1238,16 +1041,6 @@
 
 #?(:cljs (defn round [x]
            (js/Math.round x)))
-
-#?(:cljs (defn read-sub
-           "Creates a variable-argument function that will dereference
-  re-frame subscription `query-id` with the supplied arguments.
-
-  If an optional `args` sequence is passed, applies the function
-  to those arguments."
-           ([query-id]       (fn [& args]
-                               @(subscribe (vec (concat [query-id] args)))))
-           ([query-id args]  (apply (read-sub query-id) args))))
 
 #?(:cljs (defn get-url-params []
            (:query-params (http/parse-url @active-route))))

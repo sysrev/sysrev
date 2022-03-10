@@ -10,6 +10,7 @@
   (execute [_ _]
     (stripe/update-stripe-plans-table)))
 
+#_:clj-kondo/ignore
 (defn schedule-plans-job [{:keys [quartz-scheduler]}]
   (let [job (j/build
               (j/of-type PlansJob)
@@ -27,6 +28,7 @@
   (execute [_ _]
     (stripe/update-subscriptions)))
 
+#_:clj-kondo/ignore
 (defn schedule-subscriptions-job [{:keys [quartz-scheduler]}]
   (let [job (j/build
               (j/of-type SubscriptionsJob)
