@@ -52,7 +52,18 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.text :as shared]
             [sysrev.source.core :as source]
-            [sysrev.source.import :as import]
+            sysrev.source.ctgov
+            sysrev.source.datasource
+            sysrev.source.endnote
+            sysrev.source.fda-drugs-docs
+            [sysrev.source.interface :as src]
+            sysrev.source.json
+            sysrev.source.pdf-zip
+            sysrev.source.pdfs
+            sysrev.source.pmid
+            sysrev.source.project-filter
+            sysrev.source.pubmed
+            sysrev.source.ris
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.sysrev-api-client.interface.queries :as sacq]
             [sysrev.user.interface :as user :refer [user-by-email]]
@@ -62,7 +73,7 @@
              util
              :refer
              [in? index-by parse-integer req-un sum
-                                 uuid-from-string]])
+              uuid-from-string]])
   (:import (java.util.zip ZipEntry ZipOutputStream)))
 
 ;; HTTP error codes
@@ -210,20 +221,20 @@
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
   [request project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pubmed-search request project-id % options)
+  (wrap-import-api #(src/import-source request :pubmed project-id % options)
                    {:search-term search-term}))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs."
   [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pmid-file request project-id % options)
+  (wrap-import-api #(src/import-source request :pmid-file project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-endnote-file
   "Import articles from an Endnote XML file."
   [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-endnote-xml request project-id % options)
+  (wrap-import-api #(src/import-source request :endnote-xml project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdf-zip-file
@@ -231,40 +242,37 @@
   article entry is created for each PDF, using filename as the article
   title."
   [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-pdf-zip request project-id % options)
+  (wrap-import-api #(src/import-source request :pdf-zip project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-json-file
   "Import articles from a JSON file."
   [request project-id file filename & {:keys [] :as options}]
-  (wrap-import-api #(import/import-json request project-id % options)
+  (wrap-import-api #(src/import-source request :json project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdfs [request project-id multipart-params & {:keys [threads] :as options}]
   (let [files (get multipart-params "files[]")]
-    (wrap-import-api #(import/import-pdfs request project-id % options)
-                     {:files (if (map? files)
-                               [files]
-                               files)})))
+    (wrap-import-api #(src/import-source request :pdfs project-id % options)
+                     (if (map? files) [files] files))))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
   [request project-id file filename & {:keys [threads] :as options}]
-  {:result {:success true}}
-  (wrap-import-api #(import/import-ris request project-id % options)
+  (wrap-import-api #(src/import-source request :ris project-id % options)
                    {:file file :filename filename}))
 
 (defn import-trials-from-search
   "Import trials resulting from CT.gov search"
   [request project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-ctgov-search request project-id % options)
+  (wrap-import-api #(src/import-source request :ctgov project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 
 (defn import-trials-from-fda-drugs-docs
   "Import trials resulting from Drugs@FDA search"
   [request project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(import/import-fda-drugs-docs-search request project-id % options)
+  (wrap-import-api #(src/import-source request :fda-drugs-docs project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 

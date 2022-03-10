@@ -1,20 +1,19 @@
 (ns sysrev.source.interface-test
-  (:require
-   [clj-http.client :as http]
-   [clojure-csv.core :as csv]
-   [clojure.java.io :as io]
-   [clojure.test :refer [deftest is]]
-   [clojure.tools.logging :as log]
-   [sysrev.datasource.api :as ds-api]
-   [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]
-   [sysrev.export.core :as export]
-   [sysrev.formats.endnote :refer [load-endnote-library-xml]]
-   [sysrev.formats.pubmed :as pubmed]
-   [sysrev.project.core :as project]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test :refer [completes?]]
-   [sysrev.util :as util :refer [in?]]))
+  (:require [clj-http.client :as http]
+            [clojure-csv.core :as csv]
+            [clojure.java.io :as io]
+            [clojure.test :refer [deftest is]]
+            [clojure.tools.logging :as log]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
+            [sysrev.export.core :as export]
+            [sysrev.formats.endnote :refer [load-endnote-library-xml]]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.project.core :as project]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test :refer [completes?]]
+            [sysrev.util :as util :refer [in?]]))
 
 (deftest ^:integration import-pubmed-search
   (test/with-test-system [system {}]
@@ -25,8 +24,9 @@
             new-project-id (:project-id new-project)]
         (try
           (db/with-transaction
-            (import/import-pubmed-search
+            (src/import-source
              {:web-server (:web-server system)}
+             :pubmed
              new-project-id {:search-term search-term}
              {:use-future? false}))
           ;; Do we have the correct amount of PMIDS?
@@ -53,22 +53,22 @@
       (let [input (get-test-file "Sysrev_Articles_5505_20181128.xml")
             {:keys [project-id]} (project/create-project "autotest endnote import")]
         (try (is (= 0 (project/project-article-count project-id)))
-             (is (completes? (db/with-transaction
-                               (import/import-endnote-xml
-                                {:web-server (:web-server system)}
-                                project-id input {:use-future? false}))))
-             (is (= 112 (project/project-article-count project-id)))
+             (is (completes? (src/import-source
+                              {:web-server (:web-server system)}
+                              :endnote-xml
+                              project-id input {:use-future? false}))
+                 (is (= 112 (project/project-article-count project-id))))
              (finally (project/delete-project project-id))))
       (let [filename "test2-endnote.xml.gz"
             gz-file (-> (str "test-files/" filename) io/resource io/file)
             {:keys [project-id]} (project/create-project "autotest endnote import 2")]
         (try (util/with-gunzip-file [file gz-file]
                (is (= 0 (project/project-article-count project-id)))
-               (is (completes? (db/with-transaction
-                                 (import/import-endnote-xml
-                                  {:web-server (:web-server system)}
-                                  project-id {:file file :filename filename}
-                                  {:use-future? false}))))
+               (is (completes? (src/import-source
+                                {:web-server (:web-server system)}
+                                :endnote-xml
+                                project-id {:file file :filename filename}
+                                {:use-future? false})))
                (is (= 100 (project/project-article-count project-id)))
                (is (->> file io/reader load-endnote-library-xml
                         (map :primary-title)
@@ -83,8 +83,9 @@
         (try
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
-                            (import/import-pmid-file
+                            (src/import-source
                              {:web-server (:web-server system)}
+                             :pmid-file
                              project-id input {:use-future? false}))))
           (is (= 200 (project/project-article-count project-id)))
           (log/info "checking articles-csv export")
@@ -107,8 +108,9 @@
         (try
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
-                            (import/import-pdf-zip
+                            (src/import-source
                              {:web-server (:web-server system)}
+                             :pdf-zip
                              project-id {:file file :filename filename}
                              {:use-future? false}))))
           (is (= 4 (project/project-article-count project-id)))
@@ -126,8 +128,9 @@
       (let [search-term "mouse rat computer six"
             {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
         (try (db/with-transaction
-               (import/import-pubmed-search
+               (src/import-source
                 {:web-server (:web-server system)}
+                :pubmed
                 project-id {:search-term search-term}
                 {:use-future? false}))
              (let [adata (q/find [:article :a] {:a.project-id project-id}

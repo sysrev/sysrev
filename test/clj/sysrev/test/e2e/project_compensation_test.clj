@@ -1,29 +1,28 @@
 (ns sysrev.test.e2e.project-compensation-test
-  (:require
-   [clojure.test :refer :all]
-   [etaoin.api :as ea]
-   [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.project.member :as member]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.project :as e-project]))
+  (:require [clojure.test :refer :all]
+            [etaoin.api :as ea]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.project.member :as member]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.project :as e-project]))
 
 (defn review-article! [project-id user-id article-id]
   (db/with-clear-project-cache project-id
     (doseq [label (q/find :label {:project-id project-id})]
       (condp = (:value-type label)
         "boolean" (q/create :article-label
-                              {:article-label-local-id (:label-id-local label)
-                               :article-id article-id
-                               :label-id (:label-id label)
-                               :user-id user-id
-                               :answer (db/to-jsonb true)
-                               :imported false
-                               :confirm-time db/sql-now})))))
+                            {:article-label-local-id (:label-id-local label)
+                             :article-id article-id
+                             :label-id (:label-id label)
+                             :user-id user-id
+                             :answer (db/to-jsonb true)
+                             :imported false
+                             :confirm-time db/sql-now})))))
 
 (deftest ^:optional test-project-compensation
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
@@ -31,8 +30,9 @@
           reviewer-1 (test/create-test-user system)
           reviewer-2 (test/create-test-user system)
           project-id (e-project/create-project! test-resources "Sysrev Compensation Test")]
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [33222245 32891636 25706626]}
        {:use-future? false})

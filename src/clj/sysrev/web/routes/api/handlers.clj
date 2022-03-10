@@ -7,17 +7,18 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :as notification]
-            [sysrev.project.core :as project]
-            [sysrev.project.clone :as clone]
             [sysrev.notification.interface.spec :as sntfcn]
-            [sysrev.source.import :as import]
             [sysrev.payment.stripe :as stripe]
+            [sysrev.project.clone :as clone]
+            [sysrev.project.core :as project]
+            [sysrev.source.interface :as src]
             [sysrev.user.interface :as user :refer [user-by-email]]
+            [sysrev.util :as util :refer [in? parse-integer]]
             [sysrev.web.app :refer [make-error-response
                                     validation-failed-response]]
             [sysrev.web.routes.api.core :refer
-             [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.util :as util :refer [in? parse-integer]]))
+             [def-webapi web-api-routes
+              web-api-routes-order]]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers
@@ -98,8 +99,12 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (let [{:keys [error]} (import/import-pmid-vector
-                               request project-id {:pmids pmids} {:use-future? false})]
+        (let [{:keys [error]} (src/import-source
+                               request
+                               :pmid-vector
+                               project-id
+                               {:pmids pmids}
+                               {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result
@@ -136,8 +141,8 @@
          500 :api (str "articles must be an array of maps"
                        " with keys \"primary-title\" and \"abstract\""))
         :else
-        (let [{:keys [error]} (import/import-article-text-manual
-                               request project-id {:articles articles} {:use-future? false})]
+        (let [{:keys [error]} (src/import-source
+                               request :api-text-manual project-id {:articles articles} {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result
@@ -151,25 +156,12 @@
   :create-project :post
   {:required [:project-name]}
   (fn [request]
-    (let [{:keys [api-token project-name #_ add-self?]} (:body request)
+    (let [{:keys [api-token project-name #_add-self?]} (:body request)
           {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/create-project-for-user!
                        (:web-server request)
                        project-name user-id false))})))
-
-#_
-(def-webapi
-  :delete-project :post
-  {:required [:project-id]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Deletes project and all database entries belonging to it."}
-  (fn [request]
-    (let [{:keys [project-id api-token] :as body} (:body request)
-          {:keys [user-id]} (user/user-by-api-token api-token)]
-      {:result (merge {:success true}
-                      (api/delete-project! project-id user-id))})))
 
 ;; TODO: allow public project access
 (def-webapi

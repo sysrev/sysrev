@@ -1,15 +1,14 @@
 (ns sysrev.test.e2e.blinding-test
-  (:require
-   [clojure.test :refer :all]
-   [clojure.tools.logging :as log]
-   [sysrev.api :as api]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.project.member :as member]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.labels :as labels]))
+  (:require [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
+            [sysrev.api :as api]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.project.member :as member]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.labels :as labels]))
 
 (defn change-project-label-blinding!
   "Change label blinding setting for current project."
@@ -38,8 +37,9 @@
         ;; set the project setting for label blinding to true
         (change-project-label-blinding! project-id true))
       ;; import pubmed articles
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [25706626 25215519 23790141]}
        {:use-future? false})

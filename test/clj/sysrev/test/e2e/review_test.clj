@@ -1,20 +1,19 @@
 (ns sysrev.test.e2e.review-test
-  (:require
-   [clojure.java.io :as io]
-   [clojure.test :refer :all]
-   [etaoin.api :as ea]
-   [sysrev.api :as api]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.label.core :as label]
-   [sysrev.project.core :as project]
-   [sysrev.project.member :as member]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.labels :as labels]
-   [sysrev.test.e2e.project :as e-project]
-   [sysrev.test.xpath :as xpath]))
+  (:require [clojure.java.io :as io]
+            [clojure.test :refer :all]
+            [etaoin.api :as ea]
+            [sysrev.api :as api]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.label.core :as label]
+            [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.labels :as labels]
+            [sysrev.test.e2e.project :as e-project]
+            [sysrev.test.xpath :as xpath]))
 
 (deftest ^:e2e test-disabled-required-label
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
@@ -66,8 +65,9 @@
     (account/log-in test-resources (test/create-test-user system))
     (testing "Recently assigned articles are moved to the end of the queue"
       (let [project-id (e-project/create-project! test-resources "last-assigned-test")]
-        (import/import-pmid-vector
+        (src/import-source
          (select-keys system [:web-server])
+         :pmid-vector
          project-id
          {:pmids [25706626 25215519 23790141 22716928 19505094 9656183]}
          {:use-future? false})
@@ -110,8 +110,9 @@
           _ (account/log-in test-resources (first users))
           project-id (e-project/create-project! test-resources "Unlimited Reviews Test")]
       (project/change-project-setting project-id :unlimited-reviews true)
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [25706626 25215519 23790141]}
        {:use-future? false})

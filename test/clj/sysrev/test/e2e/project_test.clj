@@ -1,17 +1,16 @@
 (ns sysrev.test.e2e.project-test
-  (:require
-   [clojure.test :refer :all]
-   [etaoin.api :as ea]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.group.core :as group]
-   [sysrev.project.core :as project]
-   [sysrev.project.member :as member]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.project :as e-project]
-   [sysrev.util :as util]))
+  (:require [clojure.test :refer :all]
+            [etaoin.api :as ea]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.group.core :as group]
+            [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.project :as e-project]
+            [sysrev.util :as util]))
 
 (deftest ^:e2e test-user-create-new
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
@@ -29,8 +28,8 @@
           (doto driver
             (et/is-fill-visible {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
             (et/is-click-visible (str "//p[contains(text(),'Private')]"
-                                  "/ancestor::div[contains(@class,'row')]"
-                                  "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
+                                      "/ancestor::div[contains(@class,'row')]"
+                                      "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
             (et/is-click-visible "//button[contains(text(),'Create Project')]")))
         (testing "project is private"
           (doto driver
@@ -132,8 +131,9 @@
           project-id (e-project/create-project! test-resources (str "Test Article Search " (util/random-id)))
           article-count (fn [driver]
                           (count (ea/query-all driver {:css ".article-list-segments .article-list-article"})))]
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [33222245 32891636 25706626 25215519 23790141 22716928 19505094 9656183]}
        {:use-future? false})

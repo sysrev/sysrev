@@ -1,16 +1,15 @@
 (ns sysrev.test.e2e.sources-test
-  (:require
-   [clojure.java.io :as io]
-   [clojure.test :refer :all]
-   [etaoin.api :as ea]
-   [me.raynes.fs :as fs]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.project :as e-project]
-   [sysrev.test.xpath :as x]))
+  (:require [clojure.java.io :as io]
+            [clojure.test :refer :all]
+            [etaoin.api :as ea]
+            [me.raynes.fs :as fs]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.project :as e-project]
+            [sysrev.test.xpath :as x]))
 
 (deftest ^:e2e pdf-files
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
@@ -30,15 +29,16 @@
           (et/is-click-visible {:css (x/project-menu-item :articles)})
           (et/is-click-visible {:css "a.column.article-title"})
           (et/is-wait-exists {:css ".pdf-view .pdf-page-container .pdf-page"})
-          (et/is-click-visible {:css (x/project-menu-item :articles)} )
+          (et/is-click-visible {:css (x/project-menu-item :articles)})
           (et/is-wait-exists {:css "a.column.article-title"}))))))
 
 (deftest ^:e2e test-pdf-interface
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
     (let [project-id (e-project/create-project! test-resources "test-pdf-interface")]
-      (import/import-pdf-zip
+      (src/import-source
        {:web-server (:web-server system)}
+       :pdf-zip
        project-id
        {:file (io/file (io/resource "test-files/test-pdf-import.zip"))
         :filename "test-pdf-import.zip"}

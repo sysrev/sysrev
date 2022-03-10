@@ -1,18 +1,17 @@
 (ns sysrev.web.routes.project-test
-  (:require
-   [clojure.string :as str]
-   [clojure.test :refer :all]
-   [medley.core :as medley :refer [find-first]]
-   [sysrev.formats.pubmed :as pubmed]
-   [sysrev.project.core :as project]
-   [sysrev.project.member
-    :refer [add-project-member set-member-permissions]]
-   [sysrev.source.core :as source]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test :refer [route-response-fn sysrev-handler]]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.user.core :as user]
-   [sysrev.util :as util :refer [sum]]))
+  (:require [clojure.string :as str]
+            [clojure.test :refer :all]
+            [medley.core :as medley :refer [find-first]]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.project.core :as project]
+            [sysrev.project.member :refer [add-project-member
+                                           set-member-permissions]]
+            [sysrev.source.core :as source]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test :refer [route-response-fn sysrev-handler]]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.user.core :as user]
+            [sysrev.util :as util :refer [sum]]))
 
 (def test-project-name "Sysrev Browser Test")
 
@@ -74,16 +73,18 @@
         ;; get the article count, should be 0
         (is (= 0 (project/project-article-count new-project-id)))
         ;; add articles to this project
-        (import/import-pubmed-search
+        (src/import-source
          {:web-server (:web-server system)}
-         new-project-id {:search-term search-term}
+         :pubmed
+         new-project-id
+         {:search-term search-term}
          {:use-future? false :threads 1})
         ;; Does the new project have the correct amount of articles?
         ;; I would like a 'get-project' route
         ;;
         ;; deletion can't happen for a user who isn't part of the project
         (let [non-member (test/create-test-user system :email "non@member.com"
-                                             :password "nonmember")]
+                                                :password "nonmember")]
           (route-response :post "/api/auth/login" {:email (:email non-member)
                                                    :password (:password non-member)})
           (is (= "Not authorized (project member)"
@@ -256,9 +257,6 @@
                                                :change? false})
       ;; now the project has labeled articles
       (is (project/project-has-labeled-articles? project-id))
-      #_ (is (get-in (route-response :post "/api/delete-project"
-                                     {:project-id project-id})
-                     [:result :success]))
       ;; the project source has labeled articles as well
       (is (source/source-has-labeled-articles? foo-bar-search-source-id))
       ;; the project source can not be deleted
@@ -347,7 +345,7 @@
           project-name "Clone SRC Test"
           test-project-name (str project-name " " (util/random-id))
           test-org "Alpha Org"
-          org-name (str test-org " " (util/random-id))        ]
+          org-name (str test-org " " (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" test-user-a)
                   [:result :valid]))

@@ -3,7 +3,7 @@
    [clojure.test :refer :all]
    [sysrev.etaoin-test.interface :as et]
    [sysrev.project.core :as project]
-   [sysrev.source.import :as import]
+   [sysrev.source.interface :as src]
    [sysrev.test.core :as test]
    [sysrev.test.e2e.account :as account]
    [sysrev.test.e2e.core :as e]
@@ -14,8 +14,9 @@
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
     (let [project-id (e-project/create-project! test-resources "test-clone-project-happy-path")]
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [33222245 32891636 25706626]}
        {:use-future? false})

@@ -1,12 +1,11 @@
 (ns sysrev.test.e2e.markdown-test
-  (:require
-   [clojure.test :refer :all]
-   [sysrev.api :as api]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.source.import :as import]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]))
+  (:require [clojure.test :refer :all]
+            [sysrev.api :as api]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.source.interface :as src]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]))
 
 (deftest ^:e2e test-happy-path-project-description
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
@@ -23,8 +22,9 @@
           edit-icon {:css (str ".project-description i.pencil.icon:" e/not-disabled)}
           save-button {:css (str ".project-description .markdown-component .ui.save-button:"
                                  e/not-disabled)}]
-      (import/import-pmid-vector
+      (src/import-source
        (select-keys system [:web-server])
+       :pmid-vector
        project-id
        {:pmids [33222245 32891636 25706626 25215519 23790141 22716928 19505094 9656183]}
        {:use-future? false})

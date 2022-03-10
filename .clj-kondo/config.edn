@@ -94,7 +94,7 @@
                                         sysrev.sendgrid                sendgrid
                                         sysrev.slack                   slack
                                         sysrev.source.core             source
-                                        sysrev.source.import           import
+                                        sysrev.source.interface        src
                                         sysrev.sysrev-api-client.interface.queries sacq
                                         sysrev.user.core               user
                                         sysrev.util                    util

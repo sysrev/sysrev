@@ -31,7 +31,6 @@
         sysrev.source.pdf-zip
         sysrev.source.json
         sysrev.source.ris
-        sysrev.source.import
         sysrev.payment.paypal
         sysrev.payment.stripe
         sysrev.payment.plans
