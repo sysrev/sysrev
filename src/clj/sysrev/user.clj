@@ -1,4 +1,3 @@
-#_{:clj-kondo/ignore [:unused-import :unused-namespace :unused-referred-var :use :refer-all]}
 (ns sysrev.user
   (:refer-clojure :exclude [find])
   (:use clojure.repl
@@ -46,7 +45,6 @@
         sysrev.biosource.predict
         sysrev.biosource.importance
         sysrev.biosource.annotations
-        sysrev.biosource.duplicates
         sysrev.biosource.concordance
         sysrev.biosource.countgroup
         sysrev.slack
@@ -65,46 +63,46 @@
         sysrev.init
         sysrev.shared.keywords
         sysrev.stacktrace)
-  (:require [clojure.spec.alpha :as s]
-            [clojure.edn :as edn]
-            hashp.core
-            [orchestra.spec.test :as st]
-            [clojure.math.numeric-tower :as math]
-            [clojure.java.jdbc :as j]
-            [clojure.tools.logging :as log]
-            [clojure.java.shell :as shell :refer [sh]]
-            [clj-time.core :as time]
+  (:require [clj-http.client :as http]
             [clj-time.coerce :as tc]
+            [clj-time.core :as time]
             [clj-time.format :as tf]
-            [clj-http.client :as http]
-            [clojure.java.io :as io]
+            [clojure-csv.core :as csv]
             [clojure.data.json :as json]
-            [me.raynes.fs :as fs]
+            [clojure.data.xml :as dxml]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.java.jdbc :as j]
+            [clojure.java.shell :as shell :refer [sh]]
+            [clojure.math.numeric-tower :as math]
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [clojure.test :refer :all]
             [clojure.test.junit :refer :all]
+            [clojure.tools.logging :as log]
             [clojure.zip :as zip]
-            [clojure.data.xml :as dxml]
-            [clojure.string :as str]
             [cognitect.transit :as transit]
-            [clojure-csv.core :as csv]
             [com.stuartsierra.component :refer (start stop)]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
+            hashp.core
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.config :refer [env]]
-            [sysrev.fixtures.interface :as fixtures]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.spec.project :as sp]
-            [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.keywords :as skw]
-            [sysrev.shared.spec.notes :as snt]
-            [sysrev.test.core :as test]
-            [sysrev.user.interface.spec :as su]
-            [sysrev.db.queries :as q]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update delete]]
+            [me.raynes.fs :as fs]
+            [orchestra.spec.test :as st]
             [sysrev.api :as api]
-            [sysrev.formats.pubmed :as pubmed]))
+            [sysrev.config :refer [env]]
+            [sysrev.db.queries :as q]
+            [sysrev.fixtures.interface :as fixtures]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.notes :as snt]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.test.core :as test]
+            [sysrev.user.interface.spec :as su]))
 
 (defn -main []
   (st/instrument)
