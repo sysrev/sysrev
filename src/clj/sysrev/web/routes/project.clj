@@ -1,44 +1,46 @@
 (ns sysrev.web.routes.project
   (:require [clojure-csv.core :as csv]
-            [clojure.string :as str]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST PUT]]
+            [ring.util.io :as ring-io]
             [ring.util.response :as response]
             [sysrev.api :as api]
+            [sysrev.article.assignment :as assign]
+            [sysrev.article.core :as article]
+            [sysrev.biosource.predict :as predict-api]
             [sysrev.config :refer [env]]
-            [sysrev.web.app :as web :refer [with-authorize current-user-id active-project]]
-            [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer
-             [with-transaction with-project-cache]]
+             [with-project-cache with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.user.interface :as user]
-            [sysrev.project.core :as project]
-            [sysrev.project.member :as member]
-            [sysrev.project.description
-             :refer [read-project-description set-project-description!]]
-            [sysrev.project.article-list :as alist]
-            [sysrev.gengroup.core :as gengroup]
-            [sysrev.group.core :as group]
-            [sysrev.article.core :as article]
-            [sysrev.label.core :as label]
-            [sysrev.label.answer :as answer]
-            [sysrev.article.assignment :as assign]
-            [sysrev.source.core :as source]
-            [sysrev.file.s3 :as s3-file]
-            [sysrev.file.document :as doc-file]
-            [sysrev.file.article :as article-file]
+            [sysrev.encryption :as enc]
             [sysrev.export.core :as export]
             [sysrev.export.endnote :refer [project-to-endnote-xml]]
-            [sysrev.biosource.predict :as predict-api]
+            [sysrev.file.article :as article-file]
+            [sysrev.file.document :as doc-file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.formats.pubmed :as pubmed]
+            [sysrev.gengroup.core :as gengroup]
+            [sysrev.group.core :as group]
+            [sysrev.label.answer :as answer]
+            [sysrev.label.core :as label]
             [sysrev.predict.report :as predict-report]
+            [sysrev.project.article-list :as alist]
+            [sysrev.project.core :as project]
+            [sysrev.project.description
+             :refer [read-project-description
+                                                set-project-description!]]
+            [sysrev.project.member :as member]
             [sysrev.project.plan :as pplan]
             [sysrev.shared.keywords :as keywords]
-            [sysrev.formats.pubmed :as pubmed]
-            [sysrev.encryption :as enc]
+            [sysrev.source.core :as source]
+            [sysrev.user.interface :as user]
             [sysrev.util :as util :refer [parse-integer]]
-            [ring.util.io :as ring-io])
+            [sysrev.web.app :as web :refer [active-project current-user-id
+                                    with-authorize]]
+            [sysrev.web.routes.core :refer [setup-local-routes]])
   (:import (java.io File)))
 
 ;; for clj-kondo
@@ -964,12 +966,6 @@
          (let [article-id (-> request :params :article-id parse-integer)
                pdf-key (-> request :params :pdf-key)]
            (api/article-pdf-user-annotations article-id pdf-key))))
-
-;; unused
-(dr (GET "/api/annotations/:article-id" request
-         (with-authorize request {:allow-public true}
-           (let [article-id (-> request :params :article-id parse-integer)]
-             (api/article-abstract-annotations article-id)))))
 
 ;;;
 ;;; Funding and compensation

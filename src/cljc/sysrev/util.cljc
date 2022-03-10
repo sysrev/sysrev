@@ -569,19 +569,6 @@
           (let [factor (Math/pow 10 precision)]
             (/ (Math/round (* d factor)) factor))))
 
-;; see: https://gist.github.com/jizhang/4325757
-#?(:clj (defn byte-array->md5-hash
-          "Convert a byte-array into an md5 hash"
-          [^"[B" bytes]
-          (let [algorithm (MessageDigest/getInstance "MD5")
-                raw (.digest algorithm bytes)]
-            (format "%032x" (BigInteger. 1 raw)))))
-
-#?(:clj (defn string->md5-hash
-          "Convert a string into an md5 hash"
-          [^String s]
-          (byte-array->md5-hash (.getBytes s))))
-
 #?(:clj (defn byte-array->sha-1-hash
           "Convert a byte-array into an md5 hash"
           [^"[B" bytes]

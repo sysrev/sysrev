@@ -26,7 +26,6 @@
                                 (sysrev.macros/sr-defroute-project nil)
                                 (sysrev.macros/def-panel nil)
                                 (sysrev.graphql.core/with-datasource-proxy nil)
-                                (clojure.core.cache/defcache nil)
                                 (compojure.core/GET nil)
                                 (compojure.core/POST nil)
                                 (compojure.core/PUT nil)

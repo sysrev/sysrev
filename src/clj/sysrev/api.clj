@@ -14,12 +14,10 @@
             [sysrev.annotations :as ann]
             [sysrev.api2 :as api2]
             [sysrev.article.core :as article]
-            [sysrev.biosource.annotations :as api-ann]
             [sysrev.biosource.concordance :as concordance-api]
             [sysrev.biosource.countgroup :as biosource-contgroup]
             [sysrev.biosource.importance :as importance]
             [sysrev.biosource.predict :as predict-api]
-            [sysrev.cache :refer [db-memo]]
             [sysrev.config :refer [env]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer [with-transaction]]
@@ -803,34 +801,6 @@
 
 (defn project-prediction-histogram [project-id]
   {:prediction-histograms (sysrev.biosource.predict/project-prediction-histogram project-id 40)})
-
-(def annotations-atom (atom {}))
-
-(defn annotations-by-hash!
-  "Returns the annotations by hash (.hashCode <string>). Assumes
-  annotations-atom has already been set by a previous fn"
-  [hash]
-  (api-ann/get-annotations (get @annotations-atom hash)))
-
-(def db-annotations-by-hash!
-  (db-memo db/*active-db* annotations-by-hash!))
-
-;; note: this could possibly have a thread safety issue
-(defn annotations-wrapper!
-  "Returns the annotations for string using a hash wrapper"
-  [string]
-  (let [hash (util/string->md5-hash (if (string? string)
-                                      string
-                                      (pr-str string)))
-        _ (swap! annotations-atom assoc hash string)
-        annotations (db-annotations-by-hash! hash)]
-    (swap! annotations-atom dissoc hash)
-    annotations))
-
-(defn article-abstract-annotations
-  "Returns a vector of annotation maps for an article abstract"
-  [article-id]
-  {:annotations (annotations-wrapper! (:abstract (article/get-article article-id)))})
 
 (defn label-count-chart-data [project-id]
   {:data (charts/process-label-counts project-id)})

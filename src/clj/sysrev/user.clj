@@ -43,7 +43,6 @@
         sysrev.predict.report
         sysrev.biosource.predict
         sysrev.biosource.importance
-        sysrev.biosource.annotations
         sysrev.biosource.concordance
         sysrev.biosource.countgroup
         sysrev.slack

@@ -70,7 +70,6 @@
         hickory/hickory {:mvn/version "0.7.1"} ;; html parser
         kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
         org.clojure/core.async {:mvn/version "1.5.648"}
-        org.clojure/core.memoize {:mvn/version "1.0.257"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
 

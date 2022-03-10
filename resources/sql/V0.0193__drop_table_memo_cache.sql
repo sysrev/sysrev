@@ -1,0 +1,1 @@
+DROP TABLE memo_cache;
