@@ -16,6 +16,7 @@
   "search.useParentIgnoreFiles": true,
   "search.showLineNumbers": true,
   "search.exclude": {
+    "**/bases/sysrev-api/resources/sysrev-api/flyway": true,
     "**/client/components": true,
     "**/client/resources": true,
     "**/client/src": true,
