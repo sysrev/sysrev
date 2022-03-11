@@ -1,5 +1,6 @@
 (ns sysrev.source.project-filter
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [ring.util.codec :as ring-codec]
@@ -15,12 +16,15 @@
   `query-project-article-ids`."
   [s]
   (let [{:keys [filters text-search]}
-        (-> (ring-codec/form-decode s)
-            (#(if (string? %) {} %))
-            (walk/keywordize-keys)
-            (select-keys [:filters :text-search])
-            (update :filters #(when (seq %) (util/read-json %)))
-            (util/sanitize-uuids))
+        (some-> s
+                (str/split #"\?" 2)
+                second
+                ring-codec/form-decode
+                (#(if (string? %) {} %))
+                (walk/keywordize-keys)
+                (select-keys [:filters :text-search])
+                (update :filters #(when (seq %) (util/read-json %)))
+                (util/sanitize-uuids))
         ;; keywords are used as values, but converted to strings in url
         filters (walk/postwalk (fn [x] (if (string? x)
                                          (keyword x)
