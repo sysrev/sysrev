@@ -71,5 +71,5 @@
       (try (import-source (:request context) :project-filter target-project-id
                           {:source-project-id source-project-id :url-filter url})
            (resolve-as true)
-           (catch Throwable e
+           (catch Exception e
              (fail (str "There was an exception with message: " (.getMessage e))))))))
