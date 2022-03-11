@@ -1,13 +1,8 @@
 {
+  "calva.evaluationSendCodeToOutputWindow": true,
   "calva.evalOnSave": true,
   "calva.paredit.strictPreventUnmatchedClosingBracket": true,
   "calva.testOnSave": true,
-  "calva.myCljAliases": [
-    "dev-embedded",
-    "dev",
-    "test",
-    "repl"
-  ],
   "editor.formatOnPaste": true,
   "editor.formatOnSave": true,
   "editor.formatOnType": true,
@@ -21,5 +16,20 @@
     "**/client/src": true,
     "**/resources/public/js": true
   },
-  "calva.clojureLspPath": "/nix/store/zl7frbpdm7m64ydki0hw871mwib8l8rk-clojure-lsp-2021.11.02-15.24.47/bin/clojure-lsp"
+  "calva.clojureLspPath": "/nix/store/zl7frbpdm7m64ydki0hw871mwib8l8rk-clojure-lsp-2021.11.02-15.24.47/bin/clojure-lsp",
+  "calva.replConnectSequences": [
+    {
+      "name": "Sysrev Server",
+      "projectType": "deps.edn",
+      "menuSelections": {
+        "cljAliases": [
+          "dev-embedded",
+          "dev",
+          "test"
+        ]
+      },
+      "afterCLJReplJackInCode": "((requiring-resolve 'sysrev.main/reload-with-fixtures!))",
+      "cljsType": "none"
+    }
+  ]
 }

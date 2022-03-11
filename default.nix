@@ -93,7 +93,7 @@ mkShell {
     jq '. + {"calva.clojureLspPath": "${clojure-lsp}/bin/clojure-lsp"}' .vscode/settings.json | sponge .vscode/settings.json
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
     export POSTGRES_DIRECTORY="${postgresql_13}"
-    echo "nix-shell --run \"${vscode-with-extensions}/bin/code -a .\"" > bin/code
+    echo "nix-shell --run \"source vars.sh && ${vscode-with-extensions}/bin/code -a .\"" > bin/code
     chmod +x bin/code
     rm chrome
     ln -s ${chromium}/bin/chromium chrome
