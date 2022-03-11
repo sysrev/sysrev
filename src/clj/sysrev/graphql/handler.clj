@@ -36,14 +36,14 @@
   (-> (io/resource "edn/graphql-schema.edn")
       slurp
       edn/read-string
-      (attach-resolvers {:Project/reviewerTime reviewer-time/Project-reviewerTime
-                         :resolve-project project/project
-                         :resolve-import-articles! import-ds-query
-                         :resolve-import-dataset! import-dataset
-                         :resolve-import-datasource! import-datasource
-                         :resolve-import-datasource-flattened! import-datasource-flattened
-                         :resolve-import-article-filter-url! import-article-filter-url!
-                         :resolve-set-labels! set-labels!})
+      (attach-resolvers {:Project/reviewerTime #'reviewer-time/Project-reviewerTime
+                         :resolve-project #'project/project
+                         :resolve-import-articles! #'import-ds-query
+                         :resolve-import-dataset! #'import-dataset
+                         :resolve-import-datasource! #'import-datasource
+                         :resolve-import-datasource-flattened! #'import-datasource-flattened
+                         :resolve-import-article-filter-url! #'import-article-filter-url!
+                         :resolve-set-labels! #'set-labels!})
       (assoc :scalars scalars)
       (schema/compile {:default-field-resolver schema/hyphenating-default-field-resolver})))
 
