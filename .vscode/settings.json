@@ -1,5 +1,4 @@
 {
-  "calva.evaluationSendCodeToOutputWindow": true,
   "calva.evalOnSave": true,
   "calva.paredit.strictPreventUnmatchedClosingBracket": true,
   "calva.testOnSave": true,
