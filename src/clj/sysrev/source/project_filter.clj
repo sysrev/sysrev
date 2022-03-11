@@ -2,13 +2,14 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.walk :as walk]
-            [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
+            [com.walmartlabs.lacinia.resolve :refer [resolve-as]]
+            [honeysql.core :as sql]
             [ring.util.codec :as ring-codec]
+            [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.graphql.core :refer [fail]]
             [sysrev.project.article-list :refer [query-project-article-ids]]
             [sysrev.source.core :as source]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
 
 (defn extract-filters-from-url
@@ -31,49 +32,73 @@
                                          x)) filters)]
     (vec (concat filters (when text-search [{:text-search text-search}])))))
 
-(defmethod import-source :project-filter
-  [request source-type project-id {:keys [source-project-id url-filter]} & {:as options}]
+(defn import-articles
+  [request project-id {:keys [source-project-id url-filter]}]
   (if (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :url-filter]) url-filter))
                 (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
-    (do (log/warnf "import-source %s - source exists: %s"
-                   source-type (pr-str {:source-project-id source-project-id :url-filter url-filter}))
-        {:error {:message (format "%s already imported"
-                                  (pr-str {:source-project-id source-project-id
-                                           :url-filter url-filter}))}})
+    {:error {:message (format "%s already imported"
+                              (pr-str {:source-project-id source-project-id
+                                       :url-filter url-filter}))}}
     (let [filters (extract-filters-from-url url-filter)
           article-ids (query-project-article-ids {:project-id source-project-id} filters)
-          entries (q/find [:article :a] {:a.article-id article-ids}
-                          [:a.article-id :ad.external-id
-                           :ad.title :ad.article-type :ad.article-subtype]
-                          :join [[:article-data :ad] :a.article-data-id])
-          types (distinct (map #(select-keys % [:datasource-name :article-type :article-subtype])
-                               entries))
-          articles (mapv (fn [{:keys [external-id title]}]
-                           {:primary-title title :external-id external-id})
-                         entries)]
-      (if (> (count types) 1)
-        {:error {:message "Imported articles are not all of same type"}}
-        (let [{:keys [article-type article-subtype]} (first types)]
-          (import-source-impl
-           request project-id
-           {:filters (extract-filters-from-url url-filter)
-            :source "Project Filter"
-            :source-project-id source-project-id
-            :url-filter url-filter}
-           {:types {:article-type article-type :article-subtype article-subtype}
-            :get-article-refs (constantly articles)
-            :get-articles identity}
-           options)
-          {:result true})))))
+          source-meta {:filters filters
+                       :importing-articles? true
+                       :source "Project Filter"
+                       :source-project-id source-project-id
+                       :url-filter url-filter}]
+      (future
+        (let [source-id (q/create
+                         :project-source
+                         {:meta source-meta
+                          :project-id project-id}
+                         :returning :source-id)]
+          (db/clear-project-cache project-id)
+          (doseq [ids (partition 100 100 nil article-ids)]
+            (db/with-long-transaction
+              [_ (:postgres (:web-server request))]
+              (let [old-articles (q/find [:article :a]
+                                         {:a.article-id ids}
+                                         :*
+                                         :join [[[:article-data :ad] :a.article-data-id]
+                                                [[:article-pdf :pdf] :a.article-id]])
+                    new-data-ids (q/create
+                                  :article-data
+                                  (map
+                                   (fn [old-article]
+                                     (select-keys old-article [:article-subtype :article-type :content :datasource-name :external-id :helper-text :title]))
+                                   old-articles)
+                                  :returning :article-data-id)
+                    new-ids (q/create :article
+                                      (map #(do {:article-data-id %
+                                                 :project-id project-id})
+                                           new-data-ids)
+                                      :returning :article-id)
+                    new-pdfs (->> (map
+                                   (fn [{:keys [s3-id]} article-id]
+                                     (when s3-id
+                                       {:article-id article-id :s3-id s3-id}))
+                                   old-articles
+                                   new-ids)
+                                  (filter seq))]
+                (when (seq new-pdfs)
+                  (q/create :article-pdf new-pdfs))
+                (q/create :article-source
+                          (map #(do {:article-id % :source-id source-id}) new-ids)))))
+          (q/modify
+           :project-source
+           {:source-id source-id}
+           {:import-date (sql/call :now)
+            :meta (assoc source-meta :importing-articles? false)})
+          (db/clear-project-cache project-id)))
+      {:result true})))
 
-(def import-article-filter-url!
-  ^ResolverResult
-  (fn [context {url :url source-project-id :sourceID target-project-id :targetID} _]
-    (if (= source-project-id target-project-id)
-      (fail "source-id can not be the same as target-id")
-      (try (import-source (:request context) :project-filter target-project-id
+(defn import-article-filter-url!
+  [context {url :url source-project-id :sourceID target-project-id :targetID} _]
+  (if (= source-project-id target-project-id)
+    (fail "source-id can not be the same as target-id")
+    (try (import-articles (:request context) target-project-id
                           {:source-project-id source-project-id :url-filter url})
-           (resolve-as true)
-           (catch Exception e
-             (fail (str "There was an exception with message: " (.getMessage e))))))))
+         (resolve-as true)
+         (catch Exception e
+           (fail (str "There was an exception with message: " (.getMessage e)))))))
