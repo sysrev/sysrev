@@ -2,7 +2,6 @@
   "calva.evalOnSave": true,
   "calva.paredit.strictPreventUnmatchedClosingBracket": true,
   "calva.testOnSave": true,
-  "calva.useTestExplorer": true,
   "calva.myCljAliases": [
     "dev-embedded",
     "dev",
