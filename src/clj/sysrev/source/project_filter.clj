@@ -16,9 +16,10 @@
   [s]
   (let [{:keys [filters text-search]}
         (-> (ring-codec/form-decode s)
+            (#(if (string? %) {} %))
             (walk/keywordize-keys)
             (select-keys [:filters :text-search])
-            (update-in [:filters] util/read-json)
+            (update :filters #(when (seq %) (util/read-json %)))
             (util/sanitize-uuids))
         ;; keywords are used as values, but converted to strings in url
         filters (walk/postwalk (fn [x] (if (string? x)
