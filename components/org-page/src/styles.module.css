@@ -1,0 +1,289 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap");
+.body {
+  padding: 0;
+  margin: 0;
+  font-family: 'Roboto', sans-serif; }
+
+h1, h2, h3, h4, h5, p {
+  margin: 0;
+  padding: 0; }
+
+* {
+  box-sizing: border-box; }
+
+input:focus {
+  outline: none; }
+
+.wrapper {
+  max-width: 1200px;
+  margin: auto;
+  padding-left: 15px;
+  padding-right: 15px; }
+
+img {
+  max-width: 100%; }
+
+.table {
+  max-width: 930px;
+  margin: auto;
+  padding: 15px; }
+  .table .logo {
+    max-width: 100px; }
+  .table .topsection {
+    display: flex;
+    align-items: center; }
+    .table .topsection .infos {
+      padding-left: 25px; }
+      .table .topsection .infos img {
+        max-width: 20px;
+        vertical-align: middle;
+        display: inline-block; }
+      .table .topsection .infos p {
+        padding-top: 5px;
+        padding-bottom: 5px;
+        font-size: 15px;
+        color: #072f47; }
+        .table .topsection .infos p img {
+          margin-right: 5px;
+          margin-top: -2px; }
+        .table .topsection .infos p a {
+          color: #072f47;
+          text-decoration: none;
+          -webkit-transition: all .25s ease;
+          -moz-transition: all .25s ease;
+          -ms-transition: all .25s ease;
+          -o-transition: all .25s ease;
+          transition: all .25s ease; }
+        .table .topsection .infos p a:hover {
+          color: #01060a; }
+      .table .topsection .infos .tit {
+        font-size: 32px;
+        font-weight: 700; }
+  .table .tabs {
+    max-width: 100%;
+    background: transparent;
+    padding: 0 0;
+    margin-top: 20px;
+    text-align: letft;
+    overflow: hidden;
+    border-bottom: 2px solid #ced9e0; }
+    .table .tabs img {
+      max-width: 20px;
+      display: inline-block;
+      vertical-align: top;
+      margin-right: 3px; }
+    .table .tabs a {
+      padding-top: 10px;
+      padding-bottom: 10px;
+      font-size: 17px;
+      padding-left: 15px;
+      padding-right: 15px;
+      margin-right: 10px;
+      display: inline-block;
+      color: #072f47;
+      text-decoration: none;
+      border-top-left-radius: 5px;
+      border-top-right-radius: 5px;
+      background: #ced9e0;
+      -webkit-transition: all .25s ease;
+      -moz-transition: all .25s ease;
+      -ms-transition: all .25s ease;
+      -o-transition: all .25s ease;
+      transition: all .25s ease; }
+    .table .tabs a:hover {
+      color: #01060a; 
+      cursor: pointer;
+    }
+    .table .tabs .activea {
+      background: #b5c6d1;
+      color: #01060a; }
+  .table .projects_table {
+    display: none; }
+  .table .members_table {
+    display: none;
+    margin-top: 3px;
+    text-align: center; }
+    .table .members_table table {
+      width: 100%;
+      text-align: center; }
+    .table .members_table td, .table .members_table th {
+      text-align: left;
+      padding: 10px 15px;
+      border-radius: 5px; }
+      .table .members_table td a, .table .members_table th a {
+        font-size: 17px;
+        display: inline-block;
+        color: #072f47;
+        text-decoration: none;
+        -webkit-transition: all .25s ease;
+        -moz-transition: all .25s ease;
+        -ms-transition: all .25s ease;
+        -o-transition: all .25s ease;
+        transition: all .25s ease; }
+      .table .members_table td a:hover, .table .members_table th a:hover {
+        color: #01060a; }
+    .table .members_table tr:nth-child(odd) {
+      background-color: #f7f9fa;
+      border-radius: 5px; }
+    .table .members_table tr:first-child {
+      background: #e6ecef;
+      border-radius: 5px; }
+      .table .members_table tr:first-child th:last-child {
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px; }
+      .table .members_table tr:first-child th:first-child {
+        border-top-left-radius: 5px;
+        border-bottom-left-radius: 5px; }
+  .table .row_t {
+    margin-top: 3px;
+    max-width: 100%;
+    background: #f7f9fa;
+    border-radius: 5px;
+    padding: 20px;
+    position: relative; }
+    .table .row_t .pinned {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      max-width: 20px;
+      opacity: 0;
+      -webkit-transition: all .25s ease;
+      -moz-transition: all .25s ease;
+      -ms-transition: all .25s ease;
+      -o-transition: all .25s ease;
+      transition: all .25s ease; }
+    .table .row_t .pinned_active {
+      opacity: 1; }
+    .table .row_t .pinned:hover {
+      opacity: 0.7; }
+    .table .row_t h1 {
+      font-size: 22px;
+      color: #01060a;
+      position: relative;
+      display: inline-block;
+      padding-right: 90px;
+      max-width: calc(100% - 140px); }
+      .table .row_t h1 span {
+        border: 1px solid #b5c6d1;
+        background: #e6ecef;
+        font-size: 14px;
+        padding: 5px 15px;
+        font-weight: 300;
+        margin-left: 10px;
+        border-radius: 15px;
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #01060a; }
+    .table .row_t p {
+      margin-top: 20px;
+      margin-bottom: 20px;
+      font-size: 15px;
+      line-height: 130%;
+      color: #01060a;
+      font-weight: 300; }
+    .table .row_t .datas p {
+      display: inline-block;
+      padding-left: 25px;
+      position: relative;
+      font-size: 14px;
+      margin: 0;
+      margin-right: 15px;
+      font-weight: 400; }
+      .table .row_t .datas p span {
+        font-weight: 600; }
+      .table .row_t .datas p a {
+        color: #01060a;
+        text-decoration: none;
+        -webkit-transition: all .25s ease;
+        -moz-transition: all .25s ease;
+        -ms-transition: all .25s ease;
+        -o-transition: all .25s ease;
+        transition: all .25s ease; }
+      .table .row_t .datas p a:hover {
+        color: #01060a; }
+    .table .row_t .datas .withoutimg {
+      padding-left: 0; }
+    .table .row_t .datas img {
+      max-width: 20px;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%); }
+    .table .row_t .datas2 {
+      padding-top: 10px; }
+      .table .row_t .datas2 p {
+        display: inline-block;
+        padding-left: 25px;
+        position: relative;
+        font-size: 12px;
+        margin: 0;
+        margin-right: 15px;
+        color: #a1a5a7; }
+        .table .row_t .datas2 p span {
+          font-weight: 600; }
+      .table .row_t .datas2 .withoutimg {
+        padding-left: 0; }
+      .table .row_t .datas2 img {
+        max-width: 20px;
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%); }
+  .table .active_table {
+    display: block; }
+
+@media (max-width: 700px) {
+  .table .tabs {
+    padding-left: 0;
+    padding-right: 0;
+    display: flex;
+    overflow: hidden; }
+    .table .tabs a {
+      width: 50%;
+      text-align: center;
+      margin: 0; }
+  .table .row_t {
+    padding: 10px 10px 10px 10px; }
+    .table .row_t h1 {
+      padding-top: 40px;
+      width: 100%;
+      max-width: 100%;
+      padding-right: 0; }
+  .table .row_t h1 span {
+    top: 0;
+    transform: unset;
+    left: 0;
+    right: unset;
+    margin: 0; }
+  .table .row_t .pinned {
+    top: 15px;
+    right: 15px; }
+  .table .row_t h1 {
+    font-size: 18px; }
+  .table .row_t .datas p {
+    padding-top: 5px;
+    padding-bottom: 5px; }
+  .table .members_table td, .table .members_table th {
+    width: 33.33%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative; }
+    .table .members_table td a, .table .members_table th a {
+      position: absolute;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: calc(100% - 30px);
+      display: block;
+      left: 15px;
+      right: 15px;
+      font-size: 13px;
+      top: 50%;
+      transform: translateY(-50%); }
+  .table .members_table table {
+    table-layout: fixed; }
+  .table .topsection .infos .tit {
+    font-size: 26px; } }

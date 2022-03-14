@@ -57,6 +57,7 @@ mkShell {
     python39Packages.cfn-lint
     rlwrap
     time
+    yarn
     zip
   ];
   shellHook = ''
