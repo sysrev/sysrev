@@ -45,7 +45,7 @@
         nilenso/honeysql-postgres {:mvn/version "0.2.6"}
 
 ;;; Web server
-        aleph/aleph {:mvn/version "0.4.7-alpha10"}
+        aleph/aleph {:mvn/version "0.4.7-rc3"}
         com.taoensso/sente {:mvn/version "1.16.2"}
         compojure/compojure {:mvn/version "1.6.2"}
         ring/ring {:mvn/version "1.9.5"}
@@ -115,7 +115,6 @@
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
                       com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
-                      eftest/eftest {:mvn/version "0.5.9"}
                       io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
                       io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"

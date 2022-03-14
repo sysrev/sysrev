@@ -1,10 +1,10 @@
 let
-  rev = "47cd6702934434dd02bc53a67dbce3e5493e33a2";
+  rev = "0f85665118d850aae5164d385d24783d0b16cf1b";
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    sha256 = "1rvp9gx7n0gppc86bcysaybw79zl3y8yninsgz6rawdjprzvg7y6";
+    sha256 = "1x60c4s885zlqm1ffvjj09mjq078rqgcd08l85004cijfsqld263";
   };
-  pkgs = import nixpkgs {};
+  pkgs = import nixpkgs { };
   inherit (pkgs) stdenv fetchurl;
   tessdata_best = stdenv.mkDerivation rec {
     pname = "tessdata_best";
@@ -22,26 +22,26 @@ let
     '';
   };
 in with pkgs;
-  stdenv.mkDerivation {
-    name = "datapub";
-    src = ./src;
-    buildInputs = [
-      (clojure.override { jdk = jdk; })
-      glibcLocales # postgres and rlwrap (used by clj) need this
-      jdk
-      nix
-      packer
-      postgresql_13
-      rlwrap
-      tessdata_best
-      tesseract4
-    ];
-    installPhase = ''
-      mkdir -p $out
-    '';
-    shellHook = ''
-      export TESSDATA_PREFIX="${tessdata_best}"
-      export LD_LIBRARY_PATH="${tesseract4}/lib:$LD_LIBRARY_PATH"
-      export POSTGRES_DIRECTORY="${postgresql_13}"
-    '';
-  }
+stdenv.mkDerivation {
+  name = "datapub";
+  src = ./src;
+  buildInputs = [
+    (clojure.override { jdk = jdk; })
+    glibcLocales # postgres and rlwrap (used by clj) need this
+    jdk
+    nix
+    packer
+    postgresql_13
+    rlwrap
+    tessdata_best
+    tesseract4
+  ];
+  installPhase = ''
+    mkdir -p $out
+  '';
+  shellHook = ''
+    export TESSDATA_PREFIX="${tessdata_best}"
+    export LD_LIBRARY_PATH="${tesseract4}/lib:$LD_LIBRARY_PATH"
+    export POSTGRES_DIRECTORY="${postgresql_13}"
+  '';
+}

@@ -15,7 +15,6 @@
     "**/client/src": true,
     "**/resources/public/js": true
   },
-  "calva.clojureLspPath": "/nix/store/zl7frbpdm7m64ydki0hw871mwib8l8rk-clojure-lsp-2021.11.02-15.24.47/bin/clojure-lsp",
   "calva.replConnectSequences": [
     {
       "name": "Sysrev Server",
