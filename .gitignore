@@ -8,7 +8,6 @@
 .*
 
 !.keep
-!.npmrc
 
 !/.clj-kondo/config.edn
 

@@ -1,9 +1,7 @@
 {
   "name": "@insilica/org-page",
-  "version": "1.23.0",
-  "publishConfig": {
-    "registry": "http://localhost:4873"
-  },
+  "version": "1.0.0",
+  "private": true,
   "description": "Sysrev Org Page",
   "author": "etiosa",
   "main": "dist/index.js",
