@@ -1,19 +1,44 @@
 #!/usr/bin/env bash
 set -eu
 
-if [ ! -d "node_modules" ] || [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
-    npm ci
-fi
+DIR=$PWD
 
-if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ]; then
+sync_package_json () {
+    if [ -z "${CI:-}" ] && [ ! -z "$(find -L package.json -cnewer package-lock.json)" ]; then
+        npm install --package-lock-only
+    fi
+
+    if [ ! -d "node_modules" ] || [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
+        npm ci
+    fi
+}
+
+rebuild_js () {
+    if [ ! -d "dist" ] || [ ! -z "$(find -L src -cnewer dist)" ] || \
+       [ ! -z "$(find -L package-lock.json -cnewer dist)" ] || \
+       [ ! -z "$(find -L node_modules -cnewer dist)" ]; then
+        rm -rf dist
+        npm run build
+    fi
+}
+
+sync_package_json;
+
+cd components/org-page
+
+sync_package_json;
+rebuild_js;
+
+cd $DIR
+
+if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
+   [ ! -z "$(find -L components -name "*.css" -cnewer resources/public/css)" ]; then
     ./scripts/build-all-css
 fi
 
 cd client
 
-if [ ! -d "node_modules" ] ||  [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
-    npm ci
-fi
+sync_package_json;
 
 input_paths="src node_modules semantic package.json package-lock.json shadow-cljs.edn"
 output_path="resources/public/out-production/sysrev.js"

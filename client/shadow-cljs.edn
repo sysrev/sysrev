@@ -7,6 +7,7 @@
  :builds {:dev {:target :browser
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"
+                :js-options {:ignore-asset-requires true}
                 :modules {:sysrev {:entries [sysrev.user]
                                    :init-fn sysrev.core/on-jsload}}
                 :devtools {:loader-mode :eval
@@ -16,6 +17,7 @@
           :prod {:target :browser
                  :output-dir "resources/public/out-production"
                  :asset-path "/out"
+                 :js-options {:ignore-asset-requires true}
                  :modules {:sysrev {:entries [sysrev.core]}}
                  :compiler-options {:infer-externs :auto}
                  :release {:compiler-options {:optimizations :advanced}}}}

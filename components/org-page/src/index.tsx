@@ -1,11 +1,12 @@
 import * as React from 'react'
 import styles from './styles.module.css'
-import logoImg from 'assets/img/logo.png'
-import peopleImg from 'assets/img/people.png'
-import pinnedImg from 'assets/img/pinned.png'
-import projectImg from 'assets/img/project.png'
-import urlImg from 'assets/img/url.png'
-import userImg from 'assets/img/user.png'
+
+const logoImg = '/assets/org-page/img/logo.png'
+const peopleImg = '/assets/org-page/img/people.png'
+const pinnedImg = '/assets/org-page/img/pinned.png'
+const projectImg = '/assets/org-page/img/project.png'
+const urlImg = '/assets/org-page/img/url.png'
+const userImg = '/assets/org-page/img/user.png'
 
 export interface ProjectProps {
   status?: string
@@ -118,4 +119,7 @@ const Tab = (props: TabProps) => {
   )
 }
 
-export default Tab
+export default {
+  styles: styles,
+  Tab: Tab
+}

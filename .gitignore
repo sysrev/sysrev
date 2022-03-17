@@ -8,6 +8,7 @@
 .*
 
 !.keep
+!.npmrc
 
 !/.clj-kondo/config.edn
 
@@ -18,6 +19,7 @@ bin/code
 /local/
 /local.nix
 
+resources/public/css/js-components.css
 target/
 
 /out/

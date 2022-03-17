@@ -25,6 +25,7 @@
   [(format "/css/semantic/%s/semantic.min.css" theme)
    "/css/dropzone.min.css"
    (format "/css/style.%s.css" theme)
+   "/css/js-components.css"
    "https://fonts.googleapis.com/css?family=Open+Sans:400,600,700"])
 
 (defn favicon-headers []
