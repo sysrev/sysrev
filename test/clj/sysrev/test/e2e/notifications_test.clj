@@ -25,7 +25,7 @@
     (invitation/create-invitation! user-id (:project-id project-b) inviter-id "paid-reviewer")
     [project-a project-b]))
 
-(deftest ^:e2e notifications-button
+(deftest ^:optional notifications-button
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [inviter-id (:user-id (test/create-test-user system))
           {:keys [user-id] :as user} (test/create-test-user system)]
