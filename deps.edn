@@ -60,8 +60,9 @@
 ;;; More libraries
         buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
         clj-http/clj-http {:mvn/version "3.12.3"}
-        com.velisco/clj-ftp {:mvn/version "0.3.17"}
+        com.cognitect.aws/s3 {:mvn/version "820.2.1083.0"}
         com.draines/postal {:mvn/version "2.0.5"} ;; email client
+        com.velisco/clj-ftp {:mvn/version "0.3.17"}
         hashp/hashp {:mvn/version "0.2.1"}
         ;; =1.23.0 because version conflict in latest (1.30.2 breaks selenium)
         com.google.api-client/google-api-client {:mvn/version "1.23.0"}
