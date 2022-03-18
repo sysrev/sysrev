@@ -23,6 +23,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
    - Configure Nix with `mkdir -p ~/.config/nixpkgs && echo "{allowUnfree=true;}" > ~/.config/nixpkgs/config.nix`
 - Install Docker or podman
 - Get a copy of `vars.sh` from a developer and place it in the root of the repository
+- Optionally install [direnv](https://direnv.net/) and [nix-direnv](https://github.com/nix-community/nix-direnv) (or [lorri](https://github.com/nix-community/lorri) for macOS). This allows you to leave out the `nix-shell --run` portion of commands.
 
 ## Usage
 
