@@ -38,6 +38,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 - Run dev server from VSCode with "Calva: Start a Project REPL and Connect" > "Sysrev Server"
   - Or run stand-alone dev server with `nix-shell --run "bash repl-in-mem"`
   - The server will listen on http://localhost:4061
+  - The NRepl port number is written to `.nrepl-port`, if you want to connect with a different editor.
 
 - Run tests with `nix-shell --run "bash scripts/test-local"`
 
