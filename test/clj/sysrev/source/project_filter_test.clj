@@ -4,9 +4,11 @@
             [clojure.test :refer :all]
             [medley.core :as medley]
             [sysrev.api :as api]
+            [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :as project]
+            [sysrev.shared.ctgov :as ctgov]
             [sysrev.source.interface :as src]
             [sysrev.test.core :as test]
             [sysrev.user.interface :as user]
@@ -107,3 +109,61 @@
                                            :join [[:article-data :ad] :a.article-data-id])]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 0 (title-count "Plosker Troglitazone.pdf")))))))))
+
+(deftest ^:integration test-import-two-types
+  (test/with-test-system [system {}]
+    (let [{:keys [api-token user-id]} (test/create-test-user system)]
+      (user/change-user-setting user-id :dev-account-enabled? true)
+      (testing "Articles can be imported from a project with two types of article"
+        (let [project-1-id (-> (api/create-project-for-user!
+                                (:web-server system)
+                                "Project Filter Import Source"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              project-1-url (str "https://sysrev.com/p/" project-1-id)
+              project-2-id (-> (api/create-project-for-user!
+                                (:web-server system)
+                                "Project Filter Import Target"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              filename "test-pdf-import.zip"
+              pdf-zip (-> (str "test-files/" filename) io/resource io/file)]
+          (db/with-transaction
+            (src/import-source
+             {:web-server (:web-server system)}
+             :pdf-zip
+             project-1-id {:file pdf-zip :filename filename}
+             {:use-future? false})
+            (let [query (ctgov/query->datapub-input {:search "cancer"})
+                  entity-ids (->> (dpc/search-dataset query "externalId id" :endpoint (:datapub-ws (:config system)))
+                                  (map :id))]
+              (src/import-source
+               {:web-server (:web-server system)}
+               :ctgov
+               project-1-id
+               {:entity-ids entity-ids
+                :query query}
+               {:use-future? false})))
+          (is (= 7 (project/project-article-count project-1-id)))
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-1-id
+                                           :targetID project-2-id
+                                           :url (str project-1-url "/articles")}]]})
+                       :api-key api-token))))
+          (is (test/wait-not-importing? system project-2-id))
+          (is (= 7 (project/project-article-count project-2-id)))
+          (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
+                                                          :ad.title %}
+                                           :join [[:article-data :ad] :a.article-data-id])]
+            (is (= 1 (title-count "Plosker Troglitazone.pdf")))
+            (is (= 1 (title-count "A Study of TAS2940 in Participants With Locally Advanced or Metastatic Solid Tumor Cancer")))))))))

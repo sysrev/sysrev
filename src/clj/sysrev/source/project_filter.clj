@@ -60,19 +60,11 @@
               (let [old-articles (q/find [:article :a]
                                          {:a.article-id ids}
                                          :*
-                                         :join [[[:article-data :ad] :a.article-data-id]
-                                                [[:article-pdf :pdf] :a.article-id]])
-                    new-data-ids (q/create
-                                  :article-data
-                                  (map
-                                   (fn [old-article]
-                                     (select-keys old-article [:article-subtype :article-type :content :datasource-name :external-id :helper-text :title]))
-                                   old-articles)
-                                  :returning :article-data-id)
+                                         :left-join [[[:article-pdf :pdf] :a.article-id]])
                     new-ids (q/create :article
-                                      (map #(do {:article-data-id %
+                                      (map #(do {:article-data-id (:article-data-id %)
                                                  :project-id project-id})
-                                           new-data-ids)
+                                           old-articles)
                                       :returning :article-id)
                     new-pdfs (->> (map
                                    (fn [{:keys [s3-id]} article-id]
