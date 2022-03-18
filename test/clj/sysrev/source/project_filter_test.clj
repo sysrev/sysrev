@@ -52,15 +52,7 @@
                                            :targetID project-2-id
                                            :url (str project-1-url "/articles")}]]})
                        :api-key api-token))))
-          (let [fut (future
-                      (while (-> (q/find [:project-source :ps]
-                                         {:ps.project-id project-2-id}
-                                         :meta)
-                                 first
-                                 :importing-articles?))
-                      true)]
-            (is (true? (deref fut 1000 nil)))
-            (future-cancel fut))
+          (is (test/wait-not-importing? system project-2-id))
           (is (= 4 (project/project-article-count project-2-id)))
           (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
                                                           :ad.title %}
@@ -108,15 +100,7 @@
                                            :targetID project-2-id
                                            :url (str project-1-url "/articles?text-search=sutinen")}]]})
                        :api-key api-token))))
-          (let [fut (future
-                      (while (-> (q/find [:project-source :ps]
-                                         {:ps.project-id project-2-id}
-                                         :meta)
-                                 first
-                                 :importing-articles?))
-                      true)]
-            (is (true? (deref fut 1000 nil)))
-            (future-cancel fut))
+          (is (test/wait-not-importing? system project-2-id))
           (is (= 1 (project/project-article-count project-2-id)))
           (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
                                                           :ad.title %}

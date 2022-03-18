@@ -336,3 +336,20 @@
         (junit/merge-files! junit-target junit-files)
         (stop-test-systems!)
         (System/exit 0)))))
+
+(defn importing-articles? [system project-id]
+  (->> (execute!
+        system
+        {:select [:meta]
+         :from :project-source
+         :where [:= project-id project-id]})
+       (some (comp :importing-articles? :project-source/meta))
+       boolean))
+
+(defn wait-not-importing? [system project-id & [timeout-ms]]
+  (let [fut (future (while (importing-articles? system project-id)
+                      (Thread/sleep 100))
+                    true)
+        result (deref fut (or timeout-ms 1000) false)]
+    (future-cancel fut)
+    result))
