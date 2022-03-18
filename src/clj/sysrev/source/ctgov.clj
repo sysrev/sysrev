@@ -57,7 +57,7 @@
                             :article-subtype "ctgov"}
                     :get-article-refs (constantly entity-ids)
                     :get-articles
-                    (partial get-entities (get-in options [:web-server :config :datapub-api]))}
+                    (partial get-entities (get-in request [:web-server :config :datapub-api]))}
                    options)))))
 
 (defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]

@@ -459,7 +459,6 @@
                   project-id (active-project request)
                   user-id (current-user-id request)]
               (api/import-trials-from-search request project-id query entity-ids
-                                             :web-server (:web-server request)
                                              :user-id user-id)))))
 
 (dr (POST "/api/import-trials/fda-drugs-docs" request
@@ -469,7 +468,6 @@
                   user-id (current-user-id request)]
               (api/import-trials-from-fda-drugs-docs
                request project-id query entity-ids
-               :web-server (:web-server request)
                :user-id user-id)))))
 ;;;
 ;;; Article review
