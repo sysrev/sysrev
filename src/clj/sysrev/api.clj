@@ -59,7 +59,7 @@
             sysrev.source.pdf-zip
             sysrev.source.pdfs
             sysrev.source.pmid
-            sysrev.source.project-filter
+            [sysrev.source.project-filter :as project-filter]
             sysrev.source.pubmed
             sysrev.source.ris
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
@@ -273,6 +273,27 @@
   (wrap-import-api #(src/import-source request :fda-drugs-docs project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
+
+(defn url-project-id [url]
+  (some->> url
+           (re-find #".*/p/(\d+)/.*")
+           second
+           parse-long))
+
+(defn import-project-articles
+  [request project-id url]
+  (wrap-import-api
+   (fn [{:keys [url-filter]}]
+     (let [source-project-id (url-project-id url-filter)]
+       (if-not (some-> source-project-id project/project-exists?)
+         {:error {:message "Project not found"}}
+         {:import
+          (future
+            (project-filter/import-articles
+             request project-id
+             {:source-project-id source-project-id
+              :url-filter url-filter}))})))
+   {:url-filter url}))
 
 (s/def ::sources vector?)
 

@@ -469,6 +469,12 @@
               (api/import-trials-from-fda-drugs-docs
                request project-id query entity-ids
                :user-id user-id)))))
+
+(dr (POST "/api/import-project-articles" request
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [project-id url]} (:body request)]
+          (api/import-project-articles
+           request project-id url)))))
 ;;;
 ;;; Article review
 ;;;

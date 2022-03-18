@@ -304,6 +304,39 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
       :post-error-text "Try processing your file with Zotero using the
 'Having difficulties importing your RIS file?' instructions above."]]))
 
+(def-action :project/import-project-articles
+  :uri (fn [] "/api/import-project-articles")
+  :content (fn [project-id url]
+             {:project-id project-id
+              :url url})
+  :process (fn [_ [project-id _ _] {:keys [success]}]
+             (when success
+               {:dispatch [:on-add-source project-id]})))
+
+(defn ImportProject []
+  (let [url (atom "")]
+    (fn []
+      (let [import-error @(r/cursor state [:import-error])]
+        [:div.ui
+         [:h3 "2. Import articles from another project"]
+         (if import-error
+           [:div
+            [:div.ui.error.message
+             (str import-error)]]
+           [:div.input
+            "Article search URL: "
+            [:span.ui.input
+             {:style {:margin-left "5px"}}
+             [:input {:on-change #(reset! url (-> % .-target .-value))}]]
+            [:button.ui.blue.button
+             {:on-click #(when (seq @url)
+                           (dispatch [:action [:project/import-project-articles
+                                               @(subscribe [:active-project-id])
+                                               @url]])
+                           (dispatch [::add-documents-visible false])
+                           (reset! state {}))}
+             [:i.download.icon] " Import"]])]))))
+
 (defn DeleteArticleSource [source-id]
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.tiny.fluid.labeled.icon.button.delete-button
@@ -646,6 +679,10 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
            {:value :fda-drugs-docs
             :text "Drugs@FDA Documents (beta)"
             :name "at"})
+         (when beta-access?
+           {:value :project
+            :text "Project"
+            :name "folder"})
          {:value :json
           :text "JSON file"
           :name "file outline"}
@@ -670,6 +707,7 @@ An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :fda-drugs-docs [:div
                            [:h3 "2. Search and import Drugs@FDA application documents."]
                            [fda-drugs-docs/SearchBar]]
+          :project [ImportProject]
           :custom [CustomDatasource]
           nil))
       (condp =  @active-tab
