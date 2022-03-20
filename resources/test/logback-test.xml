@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
+<?xml version="1.0" encoding="utf-8"?>
 <!-- For assistance related to logback-translator or configuration  -->
 <!-- files in general, please contact the logback user mailing list -->
 <!-- at http://www.qos.ch/mailman/listinfo/logback-user             -->
@@ -8,13 +7,14 @@
 <!--    http://www.qos.ch/shop/products/professionalSupport         -->
 <!--                                                                -->
 <configuration>
-  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+  <appender name="console"
+  class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{hh:mm:ss.SSS} %-6level [%logger] %msg%n</pattern>
     </encoder>
   </appender>
   <root level="INFO">
-    <appender-ref ref="console"/>
+    <appender-ref ref="console" />
   </root>
   <logger name="clj-antlr.common" level="ERROR" />
   <logger name="com.datastax.driver.core" level="WARN" />
@@ -23,7 +23,10 @@
   <logger name="com.zaxxer.hikari" level="WARN" />
   <logger name="io.pedestal.http" level="WARN" />
   <logger name="org.apache.http.client" level="ERROR" />
-  <logger name="org.flywaydb.core.internal.command.DbMigrate" level="WARN" />
+  <logger name="org.flywaydb.core.internal" level="WARN" />
   <logger name="org.openqa.selenium" level="WARN" />
   <logger name="sysrev.db.listeners" level="WARN" />
+  <logger name="org.eclipse.jetty.server" level="WARN" />
+  <logger name="com.opentable.db.postgres.embedded" level="WARN" />
+  <logger name="sysrev.lacinia-pedestal.core" level="WARN" />
 </configuration>
