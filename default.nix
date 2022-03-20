@@ -47,7 +47,6 @@ mkShell {
     glibcLocales # postgres and rlwrap (used by clj) need this
     jdk
     (leiningen.override { jdk = jdk; })
-    lessc
     nix
     nixfmt
     nodePackages.npm # should come before nodejs for latest version

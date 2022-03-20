@@ -6,11 +6,9 @@ export PATH=$PWD/scripts/:$PATH
 
 function check_deps () {
   set -eu
-  echo -n "Checking for required programs (npm lessc gulp md5sum) ... "
+  echo -n "Checking for required programs (npm md5sum) ... "
   npm -v > /dev/null ||
     (echo -e "\nError: npm not found (install Node/NPM on system)" && false)
-  lessc -v > /dev/null ||
-    (echo -e "\nError: lessc not found ('sudo npm install -g less')" && false)
   md5sum --version > /dev/null ||
     (echo -e "\nError: md5sum not found (install system package)" && false)
   echo "done"
