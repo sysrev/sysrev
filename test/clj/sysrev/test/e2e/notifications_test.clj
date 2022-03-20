@@ -76,7 +76,7 @@
                                  :label-id)]
         (set-user-article-labels importer-id article-id
                                  {label-id true} :confirm? true)
-        (testing ":project-has-new-article notifications"
+        (testing ":article-reviewed notifications"
           (is (true? (:success result)))
           (doto driver
             (et/is-click-visible {:fn/has-class :notifications-icon})
@@ -109,7 +109,7 @@
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" dest-project-id "/add-articles")))))))))
 
-(deftest ^:e2e project-has-new-article-notifications
+(deftest ^:e2e project-source-added-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [article-adder (test/create-test-user system)
           {:keys [user-id] :as user} (test/create-test-user system)
@@ -127,21 +127,13 @@
                    :tempfile (util/create-tempfile :suffix ".pdf")
                    :size 0}}
                  :user-id (:user-id article-adder))]
-        (testing ":project-has-new-article notifications"
+        (testing ":project-source-added notifications"
           (is (true? (:success result)))
           (doto driver
             (et/is-click-visible {:fn/has-class :notifications-icon})
             (et/is-wait-visible {:fn/has-class :notifications-footer})
             (et/is-wait-visible {:fn/has-text (:username article-adder)})
-            (et/is-wait-visible {:fn/has-text "added a new article"})
-            (et/is-click-visible {:fn/has-text "Mangiferin"}))
-          (let [article-id (q/find-one [:article-data :ad]
-                                       {:a.project-id project-a-id
-                                        :ad.title "sysrev-7539906377827440850.pdf"}
-                                       :a.article-id
-                                       :join [[:article :a] :ad.article-data-id])]
-            (is (nil? (ea/wait-predicate
-                       #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/article/" article-id)))))))))))
+            (et/is-wait-visible {:fn/has-text "added a new article source"})))))))
 
 (deftest ^:e2e project-has-new-user-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]

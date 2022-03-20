@@ -2,7 +2,6 @@
 
 (def single->combined
   {:article-reviewed :article-reviewed-combined
-   :project-has-new-article :project-has-new-article-combined
    :project-has-new-user :project-has-new-user-combined})
 
 (def combined->single
@@ -59,16 +58,6 @@
                         :project-id project-id
                         :project-name (-> ns first :content :project-name)
                         :type :article-reviewed-combined}))
-   notifications))
-
-(defmethod combine-notifications-of-type :project-has-new-article [_ notifications]
-  (combine-notifications-of-type*
-   (comp :project-id :content)
-   (fn [n project-id ns]
-     (assoc n :content {:article-count (count ns)
-                        :project-id project-id
-                        :project-name (-> ns first :content :project-name)
-                        :type :project-has-new-article-combined}))
    notifications))
 
 (defmethod combine-notifications-of-type :project-has-new-user [_ notifications]

@@ -40,11 +40,7 @@
 (defmethod consume-notification-dispatches :group-has-new-project [notification]
   [[:nav (str "/p/" (get-in notification [:content :project-id]))]])
 
-(defmethod consume-notification-dispatches :project-has-new-article [notification]
-  (let [{:keys [article-id project-id]} (:content notification)]
-    [[:nav (str "/p/" project-id "/article/" article-id)]]))
-
-(defmethod consume-notification-dispatches :project-has-new-article-combined
+(defmethod consume-notification-dispatches :project-source-added
   [notification]
   [[:project/navigate (get-in notification [:content :project-id]) "/articles" :params {:sort-by "article-added"}]])
 

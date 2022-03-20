@@ -9,7 +9,7 @@
   [:article-reviewed :article-reviewed-combined
    :notify-user
    :group-has-new-project
-   :project-has-new-article :project-has-new-article-combined
+   :project-source-added
    :project-has-new-user :project-has-new-user-combined
    :project-invitation
    :system])
@@ -27,6 +27,7 @@
 (s/def ::new-user-name non-blank)
 (s/def ::new-user-names (s/coll-of ::new-user-name))
 (s/def ::project-name non-blank)
+(s/def ::source-id int?)
 (s/def ::type (s/and keyword? (set types)))
 (s/def ::text non-blank)
 (s/def ::uri non-blank)
@@ -65,11 +66,10 @@
    #(= :notify-user (:type %))
    (s/keys :req-un [::text])))
 
-(s/def ::create-project-has-new-article-notification-request
+(s/def ::create-project-source-added-notification-request
   (s/and
-   #(= :project-has-new-article (:type %))
-   (s/keys :req-un [::sc/article-id ::article-data-title
-                    ::sc/project-id ::project-name]
+   #(= :project-source-added (:type %))
+   (s/keys :req-un [:sc/project-id ::project-name ::source-id]
            :opt-un [::adding-user-id ::adding-user-name])))
 
 (s/def ::create-project-has-new-user-notification-request
@@ -94,7 +94,7 @@
    (s/or :article-reviewed ::create-article-reviewed-notification-request
          :group-has-new-project ::create-group-has-new-project-notification-request
          :notify-user ::create-notify-user-notification-request
-         :project-has-new-article ::create-project-has-new-article-notification-request
+         :project-source-added ::create-project-source-added-notification-request
          :project-has-new-user ::create-project-has-new-user-notification-request
          :project-invitation ::create-project-invitation-notification-request
          :system ::create-system-notification-request)))

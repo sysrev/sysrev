@@ -182,7 +182,7 @@
 (defmethod notification-publisher :notify-user [notification]
   (publisher-for-user (:user-id notification) :create? true))
 
-(defmethod notification-publisher :project-has-new-article [notification]
+(defmethod notification-publisher :project-source-added [notification]
   (publisher-for-project (:project-id notification) :create? true))
 
 (defmethod notification-publisher :project-has-new-user [notification]
@@ -205,7 +205,7 @@
 (defmethod notification-topic-name :group-has-new-project [notification]
   (str ":group " (:group-id notification)))
 
-(defmethod notification-topic-name :project-has-new-article [notification]
+(defmethod notification-topic-name :project-source-added [notification]
   (str ":project " (:project-id notification)))
 
 (defmethod notification-topic-name :project-has-new-user [notification]
@@ -232,7 +232,7 @@
                                :returning :subscriber-id)
           vector))
 
-(defmethod subscriber-ids-to-skip :project-has-new-article [notification]
+(defmethod subscriber-ids-to-skip :project-source-added [notification]
   (some-> (subscriber-for-user (:adding-user-id notification)
                                :returning :subscriber-id)
           vector))

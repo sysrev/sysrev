@@ -99,26 +99,12 @@
                                   (->> (:locations article)
                                        (mapv #(assoc % :article-id article-id))))))
                          (apply concat)
-                         vec)
-                    user-name (when user-id
-                                (q/find-one :web-user {:user-id user-id} :username))
-                    project-name (q/find-one :project {:project-id project-id} :name)
-                    notification (remove-vals nil? {:adding-user-id user-id
-                                                    :adding-user-name user-name
-                                                    :project-id project-id
-                                                    :project-name project-name
-                                                    :type :project-has-new-article})]
+                         vec)]
                 (source/add-articles-to-source
                  (concat existing-article-ids (keys new-articles-map))
                  source-id)
                 (q/create :article-location new-locations)
                 (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
-                  (->> (q/find-one [:article :a]
-                                   {:a.article-id article-id}
-                                   :ad.title
-                                   :join [[:article-data :ad] [:= :a.article-data-id :ad.article-data-id]])
-                   (assoc notification :article-id article-id :article-data-title)
-                   create-notification)
                   (when on-article-added
                     (try
                       (on-article-added (get new-articles-map article-id))
@@ -167,7 +153,7 @@
 
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
-  [request project-id source-id success?]
+  [request project-id source-id user-id success?]
   (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
     ;; update source metadata
     (if success?
@@ -187,6 +173,13 @@
            (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles
     (source/update-project-articles-enabled project-id))
+  (when success?
+    (future (create-notification {:type :project-source-added
+                                  :project-id project-id
+                                  :project-name (q/get-project project-id :name)
+                                  :source-id source-id
+                                  :adding-user-id user-id
+                                  :adding-user-name (some-> user-id (q/get-user :username))})))
   ;; start threads for updates from api.insilica.co
   (when success?
     (predict-api/schedule-predict-update project-id))
@@ -255,7 +248,7 @@
                    (log/error "import-source-impl failed -" (.getMessage e))
                    (.printStackTrace e)
                    false))
-               (after-source-import request project-id source-id)))]
+               (after-source-import request project-id source-id user-id)))]
     {:source-id source-id
      :import (if use-future? (future (do-import)) (do-import))}))
 

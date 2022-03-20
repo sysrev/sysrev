@@ -54,21 +54,11 @@
      [:b group-name]
      " organization."]))
 
-(defmethod NotificationDisplay :project-has-new-article [notification]
-  (let [{{:keys [adding-user-name article-data-title project-name]} :content} notification]
+(defmethod NotificationDisplay :project-source-added [notification]
+  (let [{{:keys [adding-user-name project-name]} :content} notification]
     [:span
      [:b adding-user-name]
-     " added a new article to "
-     [:b project-name]
-     ": "
-     [:b article-data-title]
-     "."]))
-
-(defmethod NotificationDisplay :project-has-new-article-combined [notification]
-  (let [{{:keys [article-count project-name]} :content} notification]
-    [:span
-     [:b article-count]
-     " new articles were added to "
+     " added a new article source to "
      [:b project-name]
      "."]))
 
@@ -177,7 +167,7 @@
     [:<>
      [:a {:class "item"
           :on-click #(do (.stopPropagation %)
-                       (toggle-open open?))}
+                         (toggle-open open?))}
       [:i {:class "bell outline icon notifications-icon"}]
       (when-not (zero? new-count)
         [:span {:class "notifications-count"}
