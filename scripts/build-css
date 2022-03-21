@@ -7,8 +7,6 @@ abs_out_path="$PWD/$rel_out_path"
 ls resources/public > /dev/null
 mkdir -p $rel_out_path
 
-cp components/org-page/dist/index.css "$rel_out_path/js-components.css"
-
 cd src/less
 
 rm -f .tmp.css
