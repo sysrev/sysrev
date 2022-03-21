@@ -24,11 +24,6 @@ rebuild_js () {
 
 sync_package_json;
 
-cd components/org-page
-
-sync_package_json;
-rebuild_js;
-
 cd $DIR
 
 if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
