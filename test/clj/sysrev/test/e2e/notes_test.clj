@@ -18,7 +18,7 @@
           {:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project-id]} (:project (api/create-project-for-user!
                                           (:sr-context system)
-                                          "Browser Test (annotation labels)" user-id true))]
+                                          "Browser Test (test-notes)" user-id true))]
       (member/add-project-member
        project-id user-id :permissions ["admin" "member"])
       (src/import-source
@@ -36,7 +36,9 @@
         e/wait-until-loading-completes)
       (e/go-project test-resources project-id "/articles")
       (doto driver
+        ;; check that note content is shown on /articles page with "Notes" option
         (et/click-visible {:css ".column.label_notes button"})
         (et/is-wait-visible {:fn/has-text content})
+        ;; check that note content is shown on individual article page
         (et/click-visible {:css ".article-title"})
         (et/is-wait-visible {:fn/has-text content})))))
