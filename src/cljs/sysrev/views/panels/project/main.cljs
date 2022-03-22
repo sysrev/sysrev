@@ -7,7 +7,7 @@
             [sysrev.util :as util :refer [format]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.clone-project :refer [CloneProject]]
-            [sysrev.views.panels.project.common :refer [project-page-menu]]
+            [sysrev.views.panels.project.common :refer [project-page-menu ProjectIssueModal]]
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
@@ -35,7 +35,7 @@
           (if (:user-id project-owner)
             @(subscribe [:user/username (:user-id project-owner)])
             (:name project-owner))]
-         [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]] )
+         [:span.bold {:style {:font-size "1.1em" :margin "0 0.325em"}} "/"]])
       [:a {:href (project-uri nil "")
            :id :project-title-project-link}
        project-name]]
@@ -56,6 +56,8 @@
 
 (reg-sub ::message-dismissed-for-project #(::message-dismissed-for-project %))
 
+
+
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]] {}
@@ -74,11 +76,12 @@
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
-           [:div.eleven.wide.column
+           [:div.ten.wide.column
             [ProjectTitle project-id]]
-           [:div.right.aligned.column.five.wide
+           [:div.right.aligned.column.six.wide
             (when-not (util/mobile?) [CloneProject])
-            access-label]]]
+            access-label
+            [ProjectIssueModal]]]]
          [:div.ui.top.attached.segment.project-header.mobile
           [:div.row
            [:div.thirteen.wid.column]
@@ -86,7 +89,8 @@
           [:div.row
            [:div.content
             (when (util/mobile?) [CloneProject])
-            [:span.access-header access-label]]]]
+            [:span.access-header access-label]
+            [ProjectIssueModal]]]]
          (project-page-menu)
          (when (and (not logged-in?) (not= message-dismissed-for-project project-id))
            [:div.ui.positive.message {:style {:text-align "center"}}

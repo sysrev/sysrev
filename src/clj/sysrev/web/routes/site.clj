@@ -9,6 +9,7 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.config :refer [env]]
+            [sysrev.sendgrid :as sendgrid]
             [sysrev.user.interface :as user]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
             [sysrev.util :refer [in? map-values should-never-happen-exception]]))
@@ -175,4 +176,8 @@
         (api/handle-stripe-hooks request))
 
   (POST "/api/managed-review-request" request
-    (api/managed-review-request request)))
+    (api/managed-review-request request))
+
+  (POST "/api/send-contact-email" request
+    (let [{:keys [content subject]} (:body request)]
+      (sendgrid/send-html-email sendgrid/sendgrid-default-from content subject))))

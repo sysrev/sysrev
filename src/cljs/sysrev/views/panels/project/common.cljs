@@ -1,8 +1,13 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :refer [subscribe]]
+            [clojure.string :as str]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.components.core :as ui]
-            [sysrev.util :as util :refer [in?]]))
+            [sysrev.views.components.core :as ui :refer [CursorMessage]]
+            [sysrev.util :as util :refer [in?]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
+            [sysrev.views.semantic :refer
+             [Modal ModalContent ModalHeader ModalDescription TextArea]]
+            [reagent.core :as r]))
 
 (def beta-compensation-users #{"eliza.grames@uconn.edu"})
 
@@ -165,3 +170,61 @@
      [:div.content
       [:div.header "Read-Only View"]
       [:p text]]]))
+
+(defn format-issue-email [{:keys [message projectId user]}]
+  (str "Project issue form from: " user "
+    <br>
+    For project: " projectId
+   "<br>
+    Message: " message))
+
+
+(def-action :project/report-issue
+  :uri      (fn [_ _] (str "/api/send-contact-email"))
+  :content  (fn [content] {:content (:content content) :subject "Project Issue Submission"})
+  :process  (fn [{:keys [db]} [self-id _] _]
+              (reset! (:on-fail self-id) nil)
+              (reset! (:on-success self-id) "Message Sent!")
+              db)
+  :on-error (fn [{:keys [db error]} self-id _]
+              (reset! (:on-failed self-id) "Message Send Failure.")))
+
+(defn ProjectIssueModal []
+  (let [modal-open (r/atom false)
+        email-content (r/atom "")
+        email-success (r/atom nil)
+        email-failed (r/atom nil)]
+    (fn []
+      (let [project-id @(subscribe [:active-project-id])
+            self-id @(subscribe [:self/user-id])]
+        [:div {:style {:display "inline-block" :margin-left "0.25rem"}}
+         [:button.ui.tiny.button.red {:on-click #(reset! modal-open true)} "Report Issue"]
+         [Modal {:trigger
+                 (r/as-element
+                  [:div.ui {:id :change-avatar
+                            :data-tooltip "Report and Issue"
+                            :data-position "bottom center"}])
+                 :open @modal-open
+                 :on-open #(reset! modal-open true)
+                 :on-close #(reset! modal-open false)
+                 :size "tiny"}
+          [ModalHeader "Report an Issue"]
+          [ModalContent
+           [ModalDescription
+            [TextArea {
+                       :style {:min-height "15em" :width "100%"}
+                       :placeholder "Your Message"
+                       :on-change (util/on-event-value #(reset! email-content %))}]
+            [:button.ui.small.positive.button
+             {:on-click #(if (str/blank? (str @email-content))
+                          (reset! email-failed  "Message Can't Be Blank.")
+                          (run-action :project/report-issue {:content (format-issue-email  {:message @email-content
+                                                                                            :projectId project-id
+                                                                                            :user self-id})
+                                                             :on-success email-success
+                                                             :on-fail email-failed}))}
+             "Submit"]
+            (when (some seq [@email-success @email-failed])
+             [:div {:style {:padding-top "0" :margin-top "1em"}}
+              [CursorMessage email-success {:positive true}]
+              [CursorMessage email-failed {:negative true}]])]]]]))))
