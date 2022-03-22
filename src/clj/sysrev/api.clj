@@ -126,20 +126,26 @@
     (db/clear-project-cache project-id)
     {:project {:name name :project-id project-id}}))
 
-(defn sync-project-owners!
+(defn update-member-permissions!
+  "Update a user's permissions for a project, adding them as a new member if needed."
+  [project-id user-id permissions]
+  (let [existing-perms (member/member-roles project-id user-id)]
+    (if (and (empty? existing-perms) (seq permissions))
+      (member/add-project-member project-id user-id :permissions permissions :notify? false)
+      (when (not= permissions existing-perms)
+        (member/set-member-permissions project-id user-id permissions)))))
+
+(defn sync-project-members!
   "Given a project-id and org-id, sync the permissions of each member with the project"
   [project-id org-id]
   (db/with-clear-project-cache project-id
     (doseq [{:keys [permissions user-id]} (group/read-users-in-group
                                            (group/group-id->name org-id))]
-      (let [new-perms (cond
-                        (some #{"owner" "admin"} permissions) ["member" "admin"]
-                        (some #{"member"} permissions) ["member"])
-            existing-perms (member/member-roles project-id user-id)]
-        (if (and (empty? existing-perms) (seq new-perms))
-          (member/add-project-member project-id user-id :permissions new-perms :notify? false)
-          (when (not= new-perms existing-perms)
-            (member/set-member-permissions project-id user-id new-perms)))))))
+      (update-member-permissions!
+       project-id user-id
+       (cond
+         (some #{"owner" "admin"} permissions) ["member" "admin"]
+         (some #{"member"} permissions) ["member"])))))
 
 (defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
@@ -149,7 +155,7 @@
     (let [{:keys [project-id] :as project} (project/create-project project-name)]
       (label/add-label-overall-include project-id)
       (group/create-project-group! project-id group-id)
-      (sync-project-owners! project-id group-id)
+      (sync-project-members! project-id group-id)
       (change-project-settings project-id [{:setting :public-access
                                             :value public-access}])
       (notification/create-notification
@@ -413,40 +419,36 @@
         (shared/make-link :twitter "Twitter @sysrev1") "<br>"
         (shared/make-link :blog "blog.sysrev.com") "<br>")))
 
+(defn create-new-user! [& {:keys [email google-user-id org-id password project-id]}]
+  (let [u (user/create-user email password
+                            :google-user-id google-user-id)]
+    (when project-id
+      (member/add-project-member project-id (:user-id u)))
+    (when org-id
+      (set-user-group! (:user-id u) (group/group-id->name org-id) true))
+    u))
+
+(defn subscribe-user! [{:keys [email user-id] :as user}]
+  (user/create-user-stripe-customer! user)
+  (stripe/create-subscription-user! user)
+  (user/create-email-verification! user-id email :principal true)
+  (send-verification-email user-id email))
+
 (defn register-user!
   "Register a user and add them as a stripe customer"
-  [email password & {:keys [project-id org-id google-user-id]}]
+  [& {:keys [email] :as opts}]
   (assert (string? email))
   (with-transaction
-    (let [user (user-by-email email)
-          db-result (when-not user
-                      (try
-                        (let [u (user/create-user email password
-                                                  :google-user-id google-user-id)]
-                          (when project-id
-                            (member/add-project-member project-id (:user-id u)))
-                          (when org-id
-                            (set-user-group! (:user-id u) (group/group-id->name org-id) true))
-                          u)
-                        true
-                        (catch Throwable e e)))]
-      (cond user
-            {:success false, :message "Account already exists for this email address"}
-            (isa? (type db-result) Throwable)
-            {:error {:status 500
-                     :message "Exception occurred while creating account"
-                     :exception db-result}}
-            (true? db-result)
-            (let [{:keys [user-id] :as new-user} (user-by-email email)]
-              (user/create-user-stripe-customer! new-user)
-              ;; create default stripe subscription for user
-              (stripe/create-subscription-user! (user-by-email email))
-              ;; add email verification entry for email
-              (user/create-email-verification! user-id email :principal true)
-              ;; send verification email
-              (send-verification-email user-id email)
-              {:success true})
-            :else (throw (util/should-never-happen-exception))))))
+    (if (user-by-email email)
+      {:success false
+       :message "Account already exists for this email address"}
+      (try
+        (subscribe-user! (create-new-user! opts))
+        {:success true}
+        (catch Exception e
+          {:error {:status 500
+                   :message "Exception occurred while creating account"
+                   :exception e}})))))
 
 (defn update-user-stripe-payment-method!
   "Update the payment method for user-id"
@@ -1000,7 +1002,7 @@
 (defn sync-all-group-projects! [org-id]
   (let [group-projects (group/group-projects org-id :private-projects? true)]
     (doall (for [project group-projects]
-             (sync-project-owners! (:project-id project) org-id)))))
+             (sync-project-members! (:project-id project) org-id)))))
 
 (defn remove-member-from-all-group-projects! [org-id user-id]
   (let [group-projects (group/group-projects org-id :private-projects? true)]
@@ -1417,7 +1419,7 @@
       (let [dest-project-id (clone-project src-project-id)]
         ;; add the project to the group
         (group/create-project-group! dest-project-id org-id)
-        (sync-project-owners! dest-project-id org-id)
+        (sync-project-members! dest-project-id org-id)
         (notification/create-notification
          {:adding-user-id user-id
           :group-id org-id
