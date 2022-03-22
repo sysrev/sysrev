@@ -88,7 +88,9 @@
             :request {:Bucket (lookup-bucket bucket)
                       :Key (some-> file-key str)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
-      (when-not (= :cognitect.anomalies/not-found anom)
+      (if (= :cognitect.anomalies/not-found anom)
+        (when (not= :document bucket)
+          (lookup-file file-key :document))
         (throw (aaf/->ex-info r)))
       r)))
 
