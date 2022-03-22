@@ -1,18 +1,16 @@
 (ns sysrev.source.interface
-  (:require
-   [clojure.string :as str]
-   [clojure.tools.logging :as log]
-   [medley.core :refer [remove-vals]]
-   [sysrev.article.core :as article]
-   [sysrev.biosource.predict :as predict-api]
-   [sysrev.datasource.core :as ds]
-   [sysrev.db.core :as db :refer [*conn*]]
-   [sysrev.db.queries :as q]
-   [sysrev.notification.interface :refer [create-notification]]
-   [sysrev.slack :refer [log-slack-custom]]
-   [sysrev.source.core :as source]
-   [sysrev.stacktrace :as strace]
-   [sysrev.util :as util :refer [in? parse-integer pp-str]]))
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [sysrev.article.core :as article]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.datasource.core :as ds]
+            [sysrev.db.core :as db :refer [*conn*]]
+            [sysrev.db.queries :as q]
+            [sysrev.notification.interface :refer [create-notification]]
+            [sysrev.slack :refer [log-slack-custom]]
+            [sysrev.source.core :as source]
+            [sysrev.stacktrace :as strace]
+            [sysrev.util :as util :refer [in? parse-integer pp-str]]))
 
 (defn- add-articles-data [{:keys [article-type article-subtype] :as types} articles]
   (doall (for [article articles]
@@ -173,7 +171,7 @@
            (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles
     (source/update-project-articles-enabled project-id))
-  (when success?
+  (when (and success? user-id)
     (future (create-notification {:type :project-source-added
                                   :project-id project-id
                                   :project-name (q/get-project project-id :name)

@@ -8,9 +8,8 @@
             [sysrev.db.core :as db]
             [sysrev.shared.ctgov :as ctgov]
             [sysrev.source.core :as source :refer [re-import]]
-            [sysrev.source.interface :refer [after-source-import import-source
-                                             import-source-articles
-                                             import-source-impl]]))
+            [sysrev.source.interface :refer [import-source
+                                             import-source-articles import-source-impl]]))
 
 (def ^:const source-name "CT.gov search")
 
@@ -78,16 +77,14 @@
 
 (defmethod re-import source-name
   [request project-id {:keys [source-id] :as source} {:keys [web-server]}]
-  (let [do-import (fn []
-                    (->> (import-source-articles
-                          request project-id source-id
-                          {:types {:article-type "json" :article-subtype "ctgov"}
-                           :article-refs (get-new-articles-available
-                                          source :config (:config web-server))
-                           :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
-                          {:threads 1})
-                         (after-source-import request project-id source-id)))]
-    (source/alter-source-meta source-id #(assoc % :importing-articles? true))
-    (source/set-import-date source-id)
-    (future (do-import))
-    {:source-id source-id}))
+  (source/alter-source-meta source-id #(assoc % :importing-articles? true))
+  (source/set-import-date source-id)
+  (future
+    (import-source-articles
+     request project-id source-id
+     {:types {:article-type "json" :article-subtype "ctgov"}
+      :article-refs (get-new-articles-available
+                     source :config (:config web-server))
+      :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
+     {:threads 1}))
+  {:source-id source-id})

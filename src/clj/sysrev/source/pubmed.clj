@@ -5,9 +5,8 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.source.core :as source :refer [re-import]]
-            [sysrev.source.interface :refer [after-source-import import-source
-                                             import-source-articles
-                                             import-source-impl]]
+            [sysrev.source.interface :refer [import-source
+                                             import-source-articles import-source-impl]]
             [sysrev.util :as util :refer [parse-integer]]))
 
 (def ^:const source-name "PubMed search")
@@ -72,17 +71,14 @@
 
 
 (defmethod re-import source-name [request project-id {:keys [source-id] :as source}]
-  (let [threads 4
-        do-import (fn []
-                    (->> (import-source-articles
-                          request project-id source-id
-                          {:types {:article-type "academic" :article-subtype "pubmed"}
-                           :article-refs (get-new-articles-available source)
-                           :get-articles pubmed-get-articles}
-                          threads)
-                         (after-source-import request project-id source-id)))]
-    (source/alter-source-meta source-id #(assoc % :importing-articles? true))
-    (source/set-import-date source-id)
-    (future (do-import))
-    {:source-id source-id}))
+  (source/alter-source-meta source-id #(assoc % :importing-articles? true))
+  (source/set-import-date source-id)
+  (future
+    (import-source-articles
+     request project-id source-id
+     {:types {:article-type "academic" :article-subtype "pubmed"}
+      :article-refs (get-new-articles-available source)
+      :get-articles pubmed-get-articles}
+     1))
+  {:source-id source-id})
 
