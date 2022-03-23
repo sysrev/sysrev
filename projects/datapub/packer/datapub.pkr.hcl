@@ -64,7 +64,7 @@ build {
 
   provisioner "file" {
     destination = "/tmp/"
-    source      = "../docker-compose-dev.yml"
+    source      = "./docker-compose-dev.yml"
   }
 
   provisioner "file" {
