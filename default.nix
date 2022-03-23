@@ -18,15 +18,6 @@ in let
 in with pkgs;
 let
   local = if builtins.pathExists ./local.nix then import ./local.nix else { };
-  clj-kondo = pkgs.clj-kondo.overrideAttrs (oldAttrs: rec {
-    pname = "clj-kondo";
-    version = "2022.02.09";
-    src = fetchurl {
-      url =
-        "https://github.com/clj-kondo/${pname}/releases/download/v${version}/${pname}-${version}-standalone.jar";
-      sha256 = "0p6vw3i6hif90ygfcrmjbgk5s7xk2bbvknn72nrxw9dv8jgy7wsr";
-    };
-  });
   jdk = openjdk8;
   extensions = (with vscode-extensions; [
     bbenoist.nix
