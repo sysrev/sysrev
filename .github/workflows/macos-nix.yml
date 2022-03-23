@@ -1,0 +1,30 @@
+name: "Test Nix build on macOS"
+
+on:
+  push:
+    branches:
+      dev
+      macos-nix
+    paths:
+      - '.github/workflows/macos-nix.yml'
+      - '**.nix'
+
+jobs:
+  nix:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v16
+
+      - name: Build Nix derivation
+        run: |
+          mkdir -p ~/.config/nixpkgs
+          echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
+          nix-build -A inputDerivation -o gcroots
+
+      - name: Test nix-shell via the linter
+        run: |
+          nix-shell --run "bash lint-all"
