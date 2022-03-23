@@ -183,7 +183,8 @@
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta import-date]} source
         {:keys [importing-articles?]} meta]
-    (and (true? importing-articles?)
+    (and importing-articles?
+         import-date
          (t/within? {:start (t/epoch)
                      :end (t/minus (t/now) (t/minutes 30))}
                     import-date))))
