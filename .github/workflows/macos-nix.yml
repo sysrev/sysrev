@@ -3,8 +3,8 @@ name: "Test Nix build on macOS"
 on:
   push:
     branches:
-      dev
-      macos-nix
+      - dev
+      - macos-nix
     paths:
       - '.github/workflows/macos-nix.yml'
       - '**.nix'
