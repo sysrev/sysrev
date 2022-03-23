@@ -638,16 +638,16 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
 
 (defn ImportArticlesView []
   (let [active-tab (subscribe [:add-articles/import-tab])
+        email @(subscribe [:self/email])
         beta-access? (or (not= js/window.location.hostname "sysrev.com")
                          (boolean
-                          (some #{@(subscribe [:self/email])}
-                                #{"amarluniwal@gmail.com"
-                                  "geoffreyweiner@gmail.com"
-                                  "james@insilica.co"
-                                  "tom@insilica.co"
-                                  "jeff@insilica.co"
-                                  "tj@insilica.co"
-                                  "g.callegaro@lacdr.leidenuniv.nl"})))]
+                          (or
+                           (str/ends-with? email "@insilica.co")
+                           (contains?
+                            #{"amarluniwal@gmail.com"
+                              "geoffreyweiner@gmail.com"
+                              "g.callegaro@lacdr.leidenuniv.nl"}
+                            email))))]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
