@@ -342,7 +342,7 @@
         system
         {:select [:meta]
          :from :project-source
-         :where [:= project-id project-id]})
+         :where [:= :project-id project-id]})
        (some (comp :importing-articles? :project-source/meta))
        boolean))
 
