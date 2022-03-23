@@ -320,13 +320,6 @@
        (concat (search-projects-important-terms q :limit limit))
        distinct))
 
-(defn project-ids-where-labels-defined
-  "Returns ids of all projects with at least one user-defined label."
-  []
-  (q/find [:project :p] {} :p.project-id
-          :where [:< 1 (q/find-count [:label :l] {:l.project-id :p.project-id}
-                                     :return :query)]))
-
 (defn project-admin-or-owner?
   "Is user-id an owner or admin of project-id?"
   [user-id project-id]
