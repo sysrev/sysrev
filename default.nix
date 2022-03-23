@@ -1,9 +1,18 @@
+{ pkgs ? import <nixpkgs> { } }:
 let
-  rev = "0f85665118d850aae5164d385d24783d0b16cf1b";
+  target = pkgs.stdenv.targetPlatform;
+  rev = (if target.isDarwin then
+    "31aa631dbc496500efd2507baaed39626f6650f2"
+  else
+    "0f85665118d850aae5164d385d24783d0b16cf1b");
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    sha256 = "1x60c4s885zlqm1ffvjj09mjq078rqgcd08l85004cijfsqld263";
+    sha256 = (if target.isDarwin then
+      "08qaraj9j7m2g1ldhpkg8ksylk7s00mr7khkzif0m8jshkq8j92b"
+    else
+      "1x60c4s885zlqm1ffvjj09mjq078rqgcd08l85004cijfsqld263");
   };
+in let
   pkgs = import nixpkgs { };
   inherit (pkgs) fetchurl lib stdenv;
 in with pkgs;
@@ -57,7 +66,7 @@ mkShell {
     time
     yarn
     zip
-  ] ++ (if stdenv.targetPlatform.isDarwin then [ ] else [ chromium ]);
+  ] ++ (if target.isDarwin then [ ] else [ chromium ]);
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
     export POSTGRES_DIRECTORY="${postgresql_13}"
@@ -65,7 +74,7 @@ mkShell {
     chmod +x bin/code
     rm -f scripts/clj-kondo
     ln -s ${clj-kondo}/bin/clj-kondo scripts/
-  '' + (if stdenv.targetPlatform.isDarwin then
+  '' + (if target.isDarwin then
     ""
   else ''
     rm chrome
