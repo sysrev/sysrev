@@ -464,6 +464,12 @@ General-use functionality for data access and event handling is kept under `stat
 
 The test suite (run with `lein test`) includes browser tests using Selenium with headless Chrome. The `chromedriver` executable must be available via `$PATH`; it should be included in your system package for Chromium or Chrome, or in an additional system package.
 
+## UI Tests
+
+You can run UI tests standalone with the the command `cd client && bash run-front-end-tests`. This will rebuild the app and run test which can be slow.
+
+For a faster feedback loop, run the front-end build script, then run from another terminal `npx karma start --single-run --reporters junit,dots`. This will run the same test suite, but will test against the currently running version of the app. You can update tests in real-time and re-run the script.
+
 # DB Restore
 
 You can populate your local sysrev database with the one from a recent backup.

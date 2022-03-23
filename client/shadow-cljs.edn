@@ -1,6 +1,7 @@
 {:source-paths ["src/cljs" "src/cljc" "resources"
                 "components/notification/src"
-                "components/user/src"]
+                "components/user/src"
+                "test"]
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
             ;; https://github.com/thheller/shadow-cljs/issues/556
             "-Xms400m" "-Xmx1400m"]
@@ -20,7 +21,11 @@
                  :js-options {:ignore-asset-requires true}
                  :modules {:sysrev {:entries [sysrev.core]}}
                  :compiler-options {:infer-externs :auto}
-                 :release {:compiler-options {:optimizations :advanced}}}}
+                 :release {:compiler-options {:optimizations :advanced}}}
+          :karma-test
+                 {:target    :karma
+                  :ns-regexp "-test$"
+                  :output-to "target/karma-test.js"}}
  :dependencies [
 ;;; Indirect dependency versions
                 [commons-io/commons-io "2.8.0"]
