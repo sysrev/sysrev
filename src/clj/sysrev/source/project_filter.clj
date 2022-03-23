@@ -9,8 +9,10 @@
             [sysrev.db.queries :as q]
             [sysrev.graphql.core :refer [fail]]
             [sysrev.project.article-list :refer [query-project-article-ids]]
+            [sysrev.project.core :as project]
             [sysrev.source.core :as source]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.web.app :as app]))
 
 (defn extract-filters-from-url
   "Convert url string `s` into a vector of filters that can be passed to
@@ -34,12 +36,18 @@
 
 (defn import-articles
   [request project-id {:keys [source-project-id url-filter]}]
-  (if (seq (->> (source/project-sources project-id)
+  (cond
+    (not (project/clone-authorized? source-project-id (app/current-user-id request)))
+    {:error {:message "Source project must be public or user must have admin rights to it"}}
+
+    (seq (->> (source/project-sources project-id)
                 (filter #(= (get-in % [:meta :url-filter]) url-filter))
                 (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
     {:error {:message (format "%s already imported"
                               (pr-str {:source-project-id source-project-id
                                        :url-filter url-filter}))}}
+    
+    :else
     (let [filters (extract-filters-from-url url-filter)
           article-ids (query-project-article-ids {:project-id source-project-id} filters)
           source-meta {:filters filters
