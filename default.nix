@@ -38,7 +38,6 @@ mkShell {
   buildInputs = [
     awscli
     chromedriver
-    chromium
     clj-kondo
     (clojure.override { jdk = jdk; })
     entr # for ./scripts/watch-css
@@ -58,15 +57,18 @@ mkShell {
     time
     yarn
     zip
-  ];
+  ] ++ (if stdenv.targetPlatform.isDarwin then [ ] else [ chromium ]);
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
     export POSTGRES_DIRECTORY="${postgresql_13}"
     echo "source vars.sh && ${vscode-with-extensions}/bin/code -a ." > bin/code
     chmod +x bin/code
-    rm chrome
-    ln -s ${chromium}/bin/chromium chrome
     rm -f scripts/clj-kondo
     ln -s ${clj-kondo}/bin/clj-kondo scripts/
-  '';
+  '' + (if stdenv.targetPlatform.isDarwin then
+    ""
+  else ''
+    rm chrome
+    ln -s ${chromium}/bin/chromium chrome
+  '');
 }
