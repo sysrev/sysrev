@@ -197,34 +197,35 @@
     (fn []
       (let [project-id @(subscribe [:active-project-id])
             self-id @(subscribe [:self/user-id])]
-        [:div {:style {:display "inline-block" :margin-left "0.25rem"}}
-         [:button.ui.tiny.button.red {:on-click #(reset! modal-open true)} "Report Issue"]
-         [Modal {:trigger
-                 (r/as-element
-                  [:div.ui {:id :change-avatar
-                            :data-tooltip "Report and Issue"
-                            :data-position "bottom center"}])
-                 :open @modal-open
-                 :on-open #(reset! modal-open true)
-                 :on-close #(reset! modal-open false)
-                 :size "tiny"}
-          [ModalHeader "Report an Issue"]
-          [ModalContent
-           [ModalDescription
-            [TextArea {
-                       :style {:min-height "15em" :width "100%"}
-                       :placeholder "Your Message"
-                       :on-change (util/on-event-value #(reset! email-content %))}]
-            [:button.ui.small.positive.button
-             {:on-click #(if (str/blank? (str @email-content))
-                          (reset! email-failed  "Message Can't Be Blank.")
-                          (run-action :project/report-issue {:content (format-issue-email  {:message @email-content
-                                                                                            :projectId project-id
-                                                                                            :user self-id})
-                                                             :on-success email-success
-                                                             :on-fail email-failed}))}
-             "Submit"]
-            (when (some seq [@email-success @email-failed])
-             [:div {:style {:padding-top "0" :margin-top "1em"}}
-              [CursorMessage email-success {:positive true}]
-              [CursorMessage email-failed {:negative true}]])]]]]))))
+        (when self-id
+          [:div {:style {:display "inline-block" :margin-left "0.25rem"}}
+           [:button.ui.tiny.button.red {:on-click #(reset! modal-open true)} "Report Issue"]
+           [Modal {:trigger
+                   (r/as-element
+                    [:div.ui {:id :change-avatar
+                              :data-tooltip "Report and Issue"
+                              :data-position "bottom center"}])
+                   :open @modal-open
+                   :on-open #(reset! modal-open true)
+                   :on-close #(reset! modal-open false)
+                   :size "tiny"}
+            [ModalHeader "Report an Issue"]
+            [ModalContent
+             [ModalDescription
+              [TextArea {
+                         :style {:min-height "15em" :width "100%"}
+                         :placeholder "Your Message"
+                         :on-change (util/on-event-value #(reset! email-content %))}]
+              [:button.ui.small.positive.button
+               {:on-click #(if (str/blank? (str @email-content))
+                            (reset! email-failed  "Message Can't Be Blank.")
+                            (run-action :project/report-issue {:content (format-issue-email  {:message @email-content
+                                                                                              :projectId project-id
+                                                                                              :user self-id})
+                                                               :on-success email-success
+                                                               :on-fail email-failed}))}
+               "Submit"]
+              (when (some seq [@email-success @email-failed])
+               [:div {:style {:padding-top "0" :margin-top "1em"}}
+                [CursorMessage email-success {:positive true}]
+                [CursorMessage email-failed {:negative true}]])]]]])))))

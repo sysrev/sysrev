@@ -311,6 +311,9 @@
                           verify-code (assoc :verify-code verify-code))
             {:verified true :updated db/sql-now}))
 
+(defn get-user-email [user-id]
+  (:email (q/find-one :user-email {:user-id user-id :principal true})))
+
 (defn get-user-emails [user-id]
   (q/find :user-email {:user-id user-id :enabled true}))
 

@@ -39,8 +39,9 @@
 ;;  :%planName% "Standard Plan"}
 ;; If, in your sendgrid template, you had e.g., "Hi %name%"
 (defn- send-email
-  [to from subject payload & {:keys [substitutions]}]
+  [to from subject payload & {:keys [substitutions cc]}]
   (let [request-params (merge {:personalizations [{:to [{:email to}]
+                                                   :cc [{:email cc}]
                                                    :subject subject
                                                    :substitutions substitutions}]
                                :from {:email from
@@ -55,10 +56,11 @@
 
 (defn send-html-email
   [to subject message
-   & {:keys [from]
+   & {:keys [from cc]
       :or {from sendgrid-default-from}}]
   (send-email to from subject
-              {:content [{:type "text/html" :value message}]}))
+              {:content [{:type "text/html" :value message}]}
+              :cc cc))
 
 (defn send-template-email
   [to subject message

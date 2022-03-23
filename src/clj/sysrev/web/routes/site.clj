@@ -11,6 +11,7 @@
             [sysrev.config :refer [env]]
             [sysrev.sendgrid :as sendgrid]
             [sysrev.user.interface :as user]
+            [sysrev.user.core :refer [verified-primary-email? get-user-email]]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
             [sysrev.util :refer [in? map-values should-never-happen-exception]]))
 
@@ -179,5 +180,9 @@
     (api/managed-review-request request))
 
   (POST "/api/send-contact-email" request
-    (let [{:keys [content subject]} (:body request)]
-      (sendgrid/send-html-email sendgrid/sendgrid-default-from content subject))))
+    (with-authorize request {:logged-in true}
+      (let [user-id (current-user-id request)
+            {:keys [content subject]} (:body request)
+            email (get-user-email user-id)
+            canCC? (if (verified-primary-email? email) email nil)]
+        (sendgrid/send-html-email sendgrid/sendgrid-default-from subject content :cc canCC?)))))
