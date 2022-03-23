@@ -294,7 +294,7 @@
          {:error {:message "Project not found"}}
          {:import
           (future
-            (project-filter/import-articles
+            (project-filter/import
              request project-id
              {:source-project-id source-project-id
               :url-filter url-filter}))})))
