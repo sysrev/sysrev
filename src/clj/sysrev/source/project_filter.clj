@@ -1,4 +1,5 @@
 (ns sysrev.source.project-filter
+  (:refer-clojure :exclude [import])
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.walk :as walk]
@@ -36,18 +37,37 @@
                                          x)) filters)]
     (vec (concat filters (when text-search [{:text-search text-search}])))))
 
-(defn import-articles [request project-id source-id article-ids]
+(defn get-source-project-articles [source-id article-ids]
+  (q/find [:article :a]
+          {:a.article-id article-ids}
+          :*
+          :left-join [[[:article-pdf :pdf] :a.article-id]]
+          :where [:not
+                  [:exists
+                   {:select [:*]
+                    :from [:article]
+                    :join [[:article-source :as] [:= :as.article-id :article.article-id]]
+                    :where [:and
+                            [:= :article.article-data-id :a.article-data-id]
+                            [:= :as.source-id source-id]]}]]))
+
+(defn get-new-articles-available [{:keys [source-id meta]}]
+  (let [{:keys [filters source-project-id]} meta]
+    (get-source-project-articles
+     source-id
+     (query-project-article-ids {:project-id source-project-id} filters))))
+
+(defn import-articles!
+  [request project-id source-id article-ids & {:keys [ignore-existing?]}]
   (db/with-long-transaction
     [_ (:postgres (:web-server request))]
-    (let [old-articles (q/find [:article :a]
-                               {:a.article-id article-ids}
-                               :*
-                               :left-join [[[:article-pdf :pdf] :a.article-id]])
-          new-ids (q/create :article
-                            (map #(do {:article-data-id (:article-data-id %)
-                                       :project-id project-id})
-                                 old-articles)
-                            :returning :article-id)
+    (let [old-articles (get-source-project-articles source-id article-ids)
+          new-ids (when (seq old-articles)
+                    (q/create :article
+                              (map #(do {:article-data-id (:article-data-id %)
+                                         :project-id project-id})
+                                   old-articles)
+                              :returning :article-id))
           new-pdfs (->> (map
                          (fn [{:keys [s3-id]} article-id]
                            (when s3-id
@@ -57,8 +77,26 @@
                         (filter seq))]
       (when (seq new-pdfs)
         (q/create :article-pdf new-pdfs))
-      (q/create :article-source
-                (map #(do {:article-id % :source-id source-id}) new-ids)))))
+      (when (seq new-ids)
+        (q/create :article-source
+                  (map #(do {:article-id % :source-id source-id}) new-ids))))))
+
+(defn import-from-url!
+  [request & {:keys [filters project-id source-id source-project-id]}]
+  (let [article-ids (query-project-article-ids {:project-id source-project-id} filters)]
+    (doseq [ids (partition 1000 1000 nil article-ids)]
+      (import-articles! request project-id source-id ids))
+    (source/alter-source-meta source-id #(assoc % :importing-articles? false))
+    (db/clear-project-cache project-id)))
+
+(defn create-source! [project-id extra-meta]
+  (q/create :project-source
+            {:import-date (sql/call :now)
+             :meta (assoc extra-meta
+                          :importing-articles? true
+                          :source source-name)
+             :project-id project-id}
+            :returning :source-id))
 
 (defn import
   [request project-id {:keys [source-project-id url-filter]}]
@@ -75,24 +113,17 @@
 
     :else
     (let [filters (extract-filters-from-url url-filter)
-          article-ids (query-project-article-ids {:project-id source-project-id} filters)
-          source-meta {:filters filters
-                       :importing-articles? true
-                       :source source-name
-                       :source-project-id source-project-id
-                       :url-filter url-filter}
-          source-id (q/create
-                     :project-source
-                     {:import-date (sql/call :now)
-                      :meta source-meta
-                      :project-id project-id}
-                     :returning :source-id)]
+          source-id (create-source! project-id
+                                    {:filters filters
+                                     :source-project-id source-project-id
+                                     :url-filter url-filter})]
       (db/clear-project-cache project-id)
       (future
-        (doseq [ids (partition 1000 1000 nil article-ids)]
-          (import-articles request project-id source-id ids))
-        (source/alter-source-meta source-id #(assoc % :importing-articles? false))
-        (db/clear-project-cache project-id))
+        (import-from-url! request
+                          :filters filters
+                          :project-id project-id
+                          :source-id source-id
+                          :source-project-id source-project-id))
       {:result true})))
 
 (defn import-article-filter-url!
@@ -104,3 +135,14 @@
          (resolve-as true)
          (catch Exception e
            (fail (str "There was an exception with message: " (.getMessage e)))))))
+
+(defmethod source/re-import source-name
+  [request project-id {:keys [meta source-id]} _]
+  (source/alter-source-meta source-id #(assoc % :importing-articles? true))
+  (source/set-import-date source-id)
+  (import-from-url! request
+                    :filters (-> meta :url-filter extract-filters-from-url)
+                    :project-id project-id
+                    :source-id source-id
+                    :source-project-id (:source-project-id meta))
+  {:source-id source-id})

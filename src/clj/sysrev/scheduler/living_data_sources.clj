@@ -8,12 +8,19 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.source.core :as source]
             [sysrev.source.ctgov :as ctgov]
+            [sysrev.source.project-filter :as project-filter]
             [sysrev.source.pubmed :as pubmed]))
 
 (defn check-new-articles-ctgov [{:keys [source-id] :as source} & {:keys [config]}]
   (let [new-article-ids (ctgov/get-new-articles-available source :config config)
         project-id (source/source-id->project-id source-id)]
     (source/set-new-articles-available project-id source-id (count new-article-ids))))
+
+(defn check-new-articles-project-filter [{:keys [source-id] :as source}]
+  (let [new-article-ids (project-filter/get-new-articles-available source)
+        project-id (source/source-id->project-id source-id)]
+    (source/set-new-articles-available project-id source-id (count new-article-ids))
+    (count new-article-ids)))
 
 (defn check-new-articles-pubmed [{:keys [source-id] :as source}]
   (let [new-article-ids (pubmed/get-new-articles-available source)
@@ -31,6 +38,7 @@
         (Thread/sleep 5000)
         (case source-type
           "CT.gov search" (check-new-articles-ctgov source :config config)
+          "Project Filter" (check-new-articles-project-filter source)
           "PubMed search" (check-new-articles-pubmed source)
           :noop)))))
 
