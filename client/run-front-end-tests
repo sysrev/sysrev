@@ -1,3 +1,10 @@
 #!/usr/bin/env bash
 
-npx shadow-cljs compile karma-test && npx karma start --single-run --reporters junit,dots
+set -eu
+
+cd ..
+scripts/rebuild-changed-files
+
+cd client
+
+npx -y shadow-cljs compile karma-test && npx -y karma start --single-run --reporters junit,dots
