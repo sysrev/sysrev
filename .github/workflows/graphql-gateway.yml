@@ -84,7 +84,11 @@ jobs:
       - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump
         if: steps.nix-cache.outputs.cache-hit == 'true'
 
-      - run: nix-build -A inputDerivation -o gcroots
+      - name: Build Nix derivation
+        run: |
+          mkdir -p ~/.config/nixpkgs
+          echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
+          nix-build -A inputDerivation -o gcroots
 
       - name: Install rover
         run: |
