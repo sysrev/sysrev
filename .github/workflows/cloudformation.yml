@@ -67,6 +67,22 @@ jobs:
         run: |
           echo "Developers Group ARN: ${{ steps.deploy.outputs.DevelopersGroupArn }}"
 
+      - name: Log job run to Slack
+        uses: 8398a7/action-slack@v3.13.0
+        if: always()
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              attachments: [{
+                color: '${{ job.status }}' === 'success' ? 'good' : '${{ job.status }}' === 'failure' ? 'danger' : 'warning',
+                text: `${process.env.AS_WORKFLOW}\n${process.env.AS_JOB} (${process.env.AS_COMMIT}) of ${process.env.AS_REPO}@${process.env.AS_REF} by ${process.env.AS_AUTHOR} ${{ job.status }} in ${process.env.AS_TOOK}`,
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
   deploy-regional-resources:
     needs: deploy-global-resources
     runs-on: ubuntu-latest
@@ -99,3 +115,19 @@ jobs:
           parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubZoneApex=${{ needs.deploy-global-resources.outputs.datapub-zone-apex }},DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6,SysrevHostedZoneId=${{ needs.deploy-global-resources.outputs.sysrev-hosted-zone-id }},SysrevZoneApex=${{ needs.deploy-global-resources.outputs.sysrev-zone-apex }}
           role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
           template: components/cloudformation-templates/out/sysrev-regional-resources.template
+
+      - name: Log job run to Slack
+        uses: 8398a7/action-slack@v3.13.0
+        if: always()
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              attachments: [{
+                color: '${{ job.status }}' === 'success' ? 'good' : '${{ job.status }}' === 'failure' ? 'danger' : 'warning',
+                text: `${process.env.AS_WORKFLOW}\n${process.env.AS_JOB} (${process.env.AS_COMMIT}) of ${process.env.AS_REPO}@${process.env.AS_REF} by ${process.env.AS_AUTHOR} ${{ job.status }} in ${process.env.AS_TOOK}`,
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
