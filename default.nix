@@ -68,7 +68,8 @@ mkShell {
   '' + (if target.isDarwin then
     ""
   else ''
-    rm chrome
-    ln -s ${chromium}/bin/chromium chrome
+    export CHROME_BIN=${chromium}/bin/chromium
+    rm -f chrome
+    ln -s $CHROME_BIN chrome
   '');
 }
