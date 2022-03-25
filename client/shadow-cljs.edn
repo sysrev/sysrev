@@ -7,7 +7,7 @@
             "-Xms400m" "-Xmx1400m"]
  :builds {:dev {:target :browser
                 :output-dir "resources/public/out-dev"
-                :asset-path "/out"
+                :asset-path "/out-dev"
                 :js-options {:ignore-asset-requires true}
                 :modules {:sysrev {:entries [sysrev.user]
                                    :init-fn sysrev.core/on-jsload}}
@@ -23,11 +23,10 @@
                  :compiler-options {:infer-externs :auto}
                  :release {:compiler-options {:optimizations :advanced}}}
           :karma-test
-                 {:target    :karma
-                  :ns-regexp "-test$"
-                  :output-to "target/karma-test.js"}}
- :dependencies [
-;;; Indirect dependency versions
+          {:target    :karma
+           :ns-regexp "-test$"
+           :output-to "target/karma-test.js"}}
+ :dependencies [;;; Indirect dependency versions
                 [commons-io/commons-io "2.8.0"]
                 [commons-codec/commons-codec "1.15"]
                 [org.apache.commons/commons-lang3 "3.9"]
@@ -62,4 +61,4 @@
                 [environ "1.2.0"]
                 [vincit/venia "0.2.5"]]
  :nrepl {:port 7888
-         #_ :middleware #_ [refactor-nrepl.middleware/wrap-refactor]}}
+         #_:middleware #_[refactor-nrepl.middleware/wrap-refactor]}}
