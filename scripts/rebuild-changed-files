@@ -38,5 +38,5 @@ sync_package_json;
 input_paths="src node_modules semantic package.json package-lock.json shadow-cljs.edn"
 output_path="resources/public/out-production/sysrev.js"
 if [ ! -f "$output_path" ] || [ ! -z "$(find -L $input_paths -cnewer $output_path)" ] ; then
-    npx shadow-cljs release prod
+    npx -y shadow-cljs release prod --force-spawn
 fi

@@ -7,5 +7,5 @@ set -x
 
 cd client
 rm -rf .shadow-cljs/builds/prod || true
-npx shadow-cljs release prod --force-spawn
+npx -y shadow-cljs release prod --force-spawn
 cd ..
