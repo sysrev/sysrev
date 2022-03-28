@@ -134,7 +134,8 @@
                (component/stop system#)
                (throw e#))))
          (catch Exception e#
-           (component/stop system#)
+           (when system#
+             (component/stop system#))
            (throw e#))))))
 
 (defmacro completes? [form]
