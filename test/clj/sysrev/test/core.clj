@@ -114,20 +114,28 @@
                         (fn [[_# stack#]]
                           (if (peek stack#)
                             [(peek stack#) (pop stack#)]
-                            [nil stack#]))))
-           system# (if system#
-                     (recreate-db! system#)
-                     (do (st/instrument)
-                         (start-test-system!)))
-           ~name-sym system#]
-       (reset! db/*active-db* (:postgres system#))
-       (binding [env (merge config# (:config system#))]
-         (let [result# (do ~@body)]
-           (when-not remote?#
-             (swap! test-systems
-                    (fn [[_# stack#]]
-                      [nil (conj stack# system#)])))
-           result#)))))
+                            [nil stack#]))))]
+       (try
+         (let [system# (if system#
+                         (recreate-db! system#)
+                         (do (st/instrument)
+                             (start-test-system!)))
+               ~name-sym system#]
+           (try
+             (reset! db/*active-db* (:postgres system#))
+             (binding [env (merge config# (:config system#))]
+               (let [result# (do ~@body)]
+                 (when-not remote?#
+                   (swap! test-systems
+                          (fn [[_# stack#]]
+                            [nil (conj stack# system#)])))
+                 result#))
+             (catch Exception e#
+               (component/stop system#)
+               (throw e#))))
+         (catch Exception e#
+           (component/stop system#)
+           (throw e#))))))
 
 (defmacro completes? [form]
   `(do ~form true))
