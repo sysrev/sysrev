@@ -1,7 +1,6 @@
 {
   "calva.evalOnSave": true,
   "calva.paredit.strictPreventUnmatchedClosingBracket": true,
-  "calva.testOnSave": true,
   "editor.formatOnPaste": true,
   "editor.formatOnSave": true,
   "editor.formatOnType": true,
