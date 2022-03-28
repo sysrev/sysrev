@@ -144,7 +144,7 @@
 (defn resolve-Dataset#indices [context _ {:keys [id]}]
   (when-let [int-id (sl/parse-int-id id)]
     (with-tx-context [context context]
-      (when-not (public-dataset? context id)
+      (when-not (public-dataset? context int-id)
         (ensure-sysrev-dev context))
       (->> (execute!
             context

@@ -133,7 +133,14 @@
                (create-index! (text-index ["data" :* "title"])))))
       (testing "Can create DatasetIndex objects with integer paths"
         (is (= {:path "[\"2\"]", :type "TEXT"}
-               (create-index! (text-index [2]))))))))
+               (create-index! (text-index [2])))))
+      (testing "dataset#datasetIndices returns the correct indices"
+        (is (= #{{:path "[\"data\" \"title\"]", :type "TEXT"}
+                 {:path "[\"data\" \":datapub/*\" \"title\"]", :type "TEXT"}
+                 {:path "[\"2\"]", :type "TEXT"}}
+               (-> (dpcq/q-dataset "indices{path type}")
+                   (ex {:id ds-id})
+                   :data :dataset :indices set)))))))
 
 (deftest test-entity-ops
   (test/with-test-system [system {}]
