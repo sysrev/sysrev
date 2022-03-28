@@ -597,22 +597,6 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
                   ^{:key (:source-id source)}
                   [ArticleSource source]))]]])))
 
-(defn EnableCTNotice []
-  [:div.ui.segment.import-upload
-   [:div
-    [:a {:href "https://www.youtube.com/watch?v=Qf-KWG7laLY" :target "_blank"}
-     "Click here"]
-    " to see a demo of our "
-    [:a {:href "https://clinicaltrials.gov" :target "_blank"} "ClinicalTrials.gov"]
-    " integration. To unlock direct access, please"
-    [:a {:href
-         (str "mailto:info@insilica.co?"
-              "subject=How can I use ClinicalTrials.gov with sysrev?"
-              "&body=Hi, I would like to know more about using"
-              " ClinicalTrials.gov in sysrev to conduct reviews."
-              " Please let me know how I can enable this feature. Thanks!")
-         :target "_blank"} " contact us"] "."]])
-
 (defn CustomDatasource []
   [:div.ui.segment {:style {:margin-left "auto"
                             :margin-right "auto"
@@ -641,14 +625,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
   (let [active-tab (subscribe [:add-articles/import-tab])
         email @(subscribe [:self/email])
         beta-access? (or (not= js/window.location.hostname "sysrev.com")
-                         (boolean
-                          (or
-                           (str/ends-with? email "@insilica.co")
-                           (contains?
-                            #{"amarluniwal@gmail.com"
-                              "geoffreyweiner@gmail.com"
-                              "g.callegaro@lacdr.leidenuniv.nl"}
-                            email))))]
+                         (str/ends-with? email "@insilica.co"))]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
@@ -700,11 +677,9 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]
-          :ctgov (if-not beta-access?
-                   [EnableCTNotice]
-                   [:div
-                    [:h3 "2. Search and import clinicaltrials.gov documents."]
-                    [ctgov/SearchBar]])
+          :ctgov [:div
+                  [:h3 "2. Search and import clinicaltrials.gov documents."]
+                  [ctgov/SearchBar]]
           :fda-drugs-docs [:div
                            [:h3 "2. Search and import Drugs@FDA application documents."]
                            [fda-drugs-docs/SearchBar]]
