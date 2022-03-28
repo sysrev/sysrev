@@ -94,7 +94,7 @@
    {:Type "AWS::Logs::SubscriptionFilter"
     :Properties
     {:DestinationArn (arn :ErrorFunction)
-     :FilterPattern "?ERROR"
+     :FilterPattern "?ERROR ?error"
      :LogGroupName (ref :LogGroup)}}
 
    :FileDistributionCertificate

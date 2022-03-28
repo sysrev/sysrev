@@ -223,7 +223,7 @@
         "DestinationArn" : {
           "Fn::GetAtt" : [ "ErrorFunction", "Arn" ]
         },
-        "FilterPattern" : "?ERROR",
+        "FilterPattern" : "?ERROR ?error",
         "LogGroupName" : {
           "Ref" : "LogGroup"
         }
