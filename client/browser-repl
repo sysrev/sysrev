@@ -3,11 +3,10 @@ set -eu
 
 cd ..
 
-source vars.sh
-./scripts/rebuild-changed-files
+scripts/rebuild-changed-files
 
 cd client
 
-rm -rf .shadow-cljs/builds/dev || true
+rm -rf .shadow-cljs/builds/dev
 
 npx -y shadow-cljs watch dev

@@ -3,7 +3,6 @@ set -eu
 
 source vars.sh
 
-compile=true
 test_id=''
 
 # https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172
@@ -12,7 +11,6 @@ print_usage() {
     echo " "
     echo "options:"
     echo "-h  show this help section"
-    echo "-c  when false, don't compile clojurescript before testing. defaults to true"
     echo "-n  a single namespace or var to test. runs all tests when blank"
 }
 
@@ -20,30 +18,14 @@ while getopts 'hc:n:' flag; do
     case "${flag}" in
 	h) print_usage
 	   exit 1;;
-	c) compile="${OPTARG}" ;;
 	n) test_id="${OPTARG}" ;;
 	*) print_usage
 	   exit 1 ;;
     esac
 done
 
-scripts/build-css
-
-if [ $compile = true ]; then
-    changes="$(scripts/find-client-changes)"
-    if [ ! -z "$changes" ] ; then
-        echo "Found client changes:"
-        echo -e "$(echo "$changes" | head -n100)\n"
-        echo -e "Rebuilding client code...\n"
-        cd client
-        npx shadow-cljs release prod
-        cd ..
-    else
-        echo "Client code not changed"
-    fi
-fi
-
 scripts/rebuild-changed-files
+scripts/rebuild-cljs-prod
 scripts/run-dev-containers
 
 if [ -z $test_id ]; then

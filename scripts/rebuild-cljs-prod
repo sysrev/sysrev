@@ -11,9 +11,19 @@ sync_package_json () {
     fi
 }
 
+changes="$(scripts/find-client-changes)"
+
+cd client
+
 sync_package_json;
 
-if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
-   [ ! -z "$(find -L components -name "*.css" -cnewer resources/public/css)" ]; then
-    ./scripts/build-all-css
+if [ ! -z "$changes" ] ; then
+    echo "Found client changes:"
+    echo -e "$(echo "$changes" | head -n100)\n"
+    echo -e "Rebuilding client code...\n"
+    cd client
+    npx -y shadow-cljs release prod --force-spawn
+    cd ..
+else
+    echo "Client code not changed"
 fi
