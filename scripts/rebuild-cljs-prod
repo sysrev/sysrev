@@ -21,7 +21,6 @@ if [ ! -z "$changes" ] ; then
     echo "Found client changes:"
     echo -e "$(echo "$changes" | head -n100)\n"
     echo -e "Rebuilding client code...\n"
-    cd client
     npx -y shadow-cljs release prod --force-spawn
     cd ..
 else
