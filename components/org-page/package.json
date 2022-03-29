@@ -11,8 +11,8 @@
     "node": ">=10"
   },
   "scripts": {
-    "build": "npx --yes microbundle-crl --no-compress --format modern,cjs",
-    "start": "npx --yes microbundle-crl watch --no-compress --format modern,cjs",
+    "build": "npx microbundle-crl --no-compress --format modern,cjs",
+    "start": "npx microbundle-crl watch --no-compress --format modern,cjs",
     "prepare": "run-s build",
     "test": "run-s test:unit test:lint test:build",
     "test:build": "run-s build",

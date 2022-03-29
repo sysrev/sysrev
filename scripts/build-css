@@ -18,3 +18,8 @@ rm -f .tmp.css
 npx lessc main.dark.less > .tmp.css
 mv -f .tmp.css "$abs_out_path/style.dark.css"
 echo "wrote $rel_out_path/style.dark.css"
+
+cd ../../components
+
+cp -f "org-page/dist/index.css" "$abs_out_path/js-components.css"
+echo "Made js-components.css"

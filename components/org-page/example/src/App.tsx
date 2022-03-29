@@ -75,7 +75,10 @@ const members: MemberProps[] = [
 ]
 
 const App = () => {
-  return <Tab
+  return <Tab.Tab
+    title="Test Title Name"
+    url="https://ontox-project.eu/"
+    logoImgUrl="/assets/org-page/img/logo.png"
     projects={projects}
     members={members}
   />

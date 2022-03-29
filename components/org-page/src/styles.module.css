@@ -9,12 +9,11 @@
   margin: auto;
   padding: 15px; }
   .table .logo {
-    max-width: 100px; }
+    max-width: 100px;
+    margin-right: 25px; }
   .table .topsection {
     display: flex;
     align-items: center; }
-    .table .topsection .infos {
-      padding-left: 25px; }
       .table .topsection .infos img {
         max-width: 20px;
         vertical-align: middle;
@@ -72,7 +71,7 @@
       -o-transition: all .25s ease;
       transition: all .25s ease; }
     .table .tabs a:hover {
-      color: #01060a; 
+      color: #01060a;
       cursor: pointer;
     }
     .table .tabs .activea {

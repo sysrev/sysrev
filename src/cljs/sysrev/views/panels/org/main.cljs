@@ -6,7 +6,9 @@
             [sysrev.views.semantic :refer
              [Menu MenuItem Message MessageHeader]]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [setup-panel-state with-loader]]))
+            [sysrev.markdown :as markdown]
+            [sysrev.macros :refer-macros [setup-panel-state with-loader]]
+            ["@insilica/org-page" :as OrgPage]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -64,28 +66,44 @@
          (fn [[owner? admin?]]
            (or owner? admin?)))
 
+(defn member->js [{:keys [user-id username]}]
+  #js{:name username
+      :url (str js/window.location.origin "/user/" user-id "/profile")
+      :userId user-id})
+
+(defn project->js [{:keys [last-active markdown-description member-count project-id name settings]}]
+  #js{:descriptionHtml (markdown/create-markdown-html markdown-description)
+      :isPublic (boolean (:public-access settings))
+      :lastActive last-active
+      :link (str js/window.location.origin "/p/" project-id)
+      :members member-count
+      :projectId project-id
+      :title name})
+
+
 (defn- OrgContent [org-id child]
   (let [uri-fn #(str "/org/" org-id "/" %)
         active-panel @(subscribe [:active-panel])
-        active? #(= active-panel [:org %])]
+        active? #(= active-panel [:org %])
+        users @(subscribe [:org/users org-id])
+        projects @(subscribe [:org/projects org-id])
+        project-descriptions (mapv #(subscribe [:project/markdown-description (:project-id %)]) projects)]
     (if false ; a check for org existance should be implemented here
       [Message {:negative true}
        [MessageHeader {:as "h4"} "Organizations Error"]
        [:p "There isn't an org here."]]
       [:div
        (when-not (some active? #{:plans :payment})
-         [:div [:h2 @(subscribe [:org/name org-id])]
-          [:nav
-           [Menu {:pointing true :secondary true :attached "bottom"
-                  :class "primary-menu"}
-            [MenuItem {:id "org-projects" :name "Projects"
-                       :href (uri-fn "projects")
-                       :class (css [(active? :projects) "active"])} "Projects"]
-            [MenuItem {:id "org-members" :name "Members"
-                       :href (uri-fn "users")
-                       :class (css [(active? :users) "active"])} "Members"]]]])
-       [:div#org-content child]
-       #_
+         [:div
+          [:f> (.-Tab OrgPage)
+            (clj->js
+             {:projects (->>
+                          (map #(assoc % :markdown-description @%2) projects project-descriptions)
+                          (mapv project->js))
+              :members (mapv member->js users)
+              :title @(subscribe [:org/name org-id])
+              :url nil
+              :logoImgUrl nil})]])
        (when (nil? child)
          [Message {:negative true}
           [MessageHeader {:as "h4"} "Organizations Error"]
@@ -96,6 +114,8 @@
     (dispatch [:set-panel-field [] {} to-panel])
     (dispatch [::org-id org-id])
     (dispatch [:set-active-panel to-panel])
+    (dispatch [:data/load [:org/projects org-id]])
+    (dispatch [:data/load [:org/users org-id]])
     (reload :org/available-plans)
     (reload :org/default-source org-id)
     (reload :org/current-plan org-id)))

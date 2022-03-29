@@ -11,7 +11,19 @@ sync_package_json () {
     fi
 }
 
+rebuild_js () {
+    if [ ! -d "dist" ] || [ ! -z "$(find -L src -cnewer dist)" ] || \
+       [ ! -z "$(find -L package-lock.json -cnewer dist)" ] || \
+       [ ! -z "$(find -L node_modules -cnewer dist)" ]; then
+        rm -rf dist
+        npm run build
+    fi
+}
+
+cd components/org-page
+
 sync_package_json;
+rebuild_js;
 
 if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
    [ ! -z "$(find -L components -name "*.css" -cnewer resources/public/css)" ]; then

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import styles from './styles.module.css'
 
-const logoImg = '/assets/org-page/img/logo.png'
 const peopleImg = '/assets/org-page/img/people.png'
 const pinnedImg = '/assets/org-page/img/pinned.png'
 const projectImg = '/assets/org-page/img/project.png'
@@ -28,38 +27,60 @@ export interface MemberProps {
 }
 
 export interface TabProps {
+  title: string
+  url?: string
+  logoImgUrl?: string
   projects?: ProjectProps[]
   members?: MemberProps[]
 }
 
 enum TabType {
   Projects = 'projects',
-  Members = 'Members'
+  Members = 'users'
 }
 
 const Tab = (props: TabProps) => {
-  const [activeTab, setActiveTab] = React.useState<TabType>(TabType.Projects)
 
-  const setTab = (tab: TabType) => {
-    setActiveTab(tab)
+  const initialState = window.location.pathname.split("/").pop() === "projects" ? TabType.Projects : TabType.Members
+
+  const [activeTab, setActiveTab] = React.useState<TabType>(initialState)
+  const {title, url, logoImgUrl} = props;
+
+  const setUrlPath = (tab: TabType): void => {
+    // updates the browser url without reloading the page
+    const url = window.location.href.replace(/\/[^\/]*$/, `/${tab}`);
+    history.pushState({}, '', url);
+  }
+
+  const setTab = (tab: TabType): void => {
+    setUrlPath(tab);
+    setActiveTab(tab);
   }
 
   return (
     <div className={styles.body}>
       <div className={styles.table}>
         <div className={styles.topsection}>
-          <div className={styles.logo}>
-            <img src={logoImg} alt="" />
-          </div>
+          { logoImgUrl
+              ? <div className={styles.logo}>
+                  <img src={logoImgUrl} alt="" width="100%"/>
+                </div>
+              : null
+          }
           <div className={styles.infos}>
             <p className={styles.tit}>
-              ontox
+              { title }
             </p>
             <p>
-              <img src={urlImg} alt="" />
-              <a href="https://ontox-project.eu/" target="_blank">
-                https://ontox-project.eu/
-              </a>
+              { url
+                ? <div>
+                    <img src={urlImg} alt="" />
+                    <a href={ url } target="_blank">
+                      { url }
+                    </a>
+                  </div>
+                : null
+              }
             </p>
           </div>
         </div>
