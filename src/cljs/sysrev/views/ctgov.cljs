@@ -224,7 +224,7 @@
       [:div.ui.top.attached.segment.aligned.stackable.grid
        {:style {:border-bottom-width "0"}}
        [:div.eight.wide.column.results-header
-        [ImportArticlesButton disable-import?]]
+        [ImportArticlesButton (or disable-import? (empty? search-results))]]
        [:div.eight.wide.column.results-header.results-buttons
         [:div.ui.two.column.grid
          [:div.column [CloseSearchResultsButton]]]]])))

@@ -181,7 +181,8 @@
      [:div.ui.fluid.right.pointing.label
       (str "Found " (count search-results) " articles")]
      [:button.ui.blue.button
-      {:class (when disable-import? "disabled")}
+      {:class (when (or disable-import? (empty? search-results))
+                "disabled")}
       [:i.download.icon] " Import"]]))
 
 (defn CloseSearchResultsButton []
