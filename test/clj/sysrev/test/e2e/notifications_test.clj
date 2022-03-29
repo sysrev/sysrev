@@ -46,7 +46,7 @@
           (is (nil? (ea/wait-predicate
                      #(= (str "/user/" user-id "/invitations") (e/get-path driver))))))))))
 
-(deftest ^:e2e article-reviewed-notifications
+(deftest ^:optional article-reviewed-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [importer-id (:user-id (test/create-test-user system))
           {:keys [user-id] :as user} (test/create-test-user system)
@@ -86,7 +86,7 @@
             (is (nil? (ea/wait-predicate
                        #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/article/" article-id)))))))))))
 
-(deftest ^:e2e group-has-new-project-notifications
+(deftest ^:optional group-has-new-project-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [creator-id (:user-id (test/create-test-user system))
           {:keys [user-id] :as user} (test/create-test-user system)
@@ -109,7 +109,7 @@
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" dest-project-id "/add-articles")))))))))
 
-(deftest ^:e2e project-source-added-notifications
+(deftest ^:optional project-source-added-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [article-adder (test/create-test-user system)
           {:keys [user-id] :as user} (test/create-test-user system)
@@ -135,7 +135,7 @@
             (et/is-wait-visible {:fn/has-text (:username article-adder)})
             (et/is-wait-visible {:fn/has-text "added a new article source"})))))))
 
-(deftest ^:e2e project-has-new-user-notifications
+(deftest ^:optional project-has-new-user-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [new-user (test/create-test-user system)
           {:keys [user-id] :as user} (test/create-test-user system)
@@ -152,7 +152,7 @@
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" project-a-id "/users")))))))))
 
-(deftest ^:e2e test-notifications-page
+(deftest ^:optional test-notifications-page
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
           {inviter-id :user-id} (test/create-test-user system)
