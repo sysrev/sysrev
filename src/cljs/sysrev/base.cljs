@@ -44,7 +44,9 @@
                   (when (empty? (filter #(re-find % (-> (js->clj args) vec pr-str str/lower-case))
                                         ignore-regexps))
                     (swap! console-logs update msg-type
-                           #(conj (or % []) (vec (js->clj args)))))
+                           #(conj (or % [])
+                                  {:data (vec (js->clj args))
+                                   :uri js/window.location.href})))
                   nil)))]
       (set! js/console.log
             (make-console-fn :log js/console.defaultLog))

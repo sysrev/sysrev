@@ -1,11 +1,11 @@
 (ns sysrev.slack
-  (:require [clojure.data.json :as json]
+  (:require [clj-http.client :as http]
+            [clojure.data.json :as json]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [clj-http.client :as http]
             [sysrev.config :refer [env]]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
-            [sysrev.util :as util :refer [pp-str]]
-            [clojure.string :as str]))
+            [sysrev.util :as util :refer [pp-str]]))
 
 ;;;
 ;;; Get value from url at:
@@ -28,7 +28,7 @@
 
 (defn try-log-slack [blocks-text notify-text]
   (try (log-slack blocks-text notify-text)
-       (catch Throwable e
+       (catch Exception e
          (log/warnf "log-slack exception: %s"
                     (with-out-str (print-cause-trace-custom e 20))))))
 
@@ -56,13 +56,13 @@
           (str (if-let [route (:compojure/route request)]
                  (str route " => ") "")
                (.getMessage e)))
-         (catch Throwable e2
+         (catch Exception e2
            (log/error "error in log-slack-request-exception:\n"
                       (with-out-str (print-cause-trace-custom e2)))
            (try (let [info {:request (select-keys request [:server-name :compojure/route])}]
                   (log-slack [(format "*Slack Message Error*\n```%s```" (pp-str info))]
                              "Slack Message Error"))
-                (catch Throwable _
+                (catch Exception _
                   (log-slack ["*Unexpected Slack Message Error*"]
                              "Unexpected Slack Message Error")))))))
 
@@ -70,6 +70,6 @@
   (try (log/error "Request:\n" (pp-str (request-info request))
                   "Exception:\n" (with-out-str (print-cause-trace-custom e)))
        (log-slack-request-exception request e)
-       (catch Throwable e2
+       (catch Exception e2
          (log/error "error in log-request-exception:\n"
                     (with-out-str (print-cause-trace-custom e2))))))

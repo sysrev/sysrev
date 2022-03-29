@@ -1052,4 +1052,8 @@
               (future (predict-api/update-project-predictions project-id))
               {:success true}))))
 
+(dr (POST "/api/record-ui-errors" request
+      (api/record-ui-errors! request)
+      {:success true}))
+
 (finalize-routes)

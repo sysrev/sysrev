@@ -1,28 +1,28 @@
 (ns sysrev.core
   (:require [orchestra-cljs.spec.test :as t]
-            [reagent.dom :as rdom]
-            [re-frame.core :refer [dispatch dispatch-sync reg-sub reg-event-db
-                                   clear-subscription-cache!]]
             [pushy.core :as pushy]
-            [sysrev.base :as base]
+            [re-frame.core :refer [clear-subscription-cache! dispatch
+                                   dispatch-sync reg-event-db reg-fx reg-sub]]
+            [reagent.dom :as rdom]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.ajax]
-            [sysrev.nav]
-            [sysrev.state.all]
-            [sysrev.luckyorange]
+            [sysrev.base :as base]
             [sysrev.data.core :as data]
-            [sysrev.action.core]
             [sysrev.loading]
-            [sysrev.views.article]
-            [sysrev.views.main :refer [main-content]]
+            [sysrev.luckyorange]
+            [sysrev.nav]
             sysrev.sente
-            [sysrev.shared.spec.core]
             [sysrev.shared.spec.article]
-            [sysrev.shared.spec.project]
-            [sysrev.shared.spec.labels]
+            [sysrev.shared.spec.core]
             [sysrev.shared.spec.keywords]
+            [sysrev.shared.spec.labels]
             [sysrev.shared.spec.notes]
+            [sysrev.shared.spec.project]
+            [sysrev.state.all]
             sysrev.user.interface.spec
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.views.article]
+            [sysrev.views.main :refer [main-content]]))
 
 (defonce current-width (atom nil))
 (defonce current-height (atom nil))
@@ -110,6 +110,26 @@
 (defn start-mouse-listener []
   (-> js/window (.addEventListener "mousedown" on-mousedown)))
 
+(defonce recorded-errors (atom []))
+
+(reg-fx ::fail #(js/console.error (pr-str %&)))
+
+(def-action ::record-ui-errors
+  :uri (constantly "/api/record-ui-errors")
+  :content (fn [errors] {:errors errors})
+  :timeout 10000)
+
+(defn send-errors-to-server! []
+  (let [errors (or (:error @base/console-logs) [])
+        new-errors (subvec errors (count @recorded-errors))]
+    (when (seq new-errors)
+      (js/console.log "Sending" (count new-errors) "error report(s) to server")
+      (dispatch [:action [::record-ui-errors new-errors]])
+      (reset! recorded-errors errors))))
+
+(defn start-send-errors-interval []
+  (js/setInterval #(send-errors-to-server!) 1000))
+
 (defn ^:export spec-instrument []
   (reset! base/tests-running true)
   (count (t/instrument)))
@@ -124,6 +144,7 @@
 
 (defonce started
   (do (init)
+      (start-send-errors-interval)
       (start-touch-listener)
       (start-mouse-listener)
       true))

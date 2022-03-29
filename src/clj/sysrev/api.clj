@@ -49,6 +49,7 @@
             [sysrev.shared.notifications :refer [combine-notifications]]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.text :as shared]
+            [sysrev.slack :as slack]
             [sysrev.source.core :as source]
             sysrev.source.ctgov
             sysrev.source.datasource
@@ -71,7 +72,8 @@
              util
              :refer
              [in? index-by parse-integer req-un sum
-              uuid-from-string]])
+              uuid-from-string]]
+            [sysrev.web.app :as app])
   (:import (java.util.zip ZipEntry ZipOutputStream)))
 
 ;; HTTP error codes
@@ -1628,3 +1630,16 @@
   (label/detach-label project-id label-id)
   {:success true
    :labels (project/project-labels project-id true)})
+
+(defonce last-log-slack (atom 0))
+
+(defn record-ui-errors! [request]
+  (let [data {:errors (:errors (:body request))
+              :user-id (app/current-user-id request)}
+        now (System/nanoTime)]
+    (when (< (* 60 1000000000) (- now @last-log-slack))
+      (swap! last-log-slack max now)
+      (slack/try-log-slack
+       ["*UI error(s)*" (format "*Errors*:\n```%s```" (util/pp-str data))]
+       "UI error(s)"))
+    (log/error "UI Errors:" data)))

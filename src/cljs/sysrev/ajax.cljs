@@ -142,6 +142,6 @@
       :params content}}))
 
 (reg-event-db :ajax/default-failure [trim-v]
-              (fn [db [_response]]
-                #_ (println (str "request failed: " (pr-str response)))
+              (fn [db [response]]
+                (println (str "AJAX request failed: " (pr-str response)))
                 db))
