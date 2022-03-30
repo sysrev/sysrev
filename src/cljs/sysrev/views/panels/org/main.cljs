@@ -1,14 +1,15 @@
 (ns sysrev.views.panels.org.main
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+  (:require ["@insilica/org-page" :as OrgPage]
             [medley.core :refer [find-first]]
-            [sysrev.data.core :refer [def-data reload]]
+            [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
+                                   trim-v]]
+            [sysrev.data.core :refer [def-data load-data reload]]
+            [sysrev.macros :refer-macros [setup-panel-state with-loader]]
+            [sysrev.markdown :as markdown]
+            [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.semantic :refer
-             [Menu MenuItem Message MessageHeader]]
-            [sysrev.util :as util :refer [css]]
-            [sysrev.markdown :as markdown]
-            [sysrev.macros :refer-macros [setup-panel-state with-loader]]
-            ["@insilica/org-page" :as OrgPage]))
+             [Message MessageHeader]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -80,34 +81,30 @@
       :projectId project-id
       :title name})
 
-
 (defn- OrgContent [org-id child]
-  (let [uri-fn #(str "/org/" org-id "/" %)
-        active-panel @(subscribe [:active-panel])
+  (let [active-panel @(subscribe [:active-panel])
         active? #(= active-panel [:org %])
         users @(subscribe [:org/users org-id])
         projects @(subscribe [:org/projects org-id])
         project-descriptions (mapv #(subscribe [:project/markdown-description (:project-id %)]) projects)]
-    (if false ; a check for org existance should be implemented here
-      [Message {:negative true}
-       [MessageHeader {:as "h4"} "Organizations Error"]
-       [:p "There isn't an org here."]]
-      [:div
-       (when-not (some active? #{:plans :payment})
-         [:div
-          [:f> (.-Tab OrgPage)
-            (clj->js
-             {:projects (->>
-                          (map #(assoc % :markdown-description @%2) projects project-descriptions)
-                          (mapv project->js))
-              :members (mapv member->js users)
-              :title @(subscribe [:org/name org-id])
-              :url nil
-              :logoImgUrl nil})]])
-       (when (nil? child)
-         [Message {:negative true}
-          [MessageHeader {:as "h4"} "Organizations Error"]
-          [:p "This page does not exist."]])])))
+    (doseq [{:keys [project-id]} projects]
+      (load-data :project/markdown-description project-id))
+    [:div
+     (when-not (some active? #{:plans :payment})
+       [:div
+        [:f> (.-Tab OrgPage)
+         (clj->js
+          {:projects (->>
+                      (map #(assoc % :markdown-description @%2) projects project-descriptions)
+                      (mapv project->js))
+           :members (mapv member->js users)
+           :title @(subscribe [:org/name org-id])
+           :url nil
+           :logoImgUrl nil})]])
+     (when (nil? child)
+       [Message {:negative true}
+        [MessageHeader {:as "h4"} "Organizations Error"]
+        [:p "This page does not exist."]])]))
 
 (defn on-navigate-org [org-id to-panel]
   (let [_from-panel @(subscribe [:active-panel])]

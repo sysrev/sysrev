@@ -25,6 +25,8 @@ cd components/org-page
 sync_package_json;
 rebuild_js;
 
+cd ../..
+
 if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
    [ ! -z "$(find -L components -name "*.css" -cnewer resources/public/css)" ]; then
     ./scripts/build-all-css

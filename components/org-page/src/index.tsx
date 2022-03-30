@@ -8,15 +8,14 @@ const urlImg = '/assets/org-page/img/url.png'
 const userImg = '/assets/org-page/img/user.png'
 
 export interface ProjectProps {
-  status?: string
   title?: string
   isPublic?: boolean
-  description?: string
+  descriptionHtml?: string
   members?: number
   projectId?: string
   link?: string
   createdAt?: string
-  lastAtive?: string
+  lastActive?: string
   pinned?: boolean
 }
 
@@ -95,9 +94,9 @@ const Tab = (props: TabProps) => {
             <div className={[styles.projects_table, styles.active_table].join(' ')}>
               {(props.projects ?? []).map((item) => (
                 <div className={styles.row_t} key={item.projectId}>
-                  <h1>{`${item.status}: ${item.title} `}{item.isPublic && <span>Public</span>}</h1>
+                  <h1>{item.title}{item.isPublic && <span>Public</span>}</h1>
                   {item.pinned && <img src={pinnedImg} className={[styles.pinned, styles.pinned_active].join(' ')} alt="" />}
-                  <p>{item.description}</p>
+                  <div dangerouslySetInnerHTML={{ __html: item.descriptionHtml || "" }} />
                   <div className={styles.datas}>
                     <p><img src={userImg} alt="" /> {item.members}</p>
                     <p className={styles.withoutimg}><span>Project ID: </span> {item.projectId}</p>
@@ -105,8 +104,8 @@ const Tab = (props: TabProps) => {
                       target="_blank">{item.link}</a></p>
                   </div>
                   <div className={styles.datas2}>
-                    <p className={styles.withoutimg}><span>Created at: </span> {item.createdAt}</p>
-                    <p className={styles.withoutimg}><span>Last active: </span> {item.lastAtive}</p>
+                    {item.createdAt && <p className={styles.withoutimg}><span>Created at: </span> {item.createdAt}</p>}
+                    {item.lastActive && <p className={styles.withoutimg}><span>Last active: </span> {item.lastActive}</p>}
                   </div>
                 </div>
               ))}
