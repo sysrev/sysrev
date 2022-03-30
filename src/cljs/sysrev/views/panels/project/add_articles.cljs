@@ -625,7 +625,8 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
   (let [active-tab (subscribe [:add-articles/import-tab])
         email @(subscribe [:self/email])
         beta-access? (or (not= js/window.location.hostname "sysrev.com")
-                         (str/ends-with? email "@insilica.co"))]
+                         (or (str/ends-with? email "@insilica.co")
+                             (str/ends-with? email "@toxtrack.com")))]
     [:div#import-articles {:style {:margin-bottom "1em"}}
      [:div
       [:h3 "1. Select a document source"]
