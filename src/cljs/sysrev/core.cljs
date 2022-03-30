@@ -117,6 +117,7 @@
 (def-action ::record-ui-errors
   :uri (constantly "/api/record-ui-errors")
   :content (fn [errors] {:errors errors})
+  :process (constantly {})
   :timeout 10000)
 
 (defn send-errors-to-server! []
