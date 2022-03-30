@@ -28,7 +28,7 @@
           (et/is-wait-exists {:css (str "div.delete-button:" e/not-disabled)})
           (et/is-click-visible {:css (x/project-menu-item :articles)})
           (et/is-click-visible {:css "a.column.article-title"})
-          (et/is-wait-exists {:css ".pdf-view .pdf-page-container .pdf-page"})
+          (et/is-wait-exists "//iframe[@title='webviewer']")
           (et/is-click-visible {:css (x/project-menu-item :articles)})
           (et/is-wait-exists {:css "a.column.article-title"}))))))
 
@@ -47,7 +47,7 @@
       (e/go-project test-resources project-id "/articles")
       (doto driver
         (et/is-click-visible {:css "a.column.article-title"})
-        (et/is-wait-visible {:css ".pdf-view .pdf-page-container .pdf-page"})))))
+        (et/is-wait-exists "//iframe[@title='webviewer']")))))
 
 (deftest ^:e2e test-import-ris-file
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]

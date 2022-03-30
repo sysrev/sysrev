@@ -305,29 +305,3 @@
       (fn [this [_ old-props]]
         (when (not= (:content (r/props this)) (:content old-props))
           (reset! page-number 1)))})))
-
-(defn ViewReactPDF [{:keys [url filename]}]
-  (let [dom-id (str "pdf-view-" (util/random-id))
-        width (r/atom nil)
-        num-pages (r/atom nil)
-        page-number (r/atom nil)
-        page-number-preload (r/atom nil)]
-    (r/create-class
-     {:reagent-render
-      (fn [{:keys [url filename]}]
-        [:div.pdf-view {:id dom-id}
-         [RDocument {:file {:url url}
-                     :on-load-success (fn [pdf]
-                                        (reset! num-pages (.-numPages pdf))
-                                        (reset! page-number 1))}
-          [PDFPage {:page-number page-number
-                    :page-number-preload page-number-preload
-                    :num-pages num-pages
-                    :width width}]]])
-      :component-did-mount
-      (fn [_]
-        (reset! width (-> ($ (str "#" dom-id)) (.width))))
-      :component-did-update
-      (fn [this [_ old-props]]
-        (when (not= (:url (r/props this)) (:url old-props))
-          (reset! page-number 1)))})))

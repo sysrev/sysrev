@@ -119,12 +119,28 @@
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
         annotations
         (filter-annotations-by-field
-                    @(subscribe [:annotator/label-annotations ann-context])
-                     field-name text)]
+         @(subscribe [:annotator/label-annotations ann-context])
+         field-name text)]
     [annotator/AnnotationCapture ann-context field-name
      [ann/AnnotatedText (vals annotations) text
       :reader-error-render reader-error-render
       :field field-name]]))
+
+(defn PDFAnnotator [{:keys [article-id document-id project-id url]}]
+  (let [annotation-context {:article-id article-id
+                            :class "abstract"
+                            :project-id project-id}]
+    [:div [annotator/AnnotatingPDFViewer
+           {:annotation-context annotation-context
+            :annotations (if @(subscribe [:review-interface])
+                           (subscribe [:annotator/label-annotations annotation-context
+                                       [:annotation-id :document-id :selection :xfdf]])
+                           (subscribe [::pdf-annotations article-id]))
+            :document-id document-id
+            :read-only? (not= :annotations @(subscribe [:review-interface]))
+            :theme (if @(subscribe [:self/dark-theme?])
+                     "dark" "light")
+            :url url}]]))
 
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -180,7 +196,11 @@
            [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
          ;; show pdf
          (if visible-url
-           [pdf/ViewReactPDF {:url visible-url :filename (:filename pdf)}]
+           [PDFAnnotator
+            {:article-id article-id
+             :document-id (:filename pdf)
+             :project-id project-id
+             :url visible-url}]
            (when (seq abstract)
              (if annotator?
                [ArticleAnnotatedField article-id "abstract" abstract
@@ -273,7 +293,8 @@
               (when (and version-entity (< 0 current-version))
                 (dispatch [:require [:datapub-entity (get versions (dec current-version))]]))
               (when (and version-entity (< current-version (dec versions)))
-                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))            (when externalId
+                (dispatch [:require [:datapub-entity (get versions (inc current-version))]])))
+            (when externalId
               (dispatch [:require [:datapub-entities-for-external-id 1 externalId]]))
             (when (not= versions version-entity-ids)
               (js/setTimeout
@@ -368,20 +389,11 @@
                [:br]
                [ui/OutLink contentUrl "Download PDF"]
                [:br]
-               (let [annotation-context {:article-id article-id
-                                         :class "abstract"
-                                         :project-id project-id}]
-                 [:div [annotator/AnnotatingPDFViewer
-                        {:annotation-context annotation-context
-                         :annotations (if @(subscribe [:review-interface])
-                                        (subscribe [:annotator/label-annotations annotation-context
-                                                    [:annotation-id :document-id :selection :xfdf]])
-                                        (subscribe [::pdf-annotations article-id]))
-                         :document-id version-entity-id
-                         :read-only? (not= :annotations @(subscribe [:review-interface]))
-                         :theme (if @(subscribe [:self/dark-theme?])
-                                  "dark" "light")
-                         :url contentUrl}]])
+               [PDFAnnotator
+                {:article-id article-id
+                 :document-id version-entity-id
+                 :project-id project-id
+                 :url contentUrl}]
                [:br]
                [:> ReactJson
                 {:display-array-key false
@@ -490,10 +502,12 @@
                (when-not (and (= context :review) (true? unlimited-reviews))
                  [ReviewStatusLabel (if private-view? :user status)])]]
 
-             (when duplicates ^{:key :duplicates}
+             (when duplicates
+               ^{:key :duplicates}
                [ArticleDuplicatesSegment article-id])
 
-             (when-not full-size? ^{:key :article-flags}
+             (when-not full-size?
+               ^{:key :article-flags}
                [ArticleFlagsView article-id "ui segment"])
 
              [:div.ui.segment.article-content {:key :article-content}
