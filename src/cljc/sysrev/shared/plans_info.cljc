@@ -12,6 +12,7 @@
 (def unlimited-org (str pro-prefix version-suffix))
 (def unlimited-org-annual (str pro-prefix "_Annual" version-suffix))
 (def unlimited-user unlimited-org)
+(def unlimited-user-annual unlimited-org-annual)
 
 (defn pro? [plan-nickname]
   (and
