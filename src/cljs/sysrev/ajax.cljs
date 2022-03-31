@@ -1,11 +1,13 @@
 (ns sysrev.ajax
-  (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer-macros [defn-spec]]
-            [ajax.core :as ajax]
+  (:require [ajax.core :as ajax]
+            [clojure.spec.alpha :as s]
             cognitect.transit
             day8.re-frame.http-fx
-            [re-frame.core :refer [reg-sub reg-event-db reg-event-fx trim-v
-                                   reg-fx dispatch ->interceptor]]
+            [orchestra.core :refer-macros [defn-spec]]
+            [re-frame.core :refer [->interceptor dispatch reg-event-db
+                                   reg-event-fx reg-fx reg-sub trim-v]]
+            [re-frame.db :refer [app-db]]
+            [reagent.core :as r]
             [sysrev.util :as util :refer [in?]]))
 
 (s/def ::method (and keyword? (in? [:get :post :put :delete])))
@@ -145,3 +147,34 @@
               (fn [db [response]]
                 (println (str "AJAX request failed: " (pr-str response)))
                 db))
+
+(defn ajax-error-handler [{:keys [error-handler url]}]
+  (fn [{:keys [status status-text] :as error}]
+    (.error js/console (str "[sysrev.ajax] AJAX error: " status " " status-text))
+    (when error-handler
+      (error-handler error))))
+
+(defn make-request [f url {:keys [headers timeout] :as opts}]
+  (f
+   url
+   (assoc opts
+          :error-handler (ajax-error-handler opts)
+          :headers (cond-> headers
+                     (nil? (get headers "x-csrf-token")) (assoc "x-csrf-token" (get-csrf-token @app-db)))
+          :timeout (or timeout 30000))))
+
+(defn GET [url & [opts]]
+  (make-request ajax/GET url opts))
+
+(defn atom-handler [{:keys [handler]} atom]
+  (fn [response]
+    (reset! atom response)
+    (when handler
+      (handler response))))
+
+(defn rGET [url & [opts]]
+  (let [ratom (r/atom nil)]
+    (GET url
+      (assoc opts
+             :handler (atom-handler opts ratom)))
+    ratom))
