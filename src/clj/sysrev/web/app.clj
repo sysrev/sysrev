@@ -185,7 +185,8 @@
                                      (assoc response :ex-data exception)
                                      response)]
                       (when exception (slack/log-request-exception request exception))
-                      (make-error-response status type message exception response))
+                      (-> (make-error-response status type message exception response)
+                          (assoc-in [:body :error :uri] (:uri request))))
               ;; Otherwise return result if body has :result field
               result (merge-default-success-true response)
               ;; If no :error or :result key, wrap the value in :result
