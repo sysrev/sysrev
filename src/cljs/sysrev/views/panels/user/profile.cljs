@@ -117,7 +117,8 @@
       (fn [_this]
         (when (and (nil? @invitations)
                    (not @retrieving-invitations?))
-          (get-project-invitations! @(subscribe [:self/user-id]))))})))
+          (some-> @(subscribe [:self/user-id])
+                  get-project-invitations!)))})))
 
 (defn- InviteUser [user-id]
   (let [project-id (r/atom nil)
