@@ -29,12 +29,18 @@
 ;; for clj-kondo
 (declare html-routes)
 
+(def error-404
+  {:body {:error {:message "Not Found"
+                  :status 404
+                  :type "404"}}})
+
 (defn app-routes []
   (c/routes auth-routes
             site-routes
             project-routes
             user-routes
-            org-routes))
+            org-routes
+            (ANY "/api/*" [] error-404)))
 
 (defroutes html-routes
   (GET "*" {:keys [uri] :as request}
