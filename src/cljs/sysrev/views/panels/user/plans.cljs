@@ -1,19 +1,21 @@
 (ns sysrev.views.panels.user.plans
   (:require [goog.uri.utils :as uri-utils]
             [medley.core :as medley]
+            [re-frame.core :refer [dispatch reg-sub subscribe]]
             [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe reg-sub]]
+            [sysrev.action.core :refer [def-action run-action]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action run-action]]
-            [sysrev.stripe :as stripe :refer [StripeCardInfo]]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.shared.plans-info :as plans-info]
-            [sysrev.views.semantic :as S :refer
-             [Segment SegmentGroup Grid Column Row ListUI ListItem Button Loader Radio]]
-            [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits]]
+            [sysrev.stripe :as stripe :refer [StripeCardInfo]]
             [sysrev.util :as util :refer [sum]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.views.panels.pricing :as pricing :refer [FreeBenefits]]
+            [sysrev.views.panels.user.billing :refer [DefaultSource]]
+            [sysrev.views.semantic :as S :refer
+             [Button Column Grid ListItem ListUI
+                                           Loader Radio Row Segment
+                                           SegmentGroup]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -197,8 +199,13 @@
         show-payment-form? (r/atom false)
         changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
     (fn [available-plans]
+      (when self-id
+        (when-not @default-source
+          (dispatch [:data/load [:user/default-source self-id]]))
+        (when-not @available-plans
+          (dispatch [:data/load [:user/available-plans self-id]])))
       (when (and (not (nil? @available-plans))
-                 (nil? @new-plan ))
+                 (nil? @new-plan))
         (reset! new-plan (medley/find-first #(= (:nickname %) plans-info/unlimited-user) @available-plans)))
       (if (empty? @available-plans)
         [Loader {:active true
