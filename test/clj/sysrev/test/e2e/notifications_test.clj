@@ -1,50 +1,22 @@
 (ns sysrev.test.e2e.notifications-test
-  (:require
-   [clojure.string :as str]
-   [clojure.test :refer :all]
-   [etaoin.api :as ea]
-   [sysrev.api :refer [clone-project-for-org! import-articles-from-pdfs]]
-   [sysrev.db.queries :as q]
-   [sysrev.etaoin-test.interface :as et]
-   [sysrev.group.core :refer [add-user-to-group! create-group!]]
-   [sysrev.label.answer :refer [set-user-article-labels]]
-   [sysrev.label.core :refer [add-label-overall-include]]
-   [sysrev.project.core :refer [create-project]]
-   [sysrev.project.invitation :as invitation]
-   [sysrev.project.member :refer [add-project-member]]
-   [sysrev.test.core :as test]
-   [sysrev.test.e2e.account :as account]
-   [sysrev.test.e2e.core :as e]
-   [sysrev.test.e2e.project :as e-project]
-   [sysrev.util :as util]))
-
-(defn create-projects-and-invitations! [inviter-id user-id]
-  (let [project-a (create-project "Mangiferin")
-        project-b (create-project "EntoGEM")]
-    (invitation/create-invitation! user-id (:project-id project-a) inviter-id "paid-reviewer")
-    (invitation/create-invitation! user-id (:project-id project-b) inviter-id "paid-reviewer")
-    [project-a project-b]))
-
-(deftest ^:optional notifications-button
-  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [inviter-id (:user-id (test/create-test-user system))
-          {:keys [user-id] :as user} (test/create-test-user system)]
-      (account/log-in test-resources user)
-      (testing "Notifications button and drop-down work when empty."
-        (doto driver
-          (et/is-click-visible {:fn/has-class :notifications-icon})
-          (et/is-wait-visible {:fn/has-text "You don't have any notifications yet"})))
-      (let [[project-a] (create-projects-and-invitations! inviter-id user-id)]
-        (testing "Notifications button and drop-down work."
-          (doto driver
-            (ea/refresh)
-            (et/is-wait-visible {:fn/has-class :notifications-count
-                              :fn/has-text "2"})
-            (et/is-click-visible {:fn/has-class :notifications-icon})
-            (et/is-click-visible [{:fn/has-class :notifications-container}
-                                  {:fn/has-text (:name project-a)}]))
-          (is (nil? (ea/wait-predicate
-                     #(= (str "/user/" user-id "/invitations") (e/get-path driver))))))))))
+  (:require [clojure.string :as str]
+            [clojure.test :refer :all]
+            [etaoin.api :as ea]
+            [sysrev.api :refer [clone-project-for-org!
+                                import-articles-from-pdfs]]
+            [sysrev.db.queries :as q]
+            [sysrev.etaoin-test.interface :as et]
+            [sysrev.group.core :refer [add-user-to-group! create-group!]]
+            [sysrev.label.answer :refer [set-user-article-labels]]
+            [sysrev.label.core :refer [add-label-overall-include]]
+            [sysrev.project.core :refer [create-project]]
+            [sysrev.project.invitation :as invitation]
+            [sysrev.project.member :refer [add-project-member]]
+            [sysrev.test.core :as test]
+            [sysrev.test.e2e.account :as account]
+            [sysrev.test.e2e.core :as e]
+            [sysrev.test.e2e.project :as e-project]
+            [sysrev.util :as util]))
 
 (deftest ^:optional article-reviewed-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
