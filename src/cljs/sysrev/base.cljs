@@ -57,7 +57,8 @@
       (set! js/console.error
             (make-console-fn :error js/console.defaultError
                              :ignore-regexps
-                             [#"no longer attached.*unable to animate"]))
+                             [#"no longer attached.*unable to animate"
+                              #"taoensso.sente.*WebSocket error"]))
 
       ;; re-frame grabs the console.log fns on import, so we have to reset them
       (set-loggers! {:debug js/console.debug
