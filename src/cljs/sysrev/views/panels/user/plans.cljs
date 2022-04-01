@@ -60,6 +60,7 @@
                                [:load-url nav-url]
                                [:ga-event "stripe" "plan_subscribe" (:nickname plan)])})))
   :on-error (fn [{:keys [db error]} _ _]
+              (.error js/console ":user/subscribe-plan error:" (pr-str error))
               (let [msg (if (= (:type error) "invalid_request_error")
                           "You must enter a valid payment method before subscribing to this plan"
                           (:message error))]
