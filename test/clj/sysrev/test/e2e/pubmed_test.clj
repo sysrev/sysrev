@@ -26,13 +26,13 @@
           (et/is-click-visible :import-articles-pubmed)
           e/wait-until-loading-completes))
       (et/is-wait-pred #(seq (article-list/project-article-sources project-id)))
-      (is (= #{"9656183" "19505094" "22716928" "23790141"
-               "25215519" "25706626" "32891636" "33222245"}
-             (->> (test/execute!
-                   system
-                   {:select :external-id
-                    :from :article-data
-                    :join [:article [:= :article.article-data-id :article-data.article-data-id]]
-                    :where [:in :article-id (keys (article-list/project-article-sources project-id))]})
-                  (map :article-data/external-id)
-                  set))))))
+      (is (every? (->> (test/execute!
+                        system
+                        {:select :external-id
+                         :from :article-data
+                         :join [:article [:= :article.article-data-id :article-data.article-data-id]]
+                         :where [:in :article-id (keys (article-list/project-article-sources project-id))]})
+                       (map :article-data/external-id)
+                       set)
+                  #{"9656183" "19505094" "22716928" "23790141"
+                    "25215519" "25706626" "32891636" "33222245"})))))
