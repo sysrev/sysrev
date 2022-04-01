@@ -483,6 +483,12 @@
   (let [owner-user-id (group/get-group-owner group-id)]
     (user-current-plan owner-user-id)))
 
+(defn get-or-create-user-plan! [user-id]
+  (db/with-transaction
+    (or (plans/user-current-plan user-id)
+        (do (stripe/create-subscription-user! (user/user-by-id user-id))
+            (plans/user-current-plan user-id)))))
+
 ;; manually add:
 ;; 1. connect to prod database
 ;; 2. redefine keys in sysrev.payment.stripe
@@ -494,7 +500,7 @@
 ;; (subscribe-user-to-plan <user-id> "Unlimited_User")
 (defn subscribe-user-to-plan [user-id plan]
   (with-transaction
-    (let [{:keys [sub-id]} (plans/user-current-plan user-id)
+    (let [{:keys [sub-id]} (get-or-create-user-plan! user-id)
           plan-id (:id plan)
           sub-item-id (stripe/get-subscription-item sub-id)
           sub-resp (stripe/update-subscription-item! {:id sub-item-id :plan-id plan-id})]
