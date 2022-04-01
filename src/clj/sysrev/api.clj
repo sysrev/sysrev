@@ -431,9 +431,10 @@
     u))
 
 (defn subscribe-user! [{:keys [email user-id] :as user}]
-  (user/create-user-stripe-customer! user)
-  (stripe/create-subscription-user! user)
-  (user/create-email-verification! user-id email :principal true)
+  (db/with-transaction
+    (user/create-user-stripe-customer! user)
+    (stripe/create-subscription-user! (user-by-email email))
+    (user/create-email-verification! user-id email :principal true))
   (send-verification-email user-id email))
 
 (defn register-user!
