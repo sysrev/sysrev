@@ -102,7 +102,11 @@
           "The options for this label were originally "
           (when-not (string? label-id)
             (str/join "," (get-in (label/get-label label-id) [:definition :all-values]))))]]
-
+   :default-value
+   [[#(or (not %) (sequential? %)) ; optional val
+     :message "[Error] Categories value is non-sequential"]
+    [v/every #(contains? (set (:all-values definition)) %)
+     :message "Default values must each be present in list of categories"]]
    :inclusion-values
    [[sequential?
      :message "[Error] Inclusion Values is non-sequential"]

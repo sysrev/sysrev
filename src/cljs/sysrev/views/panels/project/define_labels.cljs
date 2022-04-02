@@ -527,11 +527,11 @@
         examples (r/cursor definition [:examples])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
-        ;; 
+        ;;
         validatable-label? (r/cursor definition [:validatable-label?])
-        ;; 
+        ;;
         hidden-label? (r/cursor definition [:hidden-label?])
-        ;; 
+        ;;
         default-value (r/cursor definition [:default-value])
         ;;;
         errors (r/cursor label [:errors])

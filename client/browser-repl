@@ -9,4 +9,4 @@ cd client
 
 rm -rf .shadow-cljs/builds/dev
 
-npx -y shadow-cljs watch dev
+npx shadow-cljs watch dev
