@@ -144,7 +144,7 @@
       [:div
        [:div {:style {:margin-bottom "1em"}}
         [NewProjectButton]]
-       [UserActivitySummary projects]
+       [UserActivitySummary (remove #(not (:name %)) projects)] ; disabled projects don't hold a ref to the name
        [UserProjectsList user-id]])))
 
 (def-panel :uri "/user/:user-id/projects" :params [user-id] :panel panel
