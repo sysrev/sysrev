@@ -5,7 +5,7 @@
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
 
 ;;; Force versions of indirect dependencies
-        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.2"}
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.13.2.2"}
         commons-io/commons-io {:mvn/version "2.11.0"}
         commons-codec/commons-codec {:mvn/version "1.15"}
         org.apache.commons/commons-compress {:mvn/version "1.21"}
@@ -109,7 +109,7 @@
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "5292e8ab1bea3ff84b08c7f2142dbe7f1349a3f3"}}
+                       :sha "e874e809aa9d3cecaa0540376bd2875f99b37372"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
