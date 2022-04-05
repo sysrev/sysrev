@@ -1,5 +1,6 @@
 import * as React from 'react'
 import styles from './styles.module.css'
+import MenuButton from './components/menu-button'
 
 const peopleImg = '/assets/org-page/img/people.png'
 const pinnedImg = '/assets/org-page/img/pinned.png'
@@ -17,12 +18,15 @@ export interface ProjectProps {
   createdAt?: string
   lastActive?: string
   pinned?: boolean
+  status?: string
 }
 
 export interface MemberProps {
   name?: string
   userId?: number
   url?: string
+  changeRole?: () => void
+  removeFromOrganization?: () => void
 }
 
 export interface TabProps {
@@ -31,6 +35,10 @@ export interface TabProps {
   logoImgUrl?: string
   projects?: ProjectProps[]
   members?: MemberProps[]
+  userIsAdmin?: boolean
+  orgId?: number
+  addMember?: () => void
+  inviteUrl?: () => void
 }
 
 enum TabType {
@@ -43,7 +51,8 @@ const Tab = (props: TabProps) => {
   const initialState = window.location.pathname.split("/").pop() === "projects" ? TabType.Projects : TabType.Members
 
   const [activeTab, setActiveTab] = React.useState<TabType>(initialState)
-  const {title, url, logoImgUrl} = props;
+  const { title, url, logoImgUrl } = props;
+  const isAdmin = (props.userIsAdmin ?? false)
 
   const setUrlPath = (tab: TabType): void => {
     // updates the browser url without reloading the page
@@ -60,29 +69,37 @@ const Tab = (props: TabProps) => {
     <div className={styles.body}>
       <div className={styles.table}>
         <div className={styles.topsection}>
-          { logoImgUrl
-              ? <div className={styles.logo}>
-                  <img src={logoImgUrl} alt="" width="100%"/>
-                </div>
-              : null
+          {logoImgUrl
+            ? <div className={styles.logo}>
+              <img src={logoImgUrl} alt="" width="100%" />
+            </div>
+            : null
           }
           <div className={styles.infos}>
             <p className={styles.tit}>
-              { title }
+              {title}
             </p>
             <p>
-              { url
+              {url
                 ? <div>
-                    <img src={urlImg} alt="" />
-                    <a href={ url } target="_blank">
-                      { url }
-                    </a>
-                  </div>
+                  <img src={urlImg} alt="" />
+                  <a href={url} target="_blank">
+                    {url}
+                  </a>
+                </div>
                 : null
               }
             </p>
           </div>
         </div>
+
+        {isAdmin &&
+          <div className={styles.adminButtons}>
+            <a href={`/new?project_owner=${props.orgId}`}>New</a>
+            <a onClick={() => props.addMember?.()}>Add Member</a>
+            <a onClick={() => props.inviteUrl?.()}>Invite URL</a>
+          </div>
+        }
 
         <div className={styles.tabs}>
           <a onClick={() => setTab(TabType.Projects)} className={[styles.projects_table_a, activeTab === TabType.Projects ? styles.activea : {}].join(' ')}><img src={projectImg} /> Projects</a>
@@ -127,6 +144,17 @@ const Tab = (props: TabProps) => {
                       <td>{item.userId}</td>
                       <td><a href={item.url} target="_blank">{item.url}</a>
                       </td>
+                      {
+                        isAdmin &&
+                        <td style={{ width: '50px' }}>
+                          <MenuButton
+                            buttons={[
+                              { title: 'Change Role', onClick: item.changeRole },
+                              { title: 'Remove From Organization', onClick: item.removeFromOrganization }
+                            ]}
+                          />
+                        </td>
+                      }
                     </tr>
                   ))
                 }

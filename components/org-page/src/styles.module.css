@@ -4,6 +4,49 @@
   padding-left: 15px;
   padding-right: 15px; }
 
+  .menu {
+    padding: 8px;
+    margin: 8px;
+    visibility: hidden;
+  }
+  
+  .menuVisible {
+    padding: 8px;
+    visibility: visible;
+    border: 1px solid #eeeeee;
+    margin: 8px;
+    font-size: 11px;
+  }
+  
+  .menuItem {
+    font-size: 11px !important;
+    padding: 5px 0px;
+    width: 150px;
+  }
+
+  .menuItem:hover {
+    cursor: pointer;
+  }
+
+  .adminButtons {
+    display: flex;
+    align-items: center;
+  }
+
+  .adminButtons a {
+    margin: 5px;
+    padding: 8px;
+    border: 1px solid #aaaaaa;
+    border-radius: 4px;
+    font-size: 14px;
+    color: black;
+    text-decoration: none;
+  }
+
+  .adminButtons a:hover{
+    cursor: pointer;
+  }
+
 .table {
   max-width: 930px;
   margin: auto;
