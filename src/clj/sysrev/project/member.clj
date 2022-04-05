@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [orchestra.core :refer [defn-spec]]
-            [sysrev.db.core :as db]
+            [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :as notification]
             [sysrev.project.compensation :as compensation]
@@ -58,6 +58,15 @@
           :type :project-has-new-user})))
     nil))
 
+(defn delete-labels-of-user [project-id user-id]
+  (let [articles (q/find :article {:project-id project-id})]
+    (doseq [article articles]
+      (let [labels (q/find :article_label {:article-id (:article-id article) :user-id user-id})]
+        (doseq [label labels]
+          (with-transaction
+            (q/create :article_deleted_label (conj label {:answer (db/to-jsonb (:answer label))}))
+            (q/delete :article_label {:article-label-id (:article-label-id label)})))))))
+
 (defn remove-project-member
   [project-id user-id]
   (db/with-clear-project-cache project-id
@@ -70,10 +79,14 @@
       (when topic-id
         (notification/unsubscribe-from-topic subscriber-id topic-id)))))
 
+(defn remove-user-from-project [project-id user-id]
+    (remove-project-member project-id user-id)
+    (delete-labels-of-user project-id user-id))
+
 (defn-spec set-member-permissions (s/nilable (s/coll-of map? :max-count 1))
   [project-id int?, user-id int?,
    permissions (s/and (s/coll-of string? :min-count 1)
-                      #(every? (in? valid-permissions) %)) ]
+                      #(every? (in? valid-permissions) %))]
   (db/with-clear-project-cache project-id
     (q/modify :project-member {:project-id project-id :user-id user-id}
               {:permissions (db/to-sql-array "text" permissions)}
