@@ -22,6 +22,7 @@
             [sysrev.util :as util :refer [in? map-values]])
   (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
+           (org.postgresql.jdbc PgArray)
            (org.postgresql.util PGobject PSQLException)))
 
 ;; for clj-kondo
@@ -75,6 +76,10 @@
   (read-column-by-index [^PGobject v _2 _3]
     (<-pgobject v)))
 
+(defn seq-array [^PgArray array]
+  (when array
+    (seq (.getArray array))))
+
 (declare clear-query-cache)
 
 ;; Active database connection pool object
@@ -82,6 +87,12 @@
 
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
+
+(defn connectable
+  "Get a connectable from the current transaction or connection pool.
+   Returns a type that next.jdbc expects."
+  []
+  (or (:connection *conn*) (:datasource @*active-db*)))
 
 (defn close-active-db []
   (when-let [ds (:datasource @*active-db*)]

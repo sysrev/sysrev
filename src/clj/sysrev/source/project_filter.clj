@@ -9,6 +9,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.graphql.core :refer [fail]]
+            [sysrev.postgres.interface :as pg]
             [sysrev.project.article-list :refer [query-project-article-ids]]
             [sysrev.project.core :as project]
             [sysrev.source.core :as source]
@@ -38,18 +39,21 @@
     (vec (concat filters (when text-search [{:text-search text-search}])))))
 
 (defn get-source-project-articles [source-id article-ids]
-  (q/find [:article :a]
-          {:a.article-id article-ids}
-          :*
-          :left-join [[[:article-pdf :pdf] :a.article-id]]
-          :where [:not
-                  [:exists
-                   {:select [:*]
-                    :from [:article]
-                    :join [[:article-source :as] [:= :as.article-id :article.article-id]]
-                    :where [:and
-                            [:= :article.article-data-id :a.article-data-id]
-                            [:= :as.source-id source-id]]}]]))
+  (pg/execute!
+   (db/connectable)
+   ;; Work around :array producing square brackets
+   {:select [:article-data-id
+             [[(keyword "array ") {:select :s3-id :from :article-pdf :where [:= :article-pdf.article-id :a.article-id]}] :pdf-ids]]
+    :from [[:article :a]]
+    :where [:and [:in :article-id article-ids]
+            [:not
+             [:exists
+              {:select :*
+               :from [:article]
+               :join [[:article-source :s] [:= :s.article-id :article.article-id]]
+               :where [:and
+                       [:= :article.article-data-id :a.article-data-id]
+                       [:= :s.source-id source-id]]}]]]}))
 
 (defn get-new-articles-available [{:keys [source-id meta]}]
   (let [{:keys [filters source-project-id]} meta]
@@ -64,17 +68,15 @@
     (let [old-articles (get-source-project-articles source-id article-ids)
           new-ids (when (seq old-articles)
                     (q/create :article
-                              (map #(do {:article-data-id (:article-data-id %)
+                              (map #(do {:article-data-id (:article/article-data-id %)
                                          :project-id project-id})
                                    old-articles)
                               :returning :article-id))
-          new-pdfs (->> (map
-                         (fn [{:keys [s3-id]} article-id]
-                           (when s3-id
-                             {:article-id article-id :s3-id s3-id}))
-                         old-articles
-                         new-ids)
-                        (filter seq))]
+          new-pdfs (mapcat
+                    (fn [{:keys [pdf-ids]} article-id]
+                      (map #(do {:article-id article-id :s3-id %}) (db/seq-array pdf-ids)))
+                    old-articles
+                    new-ids)]
       (when (seq new-pdfs)
         (q/create :article-pdf new-pdfs))
       (when (seq new-ids)
