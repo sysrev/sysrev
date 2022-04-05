@@ -11,7 +11,8 @@
             [sysrev.etaoin-test.interface :as et]
             [sysrev.test.core :as test]
             [sysrev.util :as util])
-  (:import (java.net URL URLDecoder)
+  (:import (clojure.lang ExceptionInfo)
+           (java.net URL URLDecoder)
            (java.util Date)))
 
 (defn bytes->base64
@@ -226,22 +227,33 @@
          (when driver# (take-screenshot driver# :error)))
      (is* (pred#))))
 
+(defmacro retry-port-in-use
+  "Work around a race condition in etaoin when using :port 0"
+  [& body]
+  `(try
+     (do ~@body)
+     (catch ExceptionInfo e#
+       (if (re-matches #"Port \d+ already in use" (ex-message e#))
+         (do ~@body)
+         (throw e#)))))
+
 (defmacro with-driver [[driver-sym opts] & body]
   `(let [opts# ~opts
          headless?# (:headless? opts# (run-headless?))]
      (doseq [driver-type# [:chrome]]
-       (ea/with-driver driver-type#
-         (merge
-          {:headless headless?#
-           :path-browser (when (.exists (io/file "chrome")) "./chrome")
-           :size [1600 1000]}
-          opts#)
-         driver#
-         (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
-           (let [~driver-sym driver#
-                 result# (do ~@body)]
-             (check-browser-console-clean driver#)
-             result#))))))
+       (retry-port-in-use
+        (ea/with-driver driver-type#
+          (merge
+           {:headless headless?#
+            :path-browser (when (.exists (io/file "chrome")) "./chrome")
+            :size [1600 1000]}
+           opts#)
+          driver#
+          (with-postmortem driver# {:dir "/tmp/sysrev/etaoin"}
+            (let [~driver-sym driver#
+                  result# (do ~@body)]
+              (check-browser-console-clean driver#)
+              result#)))))))
 
 (defmacro with-test-resources [[bindings opts] & body]
   `(let [opts# ~opts]
