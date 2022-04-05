@@ -39,7 +39,7 @@
             [sysrev.user.interface :as user]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.web.app :as web :refer [active-project current-user-id
-                                    with-authorize]]
+                                            with-authorize]]
             [sysrev.web.routes.core :refer [setup-local-routes]])
   (:import (java.io File)))
 
@@ -230,6 +230,13 @@
               (with-meta
                 {:result {:project-id project-id}}
                 {:session session})))))
+
+(dr (POST "/api/remove-user-from-project" request
+          (with-authorize request {:roles ["admin"]}
+            (let [{:keys [project-id user-id]} (-> request :body)]
+              (api/remove-member-from-project! project-id user-id)
+              {:success true}))))
+
 
 (dr (POST "/api/create-project" request
           (with-authorize request {:logged-in true}

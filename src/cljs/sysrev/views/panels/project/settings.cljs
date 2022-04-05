@@ -2,15 +2,16 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-db]]
-            [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
-            [sysrev.views.components.core :as ui]
+            [sysrev.views.components.core :as ui :refer [CursorMessage]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :as S]
+            [sysrev.views.semantic :as S :refer [Modal ModalContent ModalDescription ModalHeader]]
             [sysrev.util :as util :refer [in? css parse-integer when-test]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]))
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
+            ["@material-ui/icons/Block$default" :as BlockIcon]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -501,37 +502,80 @@
       (dispatch [:action [:project/change-permissions
                           project-id changes]]))))
 
+(def-action :project/remove-user
+  :uri (fn [_ _] "/api/remove-user-from-project")
+  :content (fn [project-id user-id _ _]
+             {:project-id project-id :user-id user-id})
+  :process (fn [{:keys [db]} [project-id _ modal-open _] {:keys [success]}]
+             (reset! modal-open {:open false :user nil})
+             {:dispatch [:reload [:project project-id]]})
+  :on-error (fn [{:keys [db error]} [_ _ _ delete-failure]]
+              (reset! delete-failure "Delete Failed. Please Try Again.")))
+
+(defn DeleteMemberModal [modal-open]
+  (let [delete-failure (r/atom nil)]
+    (fn []
+      (let [project-id @(subscribe [:active-project-id])]
+        [:div
+         [Modal {:trigger
+                 (r/as-element
+                  [:div.ui {:id :change-avatar
+                            :data-tooltip "Report and Issue"
+                            :data-position "bottom center"}])
+                 :open (:open @modal-open)
+                 :on-close #(reset! modal-open {:open false :user nil})
+                 :size "tiny"}
+          [ModalHeader "Delete User?"]
+          [ModalContent
+           [ModalDescription
+            [:p (str "Confirm deletion of user: " @(subscribe [:user/username (:user @modal-open)]))]
+            [:p "WARNING! THIS ACTION IS PERMANENT!"]
+            [:button.ui.small.positive.button
+             {:on-click #(run-action :project/remove-user project-id (:user @modal-open) modal-open delete-failure)}
+             "Confirm"]
+            [:button.ui.small.negitive.button {:on-click #(reset! modal-open {:open false :user nil})} "Cancel"]
+            [CursorMessage delete-failure {:negative true}]]]]]))))
+
 (defn- ProjectMembersList []
-  (let [user-ids (all-project-user-ids)]
-    [:div
-     [:h4.ui.dividing.header "Members"]
-     [:div.ui.relaxed.divided.list
-      (doall
-       (for [user-id user-ids]
-         [:div.item {:key user-id}
-          [:div.right.floated.content
-           (let [saved (saved-member-permissions user-id)
-                 current (current-member-permissions user-id)
-                 permissions (distinct (concat saved current))]
-             (doall
-              (for [perm permissions]
-                [:div.ui.small.label
-                 {:class (cond (and (in? saved perm)
-                                    (not (in? current perm)))
-                               "orange disabled"
+  (let [delete-modal-details (r/atom {:open false :user nil})]
+    (fn []
+      (let [user-ids (all-project-user-ids)
+            user-permissions  (current-member-permissions @(subscribe [:self/user-id]))]
+        [:div
+         [DeleteMemberModal delete-modal-details]
+         [:h4.ui.dividing.header "Members"]
+         [:div.ui.relaxed.divided.list
+          (doall
+           (for [user-id user-ids]
+             [:div.item {:key user-id}
+              [:div.content.flex-between
+               {:style {:padding-top "4px"
+                        :padding-bottom "4px"}}
+               [:div
+                [:i.user.icon]
+                @(subscribe [:user/username user-id])]
+               [:div.content
+                (let [saved (saved-member-permissions user-id)
+                      current (current-member-permissions user-id)
+                      permissions (distinct (concat saved current))]
+                  [:div.flex-between
+                   (doall
+                    (for [perm permissions]
+                      [:div.ui.small.label
+                       {:class (cond (and (in? saved perm)
+                                          (not (in? current perm)))
+                                     "orange disabled"
 
-                               (and (in? current perm)
-                                    (not (in? saved perm)))
-                               "green"
+                                     (and (in? current perm)
+                                          (not (in? saved perm)))
+                                     "green"
 
-                               :else nil)
-                  :key perm}
-                 perm])))]
-          [:div.content
-           {:style {:padding-top "4px"
-                    :padding-bottom "4px"}}
-           [:i.user.icon]
-           @(subscribe [:user/username user-id])]]))]]))
+                                     :else nil)
+                        :key perm}
+                       perm]))
+                   [:div
+                     (when (some #(or (= % "owner") (= % "admin")) user-permissions)
+                       [:> BlockIcon {:class "project-member-delete" :on-click #(reset! delete-modal-details {:open true :user user-id})}])]])]]]))]]))))
 
 (defn- UserSelectDropdown []
   [S/Dropdown {:selection true, :search true, :fluid true, :icon "dropdown"
@@ -661,4 +705,3 @@
   :on-route (do (data/reload :project project-id)
                 (dispatch [:set-active-panel panel]))
   :content [Panel])
-

@@ -1018,6 +1018,9 @@
     (doall (for [project group-projects]
              (member/remove-project-member (:project-id project) user-id)))))
 
+(defn remove-member-from-project! [project-id user-id]
+  (member/remove-project-member project-id user-id))
+
 (defn set-user-group!
   "Set the membership in a group as determined as determined by enabled"
   [user-id group-name enabled]

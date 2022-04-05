@@ -58,8 +58,8 @@
           :type :project-has-new-user})))
     nil))
 
-(defn-spec remove-project-member int?
-  [project-id int?, user-id int?]
+(defn remove-project-member
+  [project-id user-id]
   (db/with-clear-project-cache project-id
     (q/delete :project-member {:project-id project-id :user-id user-id})
     (let [subscriber-id (notification/subscriber-for-user
@@ -85,4 +85,3 @@
          (map :user-id)
          user/get-users-public-info
          (util/index-by :user-id))))
-
