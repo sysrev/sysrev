@@ -41,9 +41,8 @@
 (defn get-source-project-articles [source-id article-ids]
   (pg/execute!
    (db/connectable)
-   ;; Work around :array producing square brackets
    {:select [:article-data-id
-             [[(keyword "array ") {:select :s3-id :from :article-pdf :where [:= :article-pdf.article-id :a.article-id]}] :pdf-ids]]
+             [[:'array {:select :s3-id :from :article-pdf :where [:= :article-pdf.article-id :a.article-id]}] :pdf-ids]]
     :from [[:article :a]]
     :where [:and [:in :article-id article-ids]
             [:not
