@@ -140,66 +140,54 @@
 (defn TogglePlanButton [{:keys [on-click class loading disabled] :as attrs} text]
   [Button (merge {:color "green"} attrs) text])
 
-(defn- DowngradePlan []
-  (let [self-id @(subscribe [:self/user-id])
-        error-message (r/cursor state [:error-message])
-        available-plans (subscribe [:user/available-plans])
-        changing-plan? (r/cursor state [:changing-plan?])
-        current-plan (subscribe [:user/current-plan self-id])
-        new-plan (r/cursor state [:new-plan])]
-    (r/create-class
-     {:reagent-render
-      (fn [_]
-        (when (empty? @new-plan)
-          (reset! new-plan (medley/find-first #(= (:nickname %) "Basic") @available-plans)))
-        [:div
-         [:h1 "Unsubscribe from your plan"]
-         [Grid
-          [Row
-           [Column {:width 8}
-            [Grid [Row [Column
-                        [:h3 "Unsubscribe from"]
-                        [Unlimited @current-plan]]]]
-            [Grid [Row [Column
-                        [:h3 "New Plan"]
-                        [BasicPlan @new-plan]
-                        [:a {:href (str "/user/" self-id "/billing")}
-                         "Back to user settings"]]]]]
-           [Column {:width 8}
-            [Grid [Row [Column
-                        [:h3 "Unsubscribe Summary"]
-                        [ListUI {:divided true}
-                         [:h4 "New Monthly Bill"]
-                         [ListItem [:p "Basic plan ($0 / month)"]]
-                         [:div {:style {:margin-top "1em" :width "100%"}}
-                          [TogglePlanButton {:disabled @changing-plan?
-                                             :on-click #(do (reset! changing-plan? true)
-                                                            (run-action :user/subscribe-plan
-                                                                        self-id @new-plan))
-                                             :class "unsubscribe-plan"
-                                             :loading @changing-plan?}
-                           "Unsubscribe"]]
-                         (when @error-message
-                           [S/Message {:negative true}
-                            [S/MessageHeader "Change Plan Error"]
-                            [:p @error-message]])]]]]]]]])
-      :get-initial-state (fn [_this]
-                           (reset! changing-plan? false)
-                           (reset! error-message nil))})))
+(defn- DowngradePlan [{:keys [available-plans current-plan self-id]}]
+  (r/with-let [error-message (r/cursor state [:error-message])
+               changing-plan? (r/cursor state [:changing-plan?])
+               new-plan (r/cursor state [:new-plan])]
+    (when (empty? @new-plan)
+      (reset! new-plan (medley/find-first #(= (:nickname %) "Basic") @available-plans)))
+    [:div
+     [:h1 "Unsubscribe from your plan"]
+     [Grid
+      [Row
+       [Column {:width 8}
+        [Grid [Row [Column
+                    [:h3 "Unsubscribe from"]
+                    [Unlimited @current-plan]]]]
+        [Grid [Row [Column
+                    [:h3 "New Plan"]
+                    [BasicPlan @new-plan]
+                    [:a {:href (str "/user/" self-id "/billing")}
+                     "Back to user settings"]]]]]
+       [Column {:width 8}
+        [Grid [Row [Column
+                    [:h3 "Unsubscribe Summary"]
+                    [ListUI {:divided true}
+                     [:h4 "New Monthly Bill"]
+                     [ListItem [:p "Basic plan ($0 / month)"]]
+                     [:div {:style {:margin-top "1em" :width "100%"}}
+                      [TogglePlanButton {:disabled @changing-plan?
+                                         :on-click #(do (reset! changing-plan? true)
+                                                        (run-action :user/subscribe-plan
+                                                                    self-id @new-plan))
+                                         :class "unsubscribe-plan"
+                                         :loading @changing-plan?}
+                       "Unsubscribe"]]
+                     (when @error-message
+                       [S/Message {:negative true}
+                        [S/MessageHeader "Change Plan Error"]
+                        [:p @error-message]])]]]]]]]]))
 
-(defn- UpgradePlan [self-id]
+(defn- UpgradePlan [{:keys [available-plans self-id]}]
   (r/with-let [error-message (r/cursor state [:error-message])
                changing-plan? (r/cursor state [:changing-plan?])
                mobile? (util/mobile?)
                new-plan (r/cursor state [:new-plan])
                show-payment-form? (r/atom false)
                changing-interval? (uri-utils/getParamValue @active-route "changing-interval")
-               available-plans (-> (str "/api/user/" self-id "/stripe/available-plans")
-                                   ajax/rGET
-                                   (r/cursor [:result :plans]))
                default-source (-> (str "/api/user/" self-id "/stripe/default-source")
-                                   ajax/rGET
-                                   (r/cursor [:result :default-source]))]
+                                  ajax/rGET
+                                  (r/cursor [:result :default-source]))]
     (when (and (not (nil? @available-plans)) (nil? @new-plan))
       (reset! new-plan (medley/find-first #(= (:nickname %) plans-info/unlimited-user) @available-plans)))
     (if (empty? @available-plans)
@@ -269,7 +257,7 @@
                   [:p @error-message]])]]]])]]])))
 
 (defn- on-mount-user-plans []
-  (dispatch [::set :changing-plan? nil])
+  (dispatch [::set :changing-plan? false])
   (dispatch [::set :error-message nil])
   (dispatch [:set-active-panel [:plans]])
   (dispatch [::set :redirecting? false]))
@@ -278,24 +266,30 @@
   (on-mount-user-plans)
   (fn []
     (when-let [self-id @(subscribe [:self/user-id])]
-      (r/with-let [current-plan (-> (str "/api/user/" self-id "/stripe/current-plan")
+      (r/with-let [available-plans (-> (str "/api/user/" self-id "/stripe/available-plans")
+                                       ajax/rGET
+                                       (r/cursor [:result :plans]))
+                   current-plan (-> (str "/api/user/" self-id "/stripe/current-plan")
                                     ajax/rGET
                                     (r/cursor [:result :plan]))
-            redirecting? (r/cursor state [:redirecting?])
-            changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
-        (cond
-          @redirecting?
-          [:div [:h3 "Redirecting"]
-           [Loader {:active true
-                    :inline "centered"}]]
-          changing-interval?
-          [UpgradePlan self-id]
-          (or (nil? @current-plan) (= (:nickname @current-plan) "Basic"))
-          [UpgradePlan self-id]
-          (plans-info/pro? (:nickname @current-plan))
-          [DowngradePlan]
-          :else
-          [Loader {:active true :inline "centered"}])))))
+                   redirecting? (r/cursor state [:redirecting?])
+                   changing-interval? (uri-utils/getParamValue @active-route "changing-interval")]
+        (let [props {:available-plans available-plans
+                     :current-plan current-plan
+                     :self-id self-id}]
+          (cond
+            @redirecting?
+            [:div [:h3 "Redirecting"]
+             [Loader {:active true
+                      :inline "centered"}]]
+            changing-interval?
+            [UpgradePlan props]
+            (or (nil? @current-plan) (= (:nickname @current-plan) "Basic"))
+            [UpgradePlan props]
+            (plans-info/pro? (:nickname @current-plan))
+            [DowngradePlan props]
+            :else
+            [Loader {:active true :inline "centered"}]))))))
 
 (def-panel :uri "/user/plans" :panel panel
   :on-route (on-mount-user-plans)
