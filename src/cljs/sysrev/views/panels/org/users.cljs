@@ -52,10 +52,6 @@
   :process  (fn [{:keys [db]} [term] {:keys [users]}]
               {:db (assoc-in db [:data :user-search term] users)}))
 
-(reg-sub  :user-search
-          (fn [db [_ term]]
-            (get-in db [:data :user-search term])))
-
 (reg-sub  ::user-search-results
           (fn [db [_ term org-id]]
             (when-let [search-result (get-in db [:data :user-search term])]

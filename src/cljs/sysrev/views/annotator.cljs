@@ -1,7 +1,6 @@
 (ns sysrev.views.annotator
   (:require ["jquery" :as $]
             [clojure.data.xml :as dxml]
-            [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
             [medley.core :as medley]
             [sysrev.views.semantic :as S]
@@ -64,10 +63,6 @@
                                               (assoc new-id annotation))]
                                   ret)))))
 
-(reg-event-db :annotator/init-view-state [trim-v]
-              (fn [db [context & [_panel]]]
-                (set-field db context [] {:context context})))
-
 (reg-event-db :reset-annotations [trim-v]
               (fn [db [context article-id annotations]]
                 (let [abstract @(subscribe [:article/abstract article-id])]
@@ -129,26 +124,6 @@
 (reg-sub :annotator/status
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(-> % :annotator :status))
-
-(defn- sort-class-options [entries]
-  (vec (->> entries
-            (medley/map-vals (fn [x] (update x :last-used #(some-> % tc/to-long))))
-            (sort-by (fn [[_class {:keys [last-used count]}]]
-                       [(or last-used 0) count]))
-            reverse)))
-
-(reg-sub :annotator/semantic-class-options
-         (fn [[_ project-id]] (subscribe [:annotator/status project-id]))
-         (fn [{:keys [member project]}]
-           (when (or member project)
-             (let [member-sorted (when member
-                                   (->> (sort-class-options member)
-                                        (filterv (fn [[_class {:keys [last-used count]}]]
-                                                   (and last-used (not= 0 last-used)
-                                                        count (not= 0 count))))))
-                   project-sorted (when project (sort-class-options project))]
-               (->> (concat member-sorted project-sorted)
-                    (mapv first) distinct vec)))))
 
 (def-data :annotator/article
   :loaded? (fn [db project-id article-id]

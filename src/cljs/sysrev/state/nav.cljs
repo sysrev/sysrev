@@ -77,10 +77,6 @@
 
 (reg-sub :active-project-id active-project-id)
 
-(reg-event-db :set-project-url-error
-              (fn [db [_ error?]]
-                (assoc-in db [:state :active-project-url-error] (boolean error?))))
-
 (reg-event-fx
  :set-active-project-url
  (fn [{:keys [db]} [_ [project-url-id {:keys [user-url-id org-url-id] :as owner}]]]

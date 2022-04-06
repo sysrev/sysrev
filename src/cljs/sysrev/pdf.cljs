@@ -1,15 +1,12 @@
 (ns sysrev.pdf
   (:require ["jquery" :as $]
-            [re-frame.core :refer
-             [dispatch reg-event-db reg-sub subscribe
-              trim-v]]
+            [re-frame.core :refer [dispatch subscribe]]
             ["react-pdf" :refer [Document Page] :as react-pdf]
             [reagent.core :as r]
             [sysrev.action.core :refer [def-action]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.macros :refer-macros [with-loader]]
             [sysrev.state.article :as article]
-            [sysrev.state.ui :as ui-state]
             [sysrev.util :as util :refer [css wrap-user-event]]
             [sysrev.views.components.core :refer [UploadButton]]
             [sysrev.views.components.list-pager :refer [ListPager]]
@@ -39,29 +36,6 @@
   (if (pdf-url-open-access? pdf-url)
     (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
     (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
-
-(reg-sub ::pdf-cache
-         (fn [db [_ url]]
-           (get-in db [:data :pdf-cache url])))
-
-(reg-event-db ::pdf-cache [trim-v]
-              (fn [db [url pdf]]
-                (assoc-in db [:data :pdf-cache url] pdf)))
-
-(reg-sub ::get
-         :<- [:view-field view []]
-         (fn [view-state [_ context path]]
-           (get-in view-state (concat [context] path))))
-
-(reg-event-db ::set [trim-v]
-              (fn [db [context path value]]
-                (let [full-path (concat [context] path)]
-                  (ui-state/set-view-field db view full-path value))))
-
-(reg-sub ::page-num
-         :<- [:view-field view []]
-         (fn [view-state [_ context]]
-           (get-in view-state (concat [context] [:page-num]) 1)))
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [db _project-id article-id]

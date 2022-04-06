@@ -98,7 +98,6 @@
   :process (fn [{:keys [db]} [] {:keys [client_secret]}]
              {:db (assoc-in db [:data :stripe :client-secret] client_secret)}))
 (reg-sub  :stripe/client-secret #(get-in % [:data :stripe :client-secret]))
-(reg-event-db ::clear-secret #(util/dissoc-in % [:data :stripe :client-secret]))
 
 ;; https://stripe.com/docs/payments/cards/saving-cards-without-payment
 ;; https://stripe.com/docs/testing#regulatory-cards

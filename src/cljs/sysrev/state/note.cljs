@@ -10,8 +10,6 @@
            (cond-> (:notes article)
              user-id (get user-id))))
 
-(reg-sub ::ui-notes #(get-in % [:state :review :notes]))
-
 (reg-sub :review/ui-notes
          (fn [db [_ article-id]]
            (get-in db [:state :review :notes article-id])))

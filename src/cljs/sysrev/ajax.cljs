@@ -26,9 +26,7 @@
 (defn get-csrf-token [db] (:csrf-token db))
 (reg-sub :csrf-token get-csrf-token)
 (defn get-build-id [db] (:build-id db))
-(reg-sub :build-id get-build-id)
 (defn get-build-time [db] (:build-time db))
-(reg-sub :build-time get-build-time)
 
 (reg-event-fx :set-csrf-token [trim-v]
               (fn [{:keys [db]} [csrf-token]]

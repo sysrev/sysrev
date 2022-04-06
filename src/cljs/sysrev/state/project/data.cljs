@@ -1,10 +1,10 @@
 (ns sysrev.state.project.data
-  (:require [re-frame.core :refer [subscribe reg-sub reg-event-db dispatch trim-v]]
+  (:require [re-frame.core :refer [subscribe reg-sub dispatch]]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.article-list.base :as al]
-            [sysrev.util :as util :refer [index-by dissoc-in]]))
+            [sysrev.util :as util :refer [index-by]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -30,10 +30,6 @@
          (fn [db [_ project-id]]
            (cond-> (get-in db [:data :public-projects])
              project-id (get project-id))))
-
-(reg-sub :public-project-ids
-         :<- [:public-projects]
-         #(sort (map :project-id (vals %))))
 
 (def-data :project
   :loaded? project-loaded?
@@ -148,11 +144,6 @@
 (reg-sub :project-source/sample-article
          (fn [db [_ project-id source-id] _]
            (get-in db [:data :project project-id :sample-article source-id])))
-
-(reg-event-db :project/clear-data [trim-v]
-              #(if-let [project-id (active-project-id %)]
-                 (dissoc-in % [:data :project project-id])
-                 %))
 
 (reg-sub :project/has-articles?
          (fn [[_ project-id]] (subscribe [:project/article-counts project-id]))

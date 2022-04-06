@@ -680,11 +680,6 @@
                          (sync-filters-input context))
                  ::al/reload-list [context :transition]}))
 
-(reg-event-fx :article-list/load-preset [trim-v]
-              (fn [_ [context _preset-name]]
-                (let [preset (:self @(subscribe [:articles/filter-presets]))]
-                  {:dispatch [:article-list/load-settings context preset]})))
-
 (defn- WrapFilterDisabled [content enabled? message width]
   (if enabled?
     content

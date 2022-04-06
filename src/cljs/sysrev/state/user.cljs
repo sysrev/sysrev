@@ -5,10 +5,6 @@
 
 (reg-sub ::users #(get-in % [:data :users]))
 
-(reg-sub :user/all-user-ids
-         :<- [::users]
-         keys)
-
 (reg-sub ::user
          :<- [::users]
          :<- [:self/user-id]
@@ -32,18 +28,6 @@
 (reg-sub :user/dev?
          (fn [[_ user-id]] (subscribe [:user/permissions user-id]))
          #(boolean (in? % "admin")))
-
-(reg-sub :user/visible?
-         (fn [[_ user-id _include-self-dev?]]
-           [(subscribe [:self/user-id])
-            (subscribe [:user/dev? user-id])])
-         (fn [[self-id dev?] [_ user-id include-self-dev?]]
-           (or (not dev?)
-               (and include-self-dev? (= user-id self-id)))))
-
-(reg-sub :user/project-ids
-         (fn [[_ user-id]] (subscribe [::user user-id]))
-         #(:projects %))
 
 (reg-sub :user/api-key
          (fn [[_ user-id]] (subscribe [::user user-id]))

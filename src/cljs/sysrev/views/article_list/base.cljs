@@ -100,10 +100,6 @@
          (fn [[_ context]] (subscribe [::get context]))
          #(or (:display-offset %) 0))
 
-(reg-sub ::active-article
-         (fn [[_ context]] (subscribe [::get context]))
-         #(:active-article %))
-
 (reg-event-fx ::set-active-article [trim-v]
               (fn [{:keys [db]} [context article-id]]
                 {:db (set-state db context [:active-article] article-id)}))

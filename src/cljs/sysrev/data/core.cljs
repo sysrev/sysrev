@@ -193,14 +193,6 @@
   (->> (get-needed-items db)
        (remove (partial have-item? db))
        vec))
-(reg-sub ::missing get-missing-items)
-
-;; Tests whether all required data has been loaded
-(reg-sub :data/ready?
-         :<- [:initialized?]
-         :<- [::missing]
-         (fn [[initialized? missing]]
-           (boolean (and initialized? (empty? missing)))))
 
 ;; TODO: replace this with a queue for items to fetch in @app-db
 (defonce

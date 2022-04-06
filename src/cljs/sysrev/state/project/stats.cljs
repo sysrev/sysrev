@@ -18,22 +18,6 @@
          (fn [[_ project-id]] (subscribe [::stats project-id]))
          #(:status-counts %))
 
-(reg-sub :project/labeled-counts
-         (fn [[_ project-id]] (subscribe [:project/status-counts project-id]))
-         (fn [counts]
-           (let [get-count   #(get counts % 0)
-                 single      (+ (get-count [:single true])
-                                (get-count [:single false]))
-                 consistent  (+ (get-count [:consistent true])
-                                (get-count [:consistent false]))
-                 resolved    (+ (get-count [:resolved true])
-                                (get-count [:resolved false]))
-                 conflict    (get-count [:conflict nil])]
-             {:single single
-              :consistent consistent
-              :resolved resolved
-              :conflict conflict})))
-
 (reg-sub :project/progress-counts
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(-> % :stats :progress))

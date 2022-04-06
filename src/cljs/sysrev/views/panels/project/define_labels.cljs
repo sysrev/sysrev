@@ -3,8 +3,7 @@
             ["@material-ui/core" :as mui]
             [clojure.string :as str]
             [clojure.walk :as walk]
-            [re-frame.core :refer [dispatch dispatch-sync reg-event-db reg-sub
-                                   subscribe trim-v]]
+            [re-frame.core :refer [dispatch dispatch-sync reg-sub subscribe]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.action.core :as action :refer [def-action]]
@@ -35,10 +34,6 @@
 (setup-panel-state panel [:project :project :labels :edit] :state state
                    :get [panel-get ::get]
                    :set [panel-set ::set])
-
-(reg-sub      ::error-message #(panel-get % :error-message))
-(reg-event-db ::error-message [trim-v]
-              (fn [db [msg]] (panel-set db :error-message msg)))
 
 (defn find-label [label-id labels]
   (some #(when (= (:label-id %) label-id) %) labels))
@@ -493,7 +488,7 @@
   (label-setting-field-args setting @errors extra))
 
 (defn LabelEditForm [labels-atom root-label-id label]
-  (let [show-error-msg #(some->> (or % @(subscribe [::error-message]))
+  (let [show-error-msg #(some->> (or % @(subscribe [::get [:error-message]]))
                                  (vector :div.ui.red.message))
         value-type (r/cursor label [:value-type])
         ;;; all types
@@ -540,9 +535,9 @@
     [:form.ui.form.define-label {:on-submit (util/wrap-user-event
                                              (fn [_]
                                                (if (and is-owned? (not (labels-synced?)))
-                                                  ;; save on server
+                                                 ;; save on server
                                                  (sync-to-server)
-                                                  ;; just reset editing
+                                                 ;; just reset editing
                                                  (reset! (r/cursor label [:editing?]) false)))
                                              :prevent-default true)}
      (when (string? @value-type)

@@ -54,24 +54,6 @@
            (->> (keys labels)
                 (find-first #(= "overall include" (get-in labels [% :name]))))))
 
-(defn from-label-local-id [db & [project-id]]
-  (let [labels (project-labels db project-id)]
-    (->> (vals labels)
-         (map (fn [{:keys [label-id label-id-local]}]
-                [label-id-local label-id]))
-         (apply concat)
-         (apply hash-map))))
-
-(reg-sub :label/from-local-id
-         (fn [db [_ project-id]]
-           (from-label-local-id db project-id)))
-
-(reg-sub :label/id-from-short-label
-         (fn [[_ _ project-id]] (subscribe [::labels project-id]))
-         (fn [labels [_ short-label _]]
-           (:label-id (find-first #(= short-label (:short-label %))
-                                  (vals labels)))))
-
 (reg-sub :label/required?
          (fn [[_ root-label-id label-id project-id]]
            (subscribe [::label root-label-id label-id project-id]))
@@ -127,11 +109,6 @@
              "annotation" (:all-values definition)
              nil)))
 
-(reg-sub :label/inclusion-values
-         (fn [[_ root-label-id label-id project-id]]
-           (subscribe [::definition root-label-id label-id project-id]))
-         #(:inclusion-values %))
-
 (reg-sub :label/examples
          (fn [[_ root-label-id label-id project-id]]
            (subscribe [::definition root-label-id label-id project-id]))
@@ -153,18 +130,6 @@
          #(boolean (:validatable-label? %)))
 
 (reg-sub :label/valid-string-value?
-         (fn [[_ root-label-id label-id _val project-id]]
-           [(subscribe [:label/value-type root-label-id label-id project-id])
-            (subscribe [::definition root-label-id label-id project-id])])
-         (fn [[value-type definition] [_ _ _  val _]]
-           (when (= value-type "string")
-             (let [{:keys [regex max-length]} definition]
-               (boolean (and (string? val)
-                             (<= (count val) max-length)
-                             (or (empty? regex)
-                                 (some #(re-matches (re-pattern %) val) regex))))))))
-
-(reg-sub :label/valid-id-value?
          (fn [[_ root-label-id label-id _val project-id]]
            [(subscribe [:label/value-type root-label-id label-id project-id])
             (subscribe [::definition root-label-id label-id project-id])])

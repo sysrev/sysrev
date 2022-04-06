@@ -108,7 +108,8 @@
                      poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
-                     poly/sqlite {:local/root "components/sqlite"}}}
+                     poly/sqlite {:local/root "components/sqlite"}
+                     clj-kondo/clj-kondo {:mvn/version "2022.03.09"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "1.2.3"}}
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user]}"]}

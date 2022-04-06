@@ -106,12 +106,6 @@
 (reg-event-db :self/orgs [trim-v]
               (fn [db [orgs]] (assoc-in db [:state :self :orgs] orgs)))
 
-(reg-sub :self/org-permissions
-         :<- [:self/orgs]
-         (fn [orgs [_ org-id]]
-           ((comp :permissions first)
-            (filter #(= (:group-id %) org-id) orgs))))
-
 (reg-sub :self/member?
          :<- [:self/user-id]
          :<- [:self/projects false]

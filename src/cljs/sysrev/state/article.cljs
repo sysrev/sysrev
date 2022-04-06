@@ -97,10 +97,6 @@
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:datasource-name article)))
 
-(reg-sub :article/json
-         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
-         (fn [article] (:json article)))
-
 (reg-sub :article/content
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:content article)))
@@ -164,10 +160,6 @@
 (reg-sub :article/resolve-user-id
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (-> article :resolve :user-id)))
-
-(reg-sub :article/resolve-labels
-         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
-         (fn [article] (-> article :resolve :labels)))
 
 (defn- article-user-status-impl [user-id ulmap]
   (cond (nil? user-id)  :logged-out
