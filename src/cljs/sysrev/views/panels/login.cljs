@@ -8,7 +8,7 @@
             [sysrev.base :as base :refer [active-route]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.action.core :as action]
+            [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.views.semantic :as S]
@@ -34,19 +34,16 @@
        (list [:register/org-id invite-code (:org-id org)]
              [:register/org-name invite-code (:name org)])})))
 
-;; TODO: change this to def-action, doesn't using loaded concept
-(def-data :nav-google-login
+(def-action :nav-google-login
+  :method   :get
   :uri      "/api/auth/google-oauth-url"
-  :loaded?  false
-  :content  (fn [register?]
+  :content  (fn [register? redirect]
               {:base-url (nav/current-url-base)
-               :register (if register? "true" "false")})
+               :register (if register? "true" "false")
+               :redirect redirect})
   :process  (fn [_ _ oauth-url]
               (when (string? oauth-url)
                 (nav/load-url oauth-url :absolute true))))
-
-(defn nav-google-login [register?]
-  (dispatch [:fetch [:nav-google-login register?]]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -199,15 +196,6 @@
               (fn [_ [error-msg]]
                 {:dispatch [:set-view-field :login [:err] error-msg]}))
 
-(reg-sub ::header-title
-         :<- [:register/invite-code]
-         :<- [::register?]
-         (fn [[invite-code register?]]
-           (let [project? (and register? invite-code)]
-             (cond project?   "Register for project"
-                   register?  "Register"
-                   :else      "Login"))))
-
 (reg-sub ::form-errors
          :<- [::fields]
          :<- [::submitted-fields]
@@ -236,13 +224,14 @@
               :src (str "/images/google_signin/btn_google_" "dark" "_"
                         img-type "_ios.svg")}]))
 
-(defn GoogleLogInButton [{:keys [type] :or {type "login"}}]
+;; TODO implement redirect behavior for google login
+(defn GoogleLogInButton [{:keys [type redirect] :or {type "login"}}]
   [S/Button {:id (if (= type "login")
                    "google-login-button"
                    "google-signup-button")
              :as "div"
              :on-click (wrap-prevent-default
-                        #(nav-google-login (= type "register")))
+                        #(run-action :nav-google-login (= type "register") redirect))
              :label-position "left"
              :style {:margin-top "0.5em" :margin-left "auto" :margin-right "auto"}}
    [GoogleLogInImage "normal"]
@@ -267,8 +256,10 @@
         field-error #(when-let [msg (get form-errors %)]
                        [:div.ui.warning.message msg])
         form-class (when-not (empty? form-errors) "warning")
-        redirect (uri-utils/getParamValue @active-route "redirect")
+        redirect-param (uri-utils/getParamValue @active-route "redirect")
         redirect-message (uri-utils/getParamValue @active-route "redirect_message")
+        state-redirect @(subscribe [:login-redirect-url])
+        redirect (or redirect-param state-redirect)
         _dark? @(subscribe [:self/dark-theme?])]
     (with-loader (if invite-code
                    [[:invite-code-info invite-code]]
@@ -327,7 +318,8 @@
          (when-let [err @(subscribe [::login-error-msg])]
            [:div.ui.negative.message err])
          [:div [:div.ui.divider]
-          [GoogleLogInButton {:type (if register? "register" "login")}]]
+          [GoogleLogInButton {:type (if register? "register" "login")
+                              :redirect redirect}]]
          (let [{:keys [auth-error auth-email]} (util/get-url-params)]
            (when auth-error
              [:div.ui.negative.message
