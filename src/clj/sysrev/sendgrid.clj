@@ -41,7 +41,7 @@
 (defn- send-email
   [to from subject payload & {:keys [cc]}]
   (let [request-params (merge {:personalizations [{:to [{:email to}]
-                                                          :cc [{:email cc}]
+                                                          :cc (when (seq cc) [{:email cc}])
                                                           :subject subject}]
                                       :from {:email from
                                              :name "SysRev"}
