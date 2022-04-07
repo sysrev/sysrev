@@ -225,6 +225,44 @@
         :Resource
         (join "" ["arn:aws:s3:::" (ref :CodeBucket) "/*"])}]}}}
 
+   :CacheBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "Private"
+     :PublicAccessBlockConfiguration
+     {:BlockPublicAcls true
+      :BlockPublicPolicy true
+      :IgnorePublicAcls true
+      :RestrictPublicBuckets true}}}
+
+   :CacheBucketFullAccessPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :CacheBucket)])}
+       {:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :CacheBucket) "/*"])}]}}}
+
+   :CacheBucketFullAccessRole
+   {:Type "AWS::IAM::Role"
+    :Properties
+    {:AssumeRolePolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["sts:AssumeRole" "sts:TagSession"]
+        :Effect "Allow"
+        :Principal {:AWS (arn :GitHubActionsUser)}}]}
+     :ManagedPolicyArns [(ref :CacheBucketFullAccessPolicy)]
+     :MaxSessionDuration 7200
+     :RoleName "CacheBucketFullAccessRole"}}
+
    :AdminAccessCloudFormationServiceRole
    {:Type "AWS::IAM::Role"
     :Properties
@@ -377,6 +415,7 @@
      [(ref :AdminAccessCloudFormationServicePassRolePolicy)
       (ref :CloudFormationCreateUpdatePolicy)
       (ref :CodeBucketFullAccessPolicy)
+      (ref :CacheBucketFullAccessPolicy)
       (ref :PackerBuildPolicy)]
      :UserName "github-actions"}}
 
@@ -430,6 +469,7 @@
   (prefixed-outputs
    "${AWS::StackName}-"
    {:AdminAccessCloudFormationServiceRoleArn [(arn :AdminAccessCloudFormationServiceRole)]
+    :CacheBucket [(ref :CacheBucket)]
     :CloudFrontOAI [(ref :CloudFrontOAI)]
     :CodeBucket [(ref :CodeBucket)]
     :DatapubBucket [(ref :DatapubBucket)]

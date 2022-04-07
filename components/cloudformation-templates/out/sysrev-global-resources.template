@@ -26,6 +26,16 @@
         "Fn::GetAtt" : [ "AdminAccessCloudFormationServiceRole", "Arn" ]
       }
     },
+    "CacheBucket" : {
+      "Export" : {
+        "Name" : {
+          "Fn::Sub" : "${AWS::StackName}-CacheBucket"
+        }
+      },
+      "Value" : {
+        "Ref" : "CacheBucket"
+      }
+    },
     "CloudFrontOAI" : {
       "Export" : {
         "Name" : {
@@ -166,6 +176,65 @@
         },
         "ManagedPolicyArns" : [ "arn:aws:iam::aws:policy/AdministratorAccess" ],
         "RoleName" : "AdminAccessCloudFormationServiceRole"
+      },
+      "Type" : "AWS::IAM::Role"
+    },
+    "CacheBucket" : {
+      "Properties" : {
+        "AccessControl" : "Private",
+        "PublicAccessBlockConfiguration" : {
+          "BlockPublicAcls" : true,
+          "BlockPublicPolicy" : true,
+          "IgnorePublicAcls" : true,
+          "RestrictPublicBuckets" : true
+        }
+      },
+      "Type" : "AWS::S3::Bucket"
+    },
+    "CacheBucketFullAccessPolicy" : {
+      "Properties" : {
+        "PolicyDocument" : {
+          "Statement" : [ {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "CacheBucket"
+              } ] ]
+            }
+          }, {
+            "Action" : "*",
+            "Effect" : "Allow",
+            "Resource" : {
+              "Fn::Join" : [ "", [ "arn:aws:s3:::", {
+                "Ref" : "CacheBucket"
+              }, "/*" ] ]
+            }
+          } ],
+          "Version" : "2012-10-17"
+        }
+      },
+      "Type" : "AWS::IAM::ManagedPolicy"
+    },
+    "CacheBucketFullAccessRole" : {
+      "Properties" : {
+        "AssumeRolePolicyDocument" : {
+          "Statement" : [ {
+            "Action" : [ "sts:AssumeRole", "sts:TagSession" ],
+            "Effect" : "Allow",
+            "Principal" : {
+              "AWS" : {
+                "Fn::GetAtt" : [ "GitHubActionsUser", "Arn" ]
+              }
+            }
+          } ],
+          "Version" : "2012-10-17"
+        },
+        "ManagedPolicyArns" : [ {
+          "Ref" : "CacheBucketFullAccessPolicy"
+        } ],
+        "MaxSessionDuration" : 7200,
+        "RoleName" : "CacheBucketFullAccessRole"
       },
       "Type" : "AWS::IAM::Role"
     },
@@ -384,6 +453,8 @@
           "Ref" : "CloudFormationCreateUpdatePolicy"
         }, {
           "Ref" : "CodeBucketFullAccessPolicy"
+        }, {
+          "Ref" : "CacheBucketFullAccessPolicy"
         }, {
           "Ref" : "PackerBuildPolicy"
         } ],
