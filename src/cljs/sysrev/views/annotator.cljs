@@ -511,5 +511,6 @@
 
          (= "delete" action)
          (doseq [^js a annotations]
-           (dispatch-sync [::remove-ann annotation-context (uuid (.-Id a))]))))}
+           (dispatch-sync [::remove-ann annotation-context (uuid (.-Id a))]))))
+     :read-only read-only?}
     opts)])

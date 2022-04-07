@@ -1,6 +1,7 @@
 (ns sysrev.views.components.pdfjs-express
   (:require ["@pdftron/pdfjs-express" :default WebViewer]
             [clojure.data.xml :as dxml]
+            [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [reagent.dom :as rdom]
@@ -73,7 +74,8 @@
                       "annotationChanged"
                       #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))))))
       :reagent-render
-      (fn [{:keys [annotations disabled-elements disabled-tools document-id features on-annotation-changed theme url]}]
+      (fn [{:keys [annotations disabled-elements disabled-tools document-id features
+                   on-annotation-changed read-only? theme url]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
         (let [^js vwr @viewer
@@ -118,7 +120,13 @@
                     (.importAnnotations ann-mgr (dxml/emit-str (xfdf-doc m)))))
                 (doseq [^js a ann-list]
                   (when-not (get anns (.-Id a))
-                    (.deleteAnnotations ann-mgr #js[a]))))))
+                    (.deleteAnnotations ann-mgr #js[a])))))
+            ;; Ensure that we aren't using an annotation tool in read-only mode (#80)
+            ;; Must come after the annotations updates
+            (when (and read-only?
+                       (some-> ^js (.getToolMode ui)
+                               .-name str/lower-case (str/includes? "annotation")))
+              (.setToolMode ui "TextSelect")))
           [:div {:style {:height (* 0.98 js/window.innerHeight)}}
            [:div {:style {:display (when-not vwr "none")
                           :height "100%"}}]]))})))
