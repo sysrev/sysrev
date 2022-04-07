@@ -22,17 +22,21 @@
 
 (defn- request
   [endpoint & [params headers]]
-  (try (let [resp (-> (http/post (str sendgrid-api-url endpoint)
-                                 (merge-with merge
-                                             common-opts
-                                             {:form-params params}
-                                             {:headers headers}))
-                      :body)]
-         {:success (empty? (:errors resp))
-          :resp resp})
-       (catch Throwable _
-         {:success false
-          :resp {:error {:message "Unknown error."}}})))
+  (let [{:keys [errors] :as body}
+        #__ (-> (http/post (str sendgrid-api-url endpoint)
+                           (merge-with merge
+                                       common-opts
+                                       {:form-params params}
+                                       {:headers headers}))
+                :body)]
+    (when (seq errors)
+      (throw (ex-info "Error sending email"
+                      {:endpoint endpoint
+                       :headers headers
+                       :errors errors
+                       :params params})))
+    {:success true
+     :resp body}))
 
 ;; Example usage of :substitutions key
 ;; {:%name% "Jerry Seinfield"
