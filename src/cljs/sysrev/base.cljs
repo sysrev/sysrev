@@ -41,8 +41,8 @@
               (fn []
                 (let [args (js-arguments)]
                   (.apply default-fn js/console (garray/clone args))
-                  (when (empty? (filter #(re-find % (-> (js->clj args) vec pr-str str/lower-case))
-                                        ignore-regexps))
+                  (when-not (some #(re-find % (-> (js->clj args) vec pr-str))
+                                  ignore-regexps)
                     (swap! console-logs update msg-type
                            #(conj (or % [])
                                   {:data (vec (js->clj args))
@@ -53,12 +53,12 @@
       (set! js/console.warn
             (make-console-fn :warn js/console.defaultWarn
                              :ignore-regexps
-                             [#"you may test.*stripe.*integration"]))
+                             [#"(?i)you may test.*stripe.*integration"]))
       (set! js/console.error
             (make-console-fn :error js/console.defaultError
                              :ignore-regexps
-                             [#"no longer attached.*unable to animate"
-                              #"taoensso.sente.*WebSocket error"]))
+                             [#"(?i)no longer attached.*unable to animate"
+                              #"(?i)taoensso\.sente.*WebSocket error"]))
 
       ;; re-frame grabs the console.log fns on import, so we have to reset them
       (set-loggers! {:debug js/console.debug
@@ -72,7 +72,7 @@
   (let [[primary & other] entry]
     (if (and (empty? other)
              (vector? primary)
-             (= 2 (count primary)) )
+             (= 2 (count primary)))
       (str "[" (first primary) "] " (second primary))
       (pr-str entry))))
 
