@@ -288,8 +288,6 @@
                                 (assoc :product-name (get-in products [(:product %) :name]))))
                      (mapv #(update % :created util/to-clj-time))
                      (mapv #(update % :tiers db/to-jsonb)))]
-      (when-let [invalid-plans (seq (->> plans (filter #(nil? (:nickname %)))))]
-        (log/warnf "invalid stripe plan entries:\n%s" (pr-str invalid-plans)))
       (when-let [valid-plans (->> plans (remove #(nil? (:nickname %))) seq)]
         (-> (insert-into :stripe-plan)
             (values valid-plans)
