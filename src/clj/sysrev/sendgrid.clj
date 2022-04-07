@@ -38,20 +38,15 @@
     {:success true
      :resp body}))
 
-;; Example usage of :substitutions key
-;; {:%name% "Jerry Seinfield"
-;;  :%planName% "Standard Plan"}
-;; If, in your sendgrid template, you had e.g., "Hi %name%"
 (defn- send-email
-  [to from subject payload & {:keys [substitutions cc]}]
+  [to from subject payload & {:keys [cc]}]
   (let [request-params (merge {:personalizations [{:to [{:email to}]
-                                                   :cc [{:email cc}]
-                                                   :subject subject
-                                                   :substitutions substitutions}]
-                               :from {:email from
-                                      :name "SysRev"}
-                               :asm {:group_id sendgrid-asm-group-id}}
-                              payload)]
+                                                          :cc [{:email cc}]
+                                                          :subject subject}]
+                                      :from {:email from
+                                             :name "SysRev"}
+                                      :asm {:group_id sendgrid-asm-group-id}}
+                                     payload)]
     (if (:mock-email env)
       (do
         (log/debug "Would have emailed:" request-params)
@@ -68,10 +63,9 @@
 
 (defn send-template-email
   [to subject message
-   & {:keys [from template-id substitutions]
+   & {:keys [from template-id]
       :or {from sendgrid-default-from
            template-id sendgrid-default-template-id}}]
   (send-email to from subject
               {:content [{:type "text/html" :value message}]
-               :template_id template-id}
-              :substitutions substitutions))
+               :template_id template-id}))
