@@ -193,10 +193,10 @@
 (defn editor-hotkeys-listener [{:keys [values callback]}]
   (fn []
     (doall
-      (map-indexed
-        (fn [idx v]
-          (useHotkeys (str "shift+" (inc idx)) #(callback idx v)))
-        values))
+     (map-indexed
+      (fn [idx v]
+        (useHotkeys (str "shift+" (inc idx)) #(callback idx v)))
+      values))
     [:<>]))
 
 (defn AnnotationEditor [context ann-id annotation]
@@ -296,15 +296,6 @@
            [:i.red.circle.times.icon]
            (when full-width? "Delete")]]])]]))
 
-;; Returns map of all annotations for context.
-;; Includes new-annotation entry when include-new is true.
-#_
-(reg-sub :annotator/all-annotations
-         (fn [[_ context _]] (subscribe (annotator-data-item context)))
-         (fn [annotations [_ _ include-new]]
-           (cond-> annotations
-             (not include-new) (dissoc draft-ann-id))))
-
 ;; Returns map of annotations for context filtered by user-id.
 ;; Includes new-annotation entry for self-id unless only-saved is true.
 (reg-sub :annotator/user-annotations
@@ -348,13 +339,13 @@
      [:div {:style {:margin "8px"}}
       "Select text to annotate. You can use the following key shortcuts:"]
      (doall
-       (for [[idx v] (map-indexed vector all-values)] ^{:key idx}
-         [:div.ui.secondary.basic.label {:style {:margin 5}}
-          "shift+" (inc idx)
-          [:span.detail v]]))
+      (for [[idx v] (map-indexed vector all-values)] ^{:key idx}
+           [:div.ui.secondary.basic.label {:style {:margin 5}}
+            "shift+" (inc idx)
+            [:span.detail v]]))
      (doall
       (for [[annotation-id annotation] (reverse annotations)] ^{:key annotation-id}
-        [AnnotationEditor context annotation-id annotation]))]))
+           [AnnotationEditor context annotation-id annotation]))]))
 
 (defonce js-text-type (type (js/Text.)))
 
@@ -455,6 +446,33 @@
        :content first :content first
        clean-up-xfdf-annotation))
 
+
+(defn annotation-changed-fn [annotation-context document-id]
+  (fn [^js viewer annotations action]
+    (cond
+      (#{"add" "modify"} action)
+      (let [^js ann-mgr (.-annotationManager ^js (.-Core viewer))]
+        (doseq [^js a annotations
+                :let [contents (.getContents a)
+                      id (uuid (.-Id a))
+                      subject (.-Subject a)]]
+          (when (or (seq contents) (= "Rectangle" subject)) ; Ignore spurious blank annotations
+            (.then
+             (.exportAnnotations ann-mgr #js{:annotList #js[a]})
+             (fn [xml-str]
+               (dispatch-sync [::set annotation-context [:editing-id] id])
+               (dispatch-sync [::set annotation-context
+                               [:annotations id]
+                               {:annotation-id id
+                                :document-id document-id
+                                :selection contents
+                                :value contents
+                                :xfdf (parse-xfdf-annotations xml-str)}]))))))
+
+      (= "delete" action)
+      (doseq [^js a annotations]
+        (dispatch-sync [::remove-ann annotation-context (uuid (.-Id a))])))))
+
 (defn AnnotatingPDFViewer [{:keys [annotation-context document-id read-only?] :as opts}]
   [pdfjs-express/Viewer
    (merge
@@ -488,29 +506,6 @@
          "toolsHeader"]))
      :features (conj pdfjs-express/default-features "Annotations")
      :on-annotation-changed
-     (fn [^js viewer annotations action]
-       (cond
-         (#{"add" "modify"} action)
-         (let [^js ann-mgr (.-annotationManager ^js (.-Core viewer))]
-           (doseq [^js a annotations
-                   :let [contents (.getContents a)
-                         id (uuid (.-Id a))
-                         subject (.-Subject a)]]
-             (when (or (seq contents) (= "Rectangle" subject)) ; Ignore spurious blank annotations
-               (.then
-                (.exportAnnotations ann-mgr #js{:annotList #js[a]})
-                (fn [xml-str]
-                  (dispatch-sync [::set annotation-context [:editing-id] id])
-                  (dispatch-sync [::set annotation-context
-                                  [:annotations id]
-                                  {:annotation-id id
-                                   :document-id document-id
-                                   :selection contents
-                                   :value contents
-                                   :xfdf (parse-xfdf-annotations xml-str)}]))))))
-
-         (= "delete" action)
-         (doseq [^js a annotations]
-           (dispatch-sync [::remove-ann annotation-context (uuid (.-Id a))]))))
+     (annotation-changed-fn annotation-context document-id)
      :read-only read-only?}
     opts)])

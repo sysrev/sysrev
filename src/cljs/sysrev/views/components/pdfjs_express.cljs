@@ -52,6 +52,14 @@
                                     {:tag :xmlns.http%3A%2F%2Fns.adobe.com%2Fxfdf%2F/contents
                                      :content [(or selection "")]}))]}]})
 
+(defn event-listener [viewer listeners]
+  (fn [^js vwr]
+    (reset! viewer vwr)
+    (.addEventListener
+     ^js (.-annotationManager ^js (.-Core vwr))
+     "annotationChanged"
+     #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))))
+
 (defn Viewer []
   (let [doc-loaded? (r/atom false)
         last-url (atom nil)
@@ -67,12 +75,7 @@
                  :licenseKey "7p73z8HHl8MotUxQWKHQ"
                  :path "/js/pdfjs-express"}
              (first (.-children (rdom/dom-node this))))
-            (.then (fn [^js vwr]
-                     (reset! viewer vwr)
-                     (.addEventListener
-                      ^js (.-annotationManager ^js (.-Core vwr))
-                      "annotationChanged"
-                      #(some-> @listeners :on-annotation-changed (apply (cons vwr %&))))))))
+            (.then (event-listener viewer listeners))))
       :reagent-render
       (fn [{:keys [annotations disabled-elements disabled-tools document-id features
                    on-annotation-changed read-only? theme url]}]
