@@ -244,7 +244,7 @@
                   user-id (current-user-id request)]
               (assert (integer? user-id))
               (api/create-project-for-user!
-               (:web-server request)
+               (:sr-context request)
                project-name user-id public-access)))))
 
 (dr (POST "/api/clone-project" request
@@ -415,55 +415,56 @@
             (let [{:keys [search-term]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-articles-from-search request project-id search-term :user-id user-id)))))
+              (api/import-articles-from-search
+               (:sr-context request) project-id search-term :user-id user-id)))))
 
 (dr (POST "/api/import-articles/pmid-file/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   {:keys [tempfile filename]} (get-in request [:params :file])
                   user-id (current-user-id request)]
-              (api/import-articles-from-file request project-id tempfile filename :user-id user-id)))))
+              (api/import-articles-from-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/endnote-xml/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   {:keys [tempfile filename]} (get-in request [:params :file])
                   user-id (current-user-id request)]
-              (api/import-articles-from-endnote-file request project-id tempfile filename :user-id user-id)))))
+              (api/import-articles-from-endnote-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/pdf-zip/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   {:keys [tempfile filename]} (get-in request [:params :file])
                   user-id (current-user-id request)]
-              (api/import-articles-from-pdf-zip-file request project-id tempfile filename :user-id user-id)))))
+              (api/import-articles-from-pdf-zip-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/json/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   {:keys [tempfile filename]} (get-in request [:params :file])
                   user-id (current-user-id request)]
-              (api/import-articles-from-json-file request project-id tempfile filename :user-id user-id)))))
+              (api/import-articles-from-json-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/pdfs/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-articles-from-pdfs request project-id (:multipart-params request) :user-id user-id)))))
+              (api/import-articles-from-pdfs (:sr-context request) project-id (:multipart-params request) :user-id user-id)))))
 
 (dr (POST "/api/import-articles/ris/:project-id" request
           (with-authorize request {:roles ["admin"]}
             (let [project-id (active-project request)
                   {:keys [tempfile filename]} (get-in request [:params :file])
                   user-id (current-user-id request)]
-              (api/import-articles-from-ris-file request project-id tempfile filename :user-id user-id)))))
+              (api/import-articles-from-ris-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-trials/ctgov" request
           (with-authorize request {:roles ["admin"]}
             (let [{:keys [entity-ids query]} (:body request)
                   project-id (active-project request)
                   user-id (current-user-id request)]
-              (api/import-trials-from-search request project-id query entity-ids
+              (api/import-trials-from-search (:sr-context request) project-id query entity-ids
                                              :user-id user-id)))))
 
 (dr (POST "/api/import-trials/fda-drugs-docs" request
@@ -472,14 +473,14 @@
                   project-id (active-project request)
                   user-id (current-user-id request)]
               (api/import-trials-from-fda-drugs-docs
-               request project-id query entity-ids
+               (:sr-context request) project-id query entity-ids
                :user-id user-id)))))
 
-(dr (POST "/api/import-project-articles" request
+(dr (POST "/api/import-project-articles"
+      {:keys [body sr-context] :as request}
       (with-authorize request {:roles ["admin"]}
-        (let [{:keys [project-id url]} (:body request)]
-          (api/import-project-articles
-           request project-id url)))))
+        (let [{:keys [project-id url]} body]
+          (api/import-project-articles sr-context project-id url)))))
 ;;;
 ;;; Article review
 ;;;
@@ -655,11 +656,9 @@
                   _user-id (current-user-id request)]
               (api/update-source source-id check-new-results? import-new-results? notes)))))
 
-(dr (POST "/api/re-import-source" request
+(dr (POST "/api/re-import-source" {:keys [body sr-context] :as request}
           (with-authorize request {:roles ["admin"]}
-            (let [{:keys [source-id]} (-> request :body)
-                  _user-id (current-user-id request)]
-              (api/re-import-source request source-id (:web-server request))))))
+            (api/re-import-source sr-context (:source-id body)))))
 
 (dr (GET "/api/sources/download/:project-id/:source-id" request
          (with-authorize request {:allow-public true}

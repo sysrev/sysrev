@@ -17,12 +17,12 @@
             [venia.core :as venia]))
 
 (deftest ^:integration test-import-one-type
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)]
       (user/change-user-setting user-id :dev-account-enabled? true)
       (testing "Articles can be imported from a project with one type of article"
         (let [project-1-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Source"
                                 user-id
                                 true)
@@ -30,7 +30,7 @@
                                :project-id)
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Target"
                                 user-id
                                 true)
@@ -40,8 +40,7 @@
               pdf-zip (-> (str "test-files/" filename) io/resource io/file)]
           (db/with-transaction
             (src/import-source
-             {:web-server (:web-server system)}
-             :pdf-zip
+             sr-context :pdf-zip
              project-1-id {:file pdf-zip :filename filename}
              {:use-future? false}))
           (is (= 4 (project/project-article-count project-1-id)))
@@ -65,12 +64,12 @@
             (is (= 1 (title-count "Plosker Troglitazone.pdf")))))))))
 
 (deftest ^:integration test-import-one-type-with-filters
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)]
       (user/change-user-setting user-id :dev-account-enabled? true)
       (testing "Articles can be imported from a project with one type of article and filters"
         (let [project-1-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Source"
                                 user-id
                                 true)
@@ -78,7 +77,7 @@
                                :project-id)
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Target"
                                 user-id
                                 true)
@@ -88,8 +87,7 @@
               pdf-zip (-> (str "test-files/" filename) io/resource io/file)]
           (db/with-transaction
             (src/import-source
-             {:web-server (:web-server system)}
-             :pdf-zip
+             sr-context :pdf-zip
              project-1-id {:file pdf-zip :filename filename}
              {:use-future? false}))
           (is (= 4 (project/project-article-count project-1-id)))
@@ -113,12 +111,12 @@
             (is (= 0 (title-count "Plosker Troglitazone.pdf")))))))))
 
 (deftest ^:integration test-import-two-types
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)]
       (user/change-user-setting user-id :dev-account-enabled? true)
       (testing "Articles can be imported from a project with two types of article"
         (let [project-1-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Source"
                                 user-id
                                 true)
@@ -126,7 +124,7 @@
                                :project-id)
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Target"
                                 user-id
                                 true)
@@ -136,16 +134,14 @@
               pdf-zip (-> (str "test-files/" filename) io/resource io/file)]
           (db/with-transaction
             (src/import-source
-             {:web-server (:web-server system)}
-             :pdf-zip
+             sr-context :pdf-zip
              project-1-id {:file pdf-zip :filename filename}
              {:use-future? false})
             (let [query (ctgov/query->datapub-input {:search "cancer"})
                   entity-ids (->> (dpc/search-dataset query "externalId id" :endpoint (:datapub-ws (:config system)))
                                   (map :id))]
               (src/import-source
-               {:web-server (:web-server system)}
-               :ctgov
+               sr-context :ctgov
                project-1-id
                {:entity-ids entity-ids
                 :query query}
@@ -171,12 +167,12 @@
             (is (= 1 (title-count "A Study of TAS2940 in Participants With Locally Advanced or Metastatic Solid Tumor Cancer")))))))))
 
 (deftest ^:integration test-re-import-one-type
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)]
       (user/change-user-setting user-id :dev-account-enabled? true)
       (testing "Articles can be re-imported from a project with one type of article"
         (let [project-1-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Source"
                                 user-id
                                 true)
@@ -184,7 +180,7 @@
                                :project-id)
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
-                                (:web-server system)
+                                sr-context
                                 "Project Filter Import Target"
                                 user-id
                                 true)
@@ -212,19 +208,13 @@
             (is (= 0 (title-count "Plosker Troglitazone.pdf"))))
           (db/with-transaction
             (src/import-source
-             {:web-server (:web-server system)}
-             :pdf-zip
-             project-1-id {:file pdf-zip :filename filename}
+             sr-context :pdf-zip project-1-id {:file pdf-zip :filename filename}
              {:use-future? false}))
           (is (= 4 (project/project-article-count project-1-id)))
           (let [[{:keys [source-id] :as source}] (source/project-sources project-2-id)]
             (is (= 4 (living-data-sources/check-new-articles-project-filter source)))
             (is (= {:source-id source-id}
-                   (source/re-import
-                    {:web-server (:web-server system)}
-                    project-2-id
-                    source
-                    {})))
+                   (source/re-import {:sr-context sr-context} project-2-id source)))
             (is (test/wait-not-importing? system project-2-id 10000))
             (is (= 4 (project/project-article-count project-2-id)))
             (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
@@ -235,11 +225,7 @@
             (testing "Re-importing does not create duplicate articles"
               (is (= 0 (living-data-sources/check-new-articles-project-filter source)))
               (is (= {:source-id source-id}
-                     (source/re-import
-                      {:web-server (:web-server system)}
-                      project-2-id
-                      source
-                      {})))
+                     (source/re-import {:sr-context sr-context} project-2-id source)))
               (is (test/wait-not-importing? system project-2-id 10000))
               (is (= 4 (project/project-article-count project-2-id)))
               (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id

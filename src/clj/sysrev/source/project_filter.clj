@@ -61,9 +61,9 @@
      (query-project-article-ids {:project-id source-project-id} filters))))
 
 (defn import-articles!
-  [request project-id source-id article-ids & {:keys [ignore-existing?]}]
+  [sr-context project-id source-id article-ids & {:keys [ignore-existing?]}]
   (db/with-long-transaction
-    [_ (:postgres (:web-server request))]
+    [_ (:postgres sr-context)]
     (let [old-articles (get-source-project-articles source-id article-ids)
           new-ids (when (seq old-articles)
                     (q/create :article
@@ -83,10 +83,10 @@
                   (map #(do {:article-id % :source-id source-id}) new-ids))))))
 
 (defn import-from-url!
-  [request & {:keys [filters project-id source-id source-project-id]}]
+  [sr-context & {:keys [filters project-id source-id source-project-id]}]
   (let [article-ids (query-project-article-ids {:project-id source-project-id} filters)]
     (doseq [ids (partition 1000 1000 nil article-ids)]
-      (import-articles! request project-id source-id ids))
+      (import-articles! sr-context project-id source-id ids))
     (source/alter-source-meta source-id #(assoc % :importing-articles? false))
     (db/clear-project-cache project-id)))
 
@@ -120,7 +120,7 @@
                                      :url-filter url-filter})]
       (db/clear-project-cache project-id)
       (future
-        (import-from-url! request
+        (import-from-url! (:sr-context request)
                           :filters filters
                           :project-id project-id
                           :source-id source-id
@@ -138,10 +138,10 @@
            (fail (str "There was an exception with message: " (.getMessage e)))))))
 
 (defmethod source/re-import source-name
-  [request project-id {:keys [meta source-id]} _]
+  [request project-id {:keys [meta source-id]}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
-  (import-from-url! request
+  (import-from-url! (:sr-context request)
                     :filters (-> meta :url-filter extract-filters-from-url)
                     :project-id project-id
                     :source-id source-id

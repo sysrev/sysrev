@@ -48,13 +48,12 @@
 
 (deftest ^:e2e test-project-activity
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [user-id (account/log-in test-resources (test/create-test-user system))
+    (let [{:keys [sr-context]} system
+          user-id (account/log-in test-resources (test/create-test-user system))
           project-id (e-project/create-project! test-resources "test-project-activity-1")]
       (testing "User project activity displays correctly"
         (src/import-source
-         (select-keys system [:web-server])
-         :pmid-vector
-         project-id
+         sr-context :pmid-vector project-id
          {:pmids [25706626 25215519 23790141]}
          {:use-future? false})
         (e/go-project test-resources project-id "/review")

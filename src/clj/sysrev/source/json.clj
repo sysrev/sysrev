@@ -19,7 +19,7 @@
      "| lvl3 | " lvl3 " | \n")))
 
 (defmethod import-source :json
-  [request _ project-id {:keys [file filename]} {:as options}]
+  [sr-context _ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (lookup-filename-sources project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source json - non-empty filename-sources -" filename-sources)
@@ -41,5 +41,5 @@
                                         (set/rename-keys {:title :primary-title
                                                           :description :abstract})
                                         (assoc :helper-text (get-helper-text %)))}]
-        (import-source-impl request project-id source-meta impl options
+        (import-source-impl sr-context project-id source-meta impl options
                             :filename filename :file file)))))

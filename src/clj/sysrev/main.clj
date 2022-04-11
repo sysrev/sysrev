@@ -60,10 +60,10 @@
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)
            [:config :postgres])
-   ;; The :sr-context holds components that many functions need
+   ;; The :sr-context (Sysrev context) holds components that many functions need
    :sr-context (component/using
                 {}
-                [:config :postgres])
+                [:config :postgres :sysrev-api-pedestal])
    :sysrev-api-config (-> (or (:sysrev-api-config config)
                               (sysrev.sysrev-api.main/get-config))
                           (assoc :get-tx (fn [_] (:connection db/*conn*))))
@@ -75,7 +75,7 @@
                 (web/web-server
                  :handler-f web/sysrev-handler
                  :port (-> config :server :port))
-                [:config :postgres :sente :sr-context :sysrev-api-pedestal])))
+                [:sente :sr-context])))
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."

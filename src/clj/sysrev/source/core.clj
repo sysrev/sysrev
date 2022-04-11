@@ -36,7 +36,7 @@
     (q/create :project-source {:project-id project-id :meta metadata :import-date :%now}
               :returning :source-id)))
 
-(defmulti re-import (fn [_request _ source & [_options]]
+(defmulti re-import (fn [_request _project-id source]
                       (-> source :meta :source)))
 
 (defmethod re-import :default [_ _ _]

@@ -115,11 +115,11 @@
 (defn-spec create-project-for-user! (req-un ::project)
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
-  [web-server map? project-name string?, user-id int?, public-access boolean?]
+  [sr-context map? project-name string?, user-id int?, public-access boolean?]
   (let [{:keys [api-key]} (user/user-identity-info user-id)
         {:keys [id name]}
         #__ (-> (api2/ex!
-                 web-server
+                 sr-context
                  (sacq/create-project "project{id name}")
                  {:input {:create {:name project-name :public public-access}}}
                  :api-token api-key)
@@ -225,59 +225,59 @@
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term against PubMed API."
-  [request project-id search-term & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :pubmed project-id % options)
+  [sr-context project-id search-term & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :pubmed project-id % options)
                    {:search-term search-term}))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs."
-  [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :pmid-file project-id % options)
+  [sr-context project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :pmid-file project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-endnote-file
   "Import articles from an Endnote XML file."
-  [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :endnote-xml project-id % options)
+  [sr-context project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :endnote-xml project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdf-zip-file
   "Import articles from the PDF files contained in a zip file. An
   article entry is created for each PDF, using filename as the article
   title."
-  [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :pdf-zip project-id % options)
+  [sr-context project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :pdf-zip project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-json-file
   "Import articles from a JSON file."
-  [request project-id file filename & {:keys [] :as options}]
-  (wrap-import-api #(src/import-source request :json project-id % options)
+  [sr-context project-id file filename & {:keys [] :as options}]
+  (wrap-import-api #(src/import-source sr-context :json project-id % options)
                    {:file file :filename filename}))
 
-(defn import-articles-from-pdfs [request project-id multipart-params & {:keys [threads] :as options}]
+(defn import-articles-from-pdfs [sr-context project-id multipart-params & {:keys [threads] :as options}]
   (let [files (get multipart-params "files[]")]
-    (wrap-import-api #(src/import-source request :pdfs project-id % options)
+    (wrap-import-api #(src/import-source sr-context :pdfs project-id % options)
                      (if (map? files) [files] files))))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."
-  [request project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :ris project-id % options)
+  [sr-context project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :ris project-id % options)
                    {:file file :filename filename}))
 
 (defn import-trials-from-search
   "Import trials resulting from CT.gov search"
-  [request project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :ctgov project-id % options)
+  [sr-context project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :ctgov project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 
 (defn import-trials-from-fda-drugs-docs
   "Import trials resulting from Drugs@FDA search"
-  [request project-id query entity-ids & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source request :fda-drugs-docs project-id % options)
+  [sr-context project-id query entity-ids & {:keys [threads] :as options}]
+  (wrap-import-api #(src/import-source sr-context :fda-drugs-docs project-id % options)
                    {:entity-ids entity-ids
                     :query query}))
 
@@ -288,7 +288,7 @@
            parse-long))
 
 (defn import-project-articles
-  [request project-id url]
+  [sr-context project-id url]
   (wrap-import-api
    (fn [{:keys [url-filter]}]
      (let [source-project-id (url-project-id url-filter)]
@@ -297,7 +297,7 @@
          {:import
           (future
             (project-filter/import
-             request project-id
+             sr-context project-id
              {:source-project-id source-project-id
               :url-filter url-filter}))})))
    {:url-filter url}))
@@ -343,11 +343,11 @@
 
 (defn-spec re-import-source (-> (req-un ::success) or-error)
   "Toggle a source as being enabled or disabled."
-  [request map? source-id int? web-server map?]
+  [sr-context map? source-id int?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)
           source (source/get-source source-id)]
-      (source/re-import request project-id source {:web-server web-server})
+      (source/re-import sr-context project-id source)
       {:success true
        :message "Source updated"})
     {:error {:status not-found
@@ -1545,8 +1545,8 @@
   This avoids complications introduced by combining notifications. Since
   combination happens per day, we shouldn't have any surprises as long
   as we send all notifications for each day at the same time."
-  [request user-id {:keys [created-after limit]}]
-  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
+  [sr-context user-id {:keys [created-after limit]}]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (when-let [subscriber-id (notification/subscriber-for-user
                               user-id :returning :subscriber-id)]
       (let [ntfs (notification/notifications-for-subscriber
@@ -1568,7 +1568,7 @@
         {:notifications (dedupe (concat ntfs ntfs2))
          :start-of-day start-of-day}))))
 
-(defn user-notifications-by-day [request user-id {:keys [created-after limit]}]
+(defn user-notifications-by-day [sr-context user-id {:keys [created-after limit]}]
   (let [created-after (when created-after
                         (some-> created-after parse-long
                                 epoch-millis->LocalDateTime
@@ -1578,7 +1578,7 @@
                   (or 50) (min 50))
         {:keys [notifications start-of-day]}
         #__ (user-notifications-by-day*
-             request
+             sr-context
              user-id
              {:created-after created-after :limit limit})]
     {:success true
@@ -1588,8 +1588,8 @@
                      notifications)
      :next-created-after start-of-day}))
 
-(defn user-notifications-new [request user-id & [{:keys [limit]}]]
-  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
+(defn user-notifications-new [sr-context user-id & [{:keys [limit]}]]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (let [subscriber-id (notification/subscriber-for-user
                          user-id :create? true :returning :subscriber-id)
           limit (-> (some-> limit parse-long)

@@ -13,17 +13,16 @@
 
 (deftest ^:e2e test-notes
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [content "this is a note"
+    (let [{:keys [sr-context]} system
+          content "this is a note"
           {:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project-id]} (:project (api/create-project-for-user!
-                                          (:web-server system)
+                                          (:sr-context system)
                                           "Browser Test (annotation labels)" user-id true))]
       (member/add-project-member
        project-id user-id :permissions ["admin" "member"])
       (src/import-source
-       (select-keys system [:web-server])
-       :pmid-vector
-       project-id
+       sr-context :pmid-vector project-id
        {:pmids [25706626 25215519 23790141 22716928 19505094 9656183]}
        {:use-future? false})
       (doto test-resources

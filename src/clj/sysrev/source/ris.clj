@@ -66,7 +66,7 @@
               :else nil)))
     out-file))
 
-(defmethod import-source :ris [request _ project-id {:keys [file filename]} {:as options}]
+(defmethod import-source :ris [sr-context _ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (->> (source/project-sources project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
     ;; this source already exists
@@ -94,7 +94,7 @@
               {:error {:message error}})
           (let [source-meta {:source "RIS file" :filename filename :hash hash}]
             (import-source-impl
-             request project-id source-meta
+             sr-context project-id source-meta
              {:types {:article-type "academic" :article-subtype "RIS"}
               :get-article-refs #(ds-api/fetch-ris-articles-by-hash hash)
               :get-articles ris-get-articles}

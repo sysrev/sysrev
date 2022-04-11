@@ -149,12 +149,12 @@
                     (let [{:keys [email]} (:body request)]
                       (api/set-user-primary-email! user-id email)))))
     (context "/notifications" []
-             (GET "/new" [:as request]
+             (GET "/new" {:keys [params sr-context] :as request}
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/user-notifications-new request user-id (:params request))))
-             (GET "/by-day" [:as request]
+                    (api/user-notifications-new sr-context user-id params)))
+             (GET "/by-day" {:keys [params sr-context] :as request}
                   (with-authorize request {:authorize-fn (user-authd? user-id)}
-                    (api/user-notifications-by-day request user-id (:params request))))
+                    (api/user-notifications-by-day sr-context user-id params)))
              (POST "/set-consumed" [:as request]
                    (with-authorize request {:authorize-fn (user-authd? user-id)}
                      (let [{:keys [notification-ids]} (:body request)]

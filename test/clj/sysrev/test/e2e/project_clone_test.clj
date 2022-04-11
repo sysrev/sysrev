@@ -13,11 +13,10 @@
 (deftest ^:e2e test-clone-project
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
-    (let [project-id (e-project/create-project! test-resources "test-clone-project-happy-path")]
+    (let [{:keys [sr-context]} system
+          project-id (e-project/create-project! test-resources "test-clone-project-happy-path")]
       (src/import-source
-       (select-keys system [:web-server])
-       :pmid-vector
-       project-id
+       sr-context :pmid-vector project-id
        {:pmids [33222245 32891636 25706626]}
        {:use-future? false})
       (e/go-project test-resources project-id)

@@ -80,12 +80,12 @@
   "Implements single-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [request project-id source-id
+  [sr-context project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as _impl}
    & [{:keys [user-id] :as _opts}]]
-  (assert (map? request))
+  (assert (map? sr-context))
   (letfn [(import-group [articles]
-            (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
+            (db/with-long-transaction [_ (:postgres sr-context)]
               (let [{:keys [new-articles existing-article-ids]}
                     (match-existing-articles project-id articles types)
                     new-article-ids (add-articles project-id new-articles types prepare-article)
@@ -131,28 +131,28 @@
   "Implements multi-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [request project-id source-id
+  [sr-context project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [threads] :as opts}]
-  (assert (map? request))
+  (assert (map? sr-context))
   (if (> threads 1)
     (try (let [group-size (->> (quot (count article-refs) threads) (max 1))
                thread-groups (->> article-refs (partition-all group-size))
                threads (doall (for [thread-refs thread-groups]
                                 (future (import-articles-impl
-                                         request project-id source-id
+                                         sr-context project-id source-id
                                          (assoc impl :article-refs thread-refs)
                                          opts))))]
            (every? true? (mapv deref threads)))
          (catch Exception e
            (log/error "Error in import-source-articles:" (.getMessage e))
            false))
-    (import-articles-impl request project-id source-id impl opts)))
+    (import-articles-impl sr-context project-id source-id impl opts)))
 
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
-  [request project-id source-id user-id success?]
-  (db/with-long-transaction [_ (get-in request [:web-server :postgres])]
+  [sr-context project-id source-id user-id success?]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     ;; update source metadata
     (if success?
       (source/alter-source-meta source-id #(assoc % :importing-articles? false))
@@ -226,11 +226,11 @@
   `filename` and `file` are optional arguments providing a file the
   import data is coming from; if given, the file will be stored to s3
   and referenced in the source meta map."
-  [request project-id source-meta
+  [sr-context project-id source-meta
    {:keys [get-article-refs get-articles prepare-article on-article-added types] :as impl}
    {:keys [use-future? user-id threads] :or {use-future? true threads 4}}
    & {:keys [filename file]}]
-  (assert (map? request))
+  (assert (map? sr-context))
   (let [source-id (source/create-source project-id (assoc source-meta :importing-articles? true))
         do-import
         (fn []
@@ -238,7 +238,7 @@
                  (when (and filename file)
                    (source/save-import-file source-id filename file))
                  (import-source-articles
-                  request project-id source-id
+                  sr-context project-id source-id
                   (-> (assoc impl :article-refs (get-article-refs))
                       (dissoc :get-article-refs))
                   {:threads threads :user-id user-id})
@@ -246,14 +246,14 @@
                    (log/error "import-source-impl failed -" (.getMessage e))
                    (.printStackTrace e)
                    false))
-               (after-source-import request project-id source-id user-id)))]
+               (after-source-import sr-context project-id source-id user-id)))]
     {:source-id source-id
      :import (if use-future? (future (do-import)) (do-import))}))
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
-  (fn [_request stype _project-id _input & [_options]] stype))
+  (fn [_sr-context stype _project-id _input & [_options]] stype))
 
-(defmethod import-source :default [_request stype _project-id _input & [_options]]
+(defmethod import-source :default [_sr-context stype _project-id _input & [_options]]
   (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))

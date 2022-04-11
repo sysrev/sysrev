@@ -22,8 +22,7 @@
       (member/add-project-member project-id user-id
                                  :permissions ["admin" "member"])
       (api/import-articles-from-pdfs
-       {:web-server (:web-server system)}
-       project-id
+       (:sr-context system) project-id
        {"files[]"
         {:filename "sysrev-7539906377827440850.pdf"
          :content-type "application/pdf"
@@ -64,11 +63,10 @@
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
     (testing "Recently assigned articles are moved to the end of the queue"
-      (let [project-id (e-project/create-project! test-resources "last-assigned-test")]
+      (let [{:keys [sr-context]} system
+            project-id (e-project/create-project! test-resources "last-assigned-test")]
         (src/import-source
-         (select-keys system [:web-server])
-         :pmid-vector
-         project-id
+         sr-context :pmid-vector project-id
          {:pmids [25706626 25215519 23790141 22716928 19505094 9656183]}
          {:use-future? false})
         (e/go-project test-resources project-id "/review")
@@ -106,14 +104,13 @@
 
 (deftest ^:e2e test-unlimited-reviews
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [users (vec (repeatedly 3 #(test/create-test-user system)))
+    (let [{:keys [sr-context]} system
+          users (vec (repeatedly 3 #(test/create-test-user system)))
           _ (account/log-in test-resources (first users))
           project-id (e-project/create-project! test-resources "Unlimited Reviews Test")]
       (project/change-project-setting project-id :unlimited-reviews true)
       (src/import-source
-       (select-keys system [:web-server])
-       :pmid-vector
-       project-id
+       sr-context :pmid-vector project-id
        {:pmids [25706626 25215519 23790141]}
        {:use-future? false})
       (doseq [{:keys [user-id]} (rest users)]

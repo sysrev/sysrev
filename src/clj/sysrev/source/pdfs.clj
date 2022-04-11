@@ -6,7 +6,7 @@
             [sysrev.util :as util]))
 
 (defmethod import-source :pdfs
-  [request _ project-id files {:as options}]
+  [sr-context _ project-id files {:as options}]
   (let [filenames (map :filename files)
         source-meta {:source "PDF Files" :filenames filenames}
         pdf-to-article (fn [{:keys [filename tempfile] :as _entry}]
@@ -20,4 +20,4 @@
                                       (assoc :file-bytes (:file-byte-array %))))
               :prepare-article #(-> (set/rename-keys % {:filename :primary-title})
                                     (dissoc :file-byte-array))}]
-    (import-source-impl request project-id source-meta impl options)))
+    (import-source-impl sr-context project-id source-meta impl options)))

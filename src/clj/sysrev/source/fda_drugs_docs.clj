@@ -8,7 +8,7 @@
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.shared.fda-drugs-docs :as fda-drugs-docs]
-            [sysrev.source.core :as source :refer [re-import]]
+            [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source
                                              import-source-articles import-source-impl]]))
 
@@ -53,7 +53,7 @@
    ids))
 
 (defmethod import-source :fda-drugs-docs
-  [request _ project-id {:keys [entity-ids query]} options]
+  [sr-context _ project-id {:keys [entity-ids query]} options]
   (assert (map? query))
   (let [{:keys [max-import-articles]} env
         query (fda-drugs-docs/canonicalize-query query)
@@ -76,12 +76,12 @@
                        :source source-name
                        :results-count (count entity-ids)}]
                   (import-source-impl
-                   request project-id source-meta
+                   sr-context project-id source-meta
                    {:types {:article-type "pdf"
                             :article-subtype "fda-drugs-docs"}
                     :get-article-refs (constantly entity-ids)
                     :get-articles
-                    (partial get-entities (get-in request [:web-server :config :datapub-api]))}
+                    (partial get-entities (get-in sr-context [:config :datapub-api]))}
                    options)))))
 
 (defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]
@@ -100,16 +100,16 @@
          (remove (comp prev-article-ids :groupingId))
          (map :id))))
 
-(defmethod re-import source-name
-  [request project-id {:keys [source-id] :as source} {:keys [web-server]}]
+(defmethod source/re-import source-name
+  [{:keys [sr-context] :as sr-context} project-id {:keys [source-id] :as source}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
   (future
     (import-source-articles
-     request project-id source-id
+     sr-context project-id source-id
      {:types {:article-type "pdf" :article-subtype "fda-drugs-docs"}
       :article-refs (get-new-articles-available
-                     source :config (:config web-server))
-      :get-articles (partial get-entities (get-in web-server [:config :datapub-api]))}
+                     source :config (:config sr-context))
+      :get-articles (partial get-entities (get-in sr-context [:config :datapub-api]))}
      {:threads 1}))
   {:source-id source-id})

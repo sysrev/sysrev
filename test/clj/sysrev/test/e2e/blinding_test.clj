@@ -23,10 +23,11 @@
 
 (deftest ^:e2e label-blinding
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [user1 (test/create-test-user system)
+    (let [{:keys [sr-context]} system
+          user1 (test/create-test-user system)
           user2 (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
-                             (:web-server system)
+                             (:sr-context system)
                              "Sysrev Browser Test (label blinding)"
                              (:user-id user1)
                              true)
@@ -38,9 +39,7 @@
         (change-project-label-blinding! project-id true))
       ;; import pubmed articles
       (src/import-source
-       (select-keys system [:web-server])
-       :pmid-vector
-       project-id
+       sr-context :pmid-vector project-id
        {:pmids [25706626 25215519 23790141]}
        {:use-future? false})
       ;; review all articles

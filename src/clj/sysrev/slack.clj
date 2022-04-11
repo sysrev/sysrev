@@ -44,7 +44,7 @@
              (select-keys req [:uri :compojure/route :query-params])
              (when-let [ident (not-empty (-> req :session :identity))]
                {:session {:identity (select-keys ident [:user-id :email])}}))
-      (dissoc :web-server)))
+      (dissoc :sr-context)))
 
 (defn log-slack-request-exception [request ^Throwable e & {:keys [force]}]
   (when (or force (= :prod (:profile env)))

@@ -90,8 +90,8 @@
               "Imports articles from PubMed."
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [project-id pmids]} (:body request)]
+  (fn [{:keys [body sr-context]}]
+    (let [{:keys [project-id pmids]} body]
       (cond
         (or (not (seqable? pmids))
             (empty? pmids)
@@ -100,7 +100,7 @@
          500 :api "pmids must be an array of integers")
         :else
         (let [{:keys [error]} (src/import-source
-                               request
+                               sr-context
                                :pmid-vector
                                project-id
                                {:pmids pmids}
@@ -128,8 +128,8 @@
               ""
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [project-id articles]} (:body request)]
+  (fn [{:keys [body sr-context]}]
+    (let [{:keys [project-id articles]} body]
       (cond
         (or (not (seqable? articles))
             (empty? articles)
@@ -142,7 +142,7 @@
                        " with keys \"primary-title\" and \"abstract\""))
         :else
         (let [{:keys [error]} (src/import-source
-                               request :api-text-manual project-id {:articles articles} {:use-future? false})]
+                               sr-context :api-text-manual project-id {:articles articles} {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result
@@ -160,7 +160,7 @@
           {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/create-project-for-user!
-                       (:web-server request)
+                       (:sr-context request)
                        project-name user-id false))})))
 
 ;; TODO: allow public project access

@@ -26,7 +26,7 @@
        not-empty))
 
 (defmethod import-source :pmid-file
-  [request _ project-id {:keys [file filename]} {:as options}]
+  [sr-context _ project-id {:keys [file filename]} {:as options}]
   (let [{:keys [max-import-articles]} config/env
         pmids (parse-pmid-file file)]
     (cond
@@ -43,27 +43,27 @@
       :else
       (let [source-meta {:source "PMID file" :filename filename}]
         (import-source-impl
-         request project-id source-meta
+         sr-context project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
           :get-article-refs (constantly pmids)
           :get-articles pubmed-get-articles}
          options)))))
 
 (defmethod import-source :pmid-vector
-  [request _ project-id {:keys [pmids]} {:as options}]
+  [sr-context _ project-id {:keys [pmids]} {:as options}]
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)
       {:error {:message "pmids list is empty"}}
 
       (> (count pmids) max-import-articles)
-      {:error {:message (format "Too many PMIDs requested (max %d; got %d)"
+      {:error {:message (format "Too many PMIDs sr-contexted (max %d; got %d)"
                                 max-import-articles (count pmids))}}
 
       :else
       (let [source-meta {:source "PMID vector"}]
         (import-source-impl
-         request project-id source-meta
+         sr-context project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
           :get-article-refs (constantly pmids)
           :get-articles pubmed-get-articles}

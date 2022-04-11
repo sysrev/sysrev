@@ -3,9 +3,9 @@
    [io.pedestal.test]
    [sysrev.json.interface :as json]))
 
-(defn response-for [web-server verb url & options]
+(defn response-for [sr-context verb url & options]
   (apply
-   io.pedestal.test/response-for (get-in web-server [:sysrev-api-pedestal :service :io.pedestal.http/service-fn])
+   io.pedestal.test/response-for (get-in sr-context [:sysrev-api-pedestal :service :io.pedestal.http/service-fn])
    verb url options))
 
 (defn throw-errors [graphql-response]
@@ -14,8 +14,8 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute! [web-server query & [variables & {:keys [api-token]}]]
-  (-> (response-for web-server
+(defn execute! [sr-context query & [variables & {:keys [api-token]}]]
+  (-> (response-for sr-context
                     :post "/api"
                     :headers (cond-> {"Content-Type" "application/json"}
                                api-token (assoc "Authorization" (str "Bearer " api-token)))

@@ -35,11 +35,10 @@
 (deftest ^:e2e test-pdf-interface
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
-    (let [project-id (e-project/create-project! test-resources "test-pdf-interface")]
+    (let [{:keys [sr-context]} system
+          project-id (e-project/create-project! test-resources "test-pdf-interface")]
       (src/import-source
-       {:web-server (:web-server system)}
-       :pdf-zip
-       project-id
+       sr-context :pdf-zip project-id
        {:file (io/file (io/resource "test-files/test-pdf-import.zip"))
         :filename "test-pdf-import.zip"}
        {:use-future? false})

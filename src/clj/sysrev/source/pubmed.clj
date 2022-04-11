@@ -31,7 +31,7 @@
        not-empty))
 
 (defmethod import-source :pubmed
-  [request _ project-id {:keys [search-term]} {:as options}]
+  [sr-context _ project-id {:keys [search-term]} {:as options}]
   (assert (string? search-term))
   (let [{:keys [max-import-articles]} config/env
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]
@@ -48,7 +48,7 @@
                          :search-term search-term
                          :source source-name}]
         (import-source-impl
-         request project-id source-meta
+         sr-context project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
           :get-article-refs #(pubmed/get-all-pmids-for-query search-term)
           :get-articles pubmed-get-articles}
@@ -70,12 +70,12 @@
     new-article-ids))
 
 
-(defmethod re-import source-name [request project-id {:keys [source-id] :as source}]
+(defmethod re-import source-name [sr-context project-id {:keys [source-id] :as source}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
   (future
     (import-source-articles
-     request project-id source-id
+     sr-context project-id source-id
      {:types {:article-type "academic" :article-subtype "pubmed"}
       :article-refs (get-new-articles-available source)
       :get-articles pubmed-get-articles}

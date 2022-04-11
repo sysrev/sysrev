@@ -2,9 +2,9 @@
   (:require [sysrev.source.interface :refer [import-source import-source-impl]]))
 
 (defmethod import-source :api-text-manual
-  [request _ project-id {:keys [articles]} {:as options}]
+  [sr-context _ project-id {:keys [articles]} {:as options}]
   (import-source-impl
-   request project-id
+   sr-context project-id
    {:source "API Text Manual" :article-count (count articles)}
    {:types {:article-type "text" :article-subtype "generic"}
     :get-article-refs (constantly articles)

@@ -220,6 +220,7 @@
 (defn wrap-dynamic-vars
   "Bind dynamic vars to the appropriate values from the Postgres record."
   [handler {:keys [config postgres]}]
+  {:pre [(fn? handler) (map? config) (map? postgres)]}
   (fn [request]
     (binding [db/*active-db* (atom postgres)
               db/*conn* nil
@@ -230,13 +231,11 @@
       (handler request))))
 
 (defn wrap-sr-context
-  "Add :sr-context and :web-server keys to the request."
-  [handler {:keys [sr-context] :as web-server}]
-  {:pre [(fn? handler) (map? web-server) (map? sr-context)]}
+  "Add the Sysrev context map to the request."
+  [handler sr-context]
+  {:pre [(fn? handler) (map? sr-context)]}
   (fn [request]
-    (handler (assoc request
-                    :sr-context (:sr-context web-server)
-                    :web-server web-server))))
+    (handler (assoc request :sr-context (assoc sr-context :request request)))))
 
 (defn authorization-error
   "Checks if user is authorized to perform the

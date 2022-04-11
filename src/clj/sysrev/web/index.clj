@@ -78,11 +78,11 @@
     [:div {:style "display: none;"
            :id "datapub-api"
            :data-datapub-api
-           (get-in request [:web-server :config :datapub-api])}]
+           (get-in request [:sr-context :config :datapub-api])}]
     [:div {:style "display: none;"
            :id "datapub-ws"
            :data-datapub-ws
-           (get-in request [:web-server :config :datapub-ws])}]
+           (get-in request [:sr-context :config :datapub-ws])}]
     [:div {:style "display: none;"
            :id "stripe-public-key"
            :data-stripe-public-key stripe-public-key}]
@@ -104,7 +104,7 @@
       (let [js-name (if (= (:profile env) :prod)
                       (str "sysrev-" build/build-id ".js")
                       "sysrev.js")]
-        (page/include-js (str (get-in request [:web-server :config :web-server :web-asset-path])
+        (page/include-js (str (get-in request [:sr-context :config :web-server :web-asset-path])
                               "/" js-name))))
     (when-not (:local-only env)
       [:div

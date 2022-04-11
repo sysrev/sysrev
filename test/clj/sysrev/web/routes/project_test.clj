@@ -54,7 +54,7 @@
                  :result (get 25706626) :authors first))))))
 
 (deftest ^:integration create-project-test
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [handler (sysrev-handler system)
           search-term "foo bar"
           route-response (route-response-fn handler)
@@ -74,10 +74,7 @@
         (is (= 0 (project/project-article-count new-project-id)))
         ;; add articles to this project
         (src/import-source
-         {:web-server (:web-server system)}
-         :pubmed
-         new-project-id
-         {:search-term search-term}
+         sr-context :pubmed new-project-id {:search-term search-term}
          {:use-future? false :threads 1})
         ;; Does the new project have the correct amount of articles?
         ;; I would like a 'get-project' route

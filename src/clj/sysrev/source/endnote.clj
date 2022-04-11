@@ -6,14 +6,14 @@
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
 (defmethod import-source :endnote-xml
-  [request _ project-id {:keys [file filename]} {:as options}]
+  [sr-context _ project-id {:keys [file filename]} {:as options}]
   (let [filename-sources (->> (source/project-sources project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
     (if (seq filename-sources)
       (do (log/warn "import-source endnote-xml - non-empty filename-sources:" filename-sources)
           {:error {:message "File name already imported"}})
       (import-source-impl
-       request project-id
+       sr-context project-id
        {:source "EndNote file" :filename filename}
        {:types {:article-type "academic" :article-subtype "endnote"}
         :get-article-refs #(-> file io/reader endnote-file->articles doall)

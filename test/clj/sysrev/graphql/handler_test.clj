@@ -81,12 +81,12 @@
                  m))
 
 (deftest ^:integration test-paywall
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)
           test-user-2 (test/create-test-user system)
           project-name "Graphql - Paywall Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
-                                           (:web-server system)
+                                           sr-context
                                            "Graphql - Paywall Test"
                                            user-id
                                            true)]
@@ -134,12 +134,11 @@
           "Basic plan user can access private projects owned by a pro plan user"))))
 
 (deftest ^:integration test-project-query
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [user-id]} (test/create-test-user system)
           project-name "Graphql - Project Query Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
-                                           (:web-server system)
-                                           project-name user-id false)
+                                           sr-context project-name user-id false)
           test-user-1 (test/create-test-user system :email "user1@foo.bar")
           test-user-2 (test/create-test-user system :email "user2@foo.bar")
           include-label (-> (select :*)
