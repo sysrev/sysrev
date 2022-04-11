@@ -229,11 +229,14 @@
               env (merge env config)]
       (handler request))))
 
-(defn wrap-web-server
-  "Add a :web-server key to the request whose value is the WebServer component."
-  [handler web-server]
+(defn wrap-sr-context
+  "Add :sr-context and :web-server keys to the request."
+  [handler {:keys [sr-context] :as web-server}]
+  {:pre [(fn? handler) (map? web-server) (map? sr-context)]}
   (fn [request]
-    (handler (assoc request :web-server web-server))))
+    (handler (assoc request
+                    :sr-context (:sr-context web-server)
+                    :web-server web-server))))
 
 (defn authorization-error
   "Checks if user is authorized to perform the

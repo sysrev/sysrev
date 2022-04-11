@@ -44,11 +44,11 @@
 
 (defroutes html-routes
   (GET "*" {:keys [uri] :as request}
-       (if (some-> uri (str/split #"/") last (str/index-of \.))
+    (if (some-> uri (str/split #"/") last (str/index-of \.))
          ;; Fail if request appears to be for a static file
-         (app/not-found-response request)
+      (app/not-found-response request)
          ;; Otherwise serve index.html
-         (index/index request)))
+      (index/index request)))
   (not-found (app/not-found-response nil)))
 
 (defn sysrev-config
@@ -85,7 +85,7 @@
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)
+      (app/wrap-sr-context web-server)
       wrap-exit-on-full-connection-pool))
 
 (defn wrap-sysrev-app
@@ -101,7 +101,7 @@
       app/wrap-robot-noindex
       (app/wrap-log-request)
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)
+      (app/wrap-sr-context web-server)
       wrap-exit-on-full-connection-pool))
 
 (defn wrap-force-json-request
@@ -123,7 +123,7 @@
       (wrap-json-body {:keywords? true})
       wrap-force-json-request
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)
+      (app/wrap-sr-context web-server)
       wrap-exit-on-full-connection-pool))
 
 (defn wrap-sysrev-graphql
@@ -131,7 +131,7 @@
   [handler & {:keys [web-server]}]
   (-> handler
       (app/wrap-dynamic-vars web-server)
-      (app/wrap-web-server web-server)
+      (app/wrap-sr-context web-server)
       wrap-exit-on-full-connection-pool))
 
 (defn channel-socket-routes [{:keys [ajax-get-or-ws-handshake-fn
@@ -171,8 +171,8 @@
                       (ANY "/graphql" [] graphql-routes)
                       (compojure.route/resources "/")
                       (GET "/sitemap.xml" []
-                           (-> (r/response (index/sysrev-sitemap))
-                               (r/header "Content-Type" "application/xml; charset=utf-8")))
+                        (-> (r/response (index/sysrev-sitemap))
+                            (r/header "Content-Type" "application/xml; charset=utf-8")))
                       (GET "*" [] html-routes))
       (in? [:dev :test] (:profile env)) (app/wrap-no-cache))))
 
