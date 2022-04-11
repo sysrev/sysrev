@@ -12,6 +12,11 @@
    :query query
    :variables variables))
 
+(defn create-dataset!
+  "Create a Dataset."
+  [input return & {:as opts}]
+  (core/create-dataset! input return opts))
+
 (defn create-dataset-entity!
   "Create a DatasetEntity.
 

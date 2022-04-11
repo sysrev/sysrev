@@ -64,6 +64,13 @@
   (execute-request!
    (assoc opts :request (form-params-request opts))))
 
+(defn create-dataset! [input return & {:as opts}]
+  (-> (execute!
+       :query (q/m-create-dataset return)
+       :variables {:input input}
+       opts)
+      :data :createDataset))
+
 (defn create-dataset-entity! [input return & {:keys [auth-token endpoint]}]
   (-> (execute-request!
        {:endpoint endpoint
