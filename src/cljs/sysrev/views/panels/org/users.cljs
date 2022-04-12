@@ -4,7 +4,7 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.action.core :as action :refer [def-action run-action]]
-            [sysrev.data.core :as data :refer [def-data load-data reload]]
+            [sysrev.data.core :as data :refer [def-data load-data]]
             [sysrev.nav :as nav]
             [sysrev.views.semantic :as S :refer
              [Table TableBody TableRow TableCell Search Button
@@ -12,9 +12,8 @@
               Input]]
             [sysrev.views.components.core :refer [CursorMessage]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.views.panels.org.main :as org]
-            [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
+            [sysrev.util :as util]
+            [sysrev.macros :refer-macros [setup-panel-state]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -79,9 +78,10 @@
 
 (def-action :org/remove-user
   :method   :delete
-  :uri      (fn [org-id _] (str "/api/org/" org-id "/user"))
-  :content  (fn [_ user-id] {:user-id user-id})
-  :process  (fn [{:keys [db]} [org-id _] _result]
+  :uri      (fn [org-id _ _] (str "/api/org/" org-id "/user"))
+  :content  (fn [_ user-id _] {:user-id user-id})
+  :process  (fn [{:keys [db]} [org-id _ modal-open] _result]
+              (reset! modal-open false)
               {:db (panel-set db [:remove-user] {})
                :dispatch [:data/load [:org/users org-id]]})
   :on-error (fn [{:keys [db error]} _ _]
@@ -89,27 +89,22 @@
 
 (def-action :org/change-user-role
   :method   :put
-  :uri      (fn [org-id _ _] (str "/api/org/" org-id "/user"))
-  :content  (fn [_ user-id permissions]
+  :uri      (fn [org-id _ _ _] (str "/api/org/" org-id "/user"))
+  :content  (fn [_ user-id permissions _]
               {:user-id user-id :permissions permissions})
-  :process  (fn [{:keys [db]} [org-id _ _] _result]
+  :process  (fn [{:keys [db]} [org-id _ _ modal-open] _result]
+              (reset! modal-open false)
               {:db (panel-set db [:change-role] {})
                :dispatch [:data/load [:org/users org-id]]})
   :on-error (fn [{:keys [db error]} _ _]
               {:db (panel-set db [:change-role :error] (:message error))}))
 
-(defn OrgInviteUrlModal [org-id]
+(defn OrgInviteUrlModal [modal-open org-id]
   (let [modal-state-path [:org-invite-url-modal]
-        modal-open (r/cursor state (concat modal-state-path [:open]))
         share-code (r/cursor state (concat modal-state-path [:share-code]))]
+    (dispatch [:action [:org/get-share-code org-id]])
     (fn []
-      [Modal {:trigger (r/as-element
-                         [:div.ui.button.org-invite-url-button
-                          {:style {:margin-left 12 :margin-right 0}
-                           :on-click #(dispatch [:action [:org/get-share-code org-id]])}
-                          "Invite URL"])
-              ;:class "tiny"
-              :open @modal-open
+      [Modal {:open @modal-open
               :on-open #(reset! modal-open true)
               :on-close #(reset! modal-open false)}
        [ModalHeader "Invite URL"]
@@ -131,21 +126,15 @@
                   :id "close-invite-org-btn"}
           "OK"]]]])))
 
-(defn- AddModal [org-id]
-  (let [modal-open      (r/cursor state [:add-user :open])
-        search-value    (r/cursor state [:add-user :search-value])
+(defn AddModal [modal-open org-id]
+  (let [search-value    (r/cursor state [:add-user :search-value])
         user-id-select  (r/cursor state [:add-user :user-id])
         error           (r/cursor state [:add-user :error])
         search-results  @(subscribe [::user-search-results @search-value org-id])
         user-id-match   (:user-id (find-first #(= (:username %) @search-value)
                                               search-results))
         user-id-active  (or @user-id-select user-id-match)]
-    [Modal {:trigger (r/as-element
-                      [Button {:id "add-member-button"
-                               :on-click #(dispatch [::set [:add-user] {:open true}])
-                               :positive true}
-                       "Add Member"])
-            :open @modal-open
+    [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)}
      [ModalHeader (str "Invite Member to " @(subscribe [:org/name org-id]))]
@@ -193,11 +182,9 @@
                                      "Add Member"])}])}]]
         [CursorMessage error {:negative true}]]]]]))
 
-(defn- RemoveModal [org-id]
-  (let [modal-open (r/cursor state [:remove-user :open])
-        error      (r/cursor state [:remove-user :error])
-        user-id    (r/cursor state [:remove-user :user-id])
-        username   (r/cursor state [:remove-user :username])
+(defn RemoveModal [modal-open org-id user-id]
+  (let [error      (r/cursor state [:remove-user :error])
+        username   (subscribe [:user/username @user-id])
         running?   (action/running? :org/remove-user)]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
@@ -205,7 +192,7 @@
      [ModalHeader (str "Removing 1 member from " @(subscribe [:org/name org-id]))]
      [ModalContent
       [ModalDescription
-       [Form {:on-submit #(run-action :org/remove-user org-id @user-id)}
+       [Form {:on-submit #(run-action :org/remove-user org-id @user-id modal-open)}
         [:h4 "The following members will be removed:"]
         [Table {:basic true :style {:width "50%"}}
          [TableBody
@@ -217,10 +204,8 @@
          "Remove members"]
         [CursorMessage error {:negative true}]]]]]))
 
-(defn- ChangeRoleModal [org-id]
-  (let [modal-open (r/cursor state [:change-role :open])
-        user-id    (r/cursor state [:change-role :user-id])
-        username   (r/cursor state [:change-role :username])
+(defn ChangeRoleModal [modal-open org-id user-id]
+  (let [username   (subscribe [:user/username @user-id])
         new-role   (r/cursor state [:change-role :new-role])
         error      (r/cursor state [:change-role :error])
         running?   (action/running? :org/change-user-role)]
@@ -230,7 +215,7 @@
      [ModalHeader (str "Change the role of " @username "?")]
      [ModalContent
       [ModalDescription
-       [Form {:on-submit #(run-action :org/change-user-role org-id @user-id [@new-role])}
+       [Form {:on-submit #(run-action :org/change-user-role org-id @user-id [@new-role] modal-open)}
         [FormGroup
          [Checkbox {:label "Admin"
                     :as "h4", :radio true, :style {:display "block"}
@@ -252,61 +237,3 @@
                  :disabled (or (nil? @new-role) running?)}
          "Change Role"]
         [CursorMessage error {:negative true}]]]]]))
-
-(defn- UserRow [{:keys [user-id username permissions]} org-id]
-  (let [self-id @(subscribe [:self/user-id])]
-    [TableRow
-     [TableCell
-      [Avatar {:user-id user-id}]
-      [UserPublicProfileLink {:user-id user-id :username username}]]
-     [TableCell
-      [:p (some #{"admin" "owner" "member"} permissions)]]
-     [TableCell
-      (when (and
-             ;; only owners can change user permissions
-             (some #{"owner"} @(subscribe [:org/permissions org-id]))
-             ;; don't allow changing of perms when self is the owner
-             (not (and (= self-id user-id)
-                       @(subscribe [:org/owner? org-id false]))))
-        [S/Dropdown {:button true, :icon "cog", :select-on-blur false
-                     :class-name "icon change-org-user"}
-         [S/DropdownMenu
-          [S/DropdownItem
-           {:text "Change role..."
-            :value "change-role"
-            :key :change-role
-            :on-click (wrap-user-event
-                       #(dispatch [::set [:change-role]
-                                   {:open true :user-id user-id :username username}]))}]
-          [S/DropdownItem
-           {:text "Remove from organization..."
-            :value "remove-from-org"
-            :key :remove-from-org
-            :on-click (wrap-user-event
-                       #(dispatch [::set [:remove-user]
-                                   {:open true :user-id user-id :username username}]))}]]])]]))
-
-(defn- UsersTable [org-id]
-  (when-let [org-users (not-empty @(subscribe [:org/users org-id]))]
-    [Table {:id "org-user-table" :basic true}
-     [TableBody
-      (doall (for [user org-users] ^{:key (:user-id user)}
-               [UserRow user org-id]))]]))
-
-(defn- Panel []
-  (when-let [org-id @(subscribe [::org/org-id])]
-    (with-loader [[:org/users org-id]] {}
-      [:div
-       (when (some #{"owner"} @(subscribe [:org/permissions org-id]))
-         [:<>
-          [AddModal org-id] 
-          [OrgInviteUrlModal org-id]])
-       [ChangeRoleModal org-id]
-       [RemoveModal org-id]
-       [UsersTable org-id]])))
-
-(def-panel :uri "/org/:org-id/users" :params [org-id] :panel panel
-  :on-route (let [org-id (util/parse-integer org-id)]
-              (org/on-navigate-org org-id panel)
-              (reload :org/users org-id))
-  :content [Panel])

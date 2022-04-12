@@ -23,10 +23,8 @@ export interface ProjectProps {
 
 export interface MemberProps {
   name?: string
-  userId?: number
+  userId: number
   url?: string
-  changeRole?: () => void
-  removeFromOrganization?: () => void
 }
 
 export interface TabProps {
@@ -39,6 +37,8 @@ export interface TabProps {
   orgId?: number
   addMember?: () => void
   inviteUrl?: () => void
+  changeRole: (id: number) => void
+  removeFromOrganization: (id: number) => void
 }
 
 enum TabType {
@@ -95,9 +95,14 @@ const Tab = (props: TabProps) => {
 
         {isAdmin &&
           <div className={styles.adminButtons}>
-            <a href={`/new?project_owner=${props.orgId}`}>New</a>
-            <a onClick={() => props.addMember?.()}>Add Member</a>
-            <a onClick={() => props.inviteUrl?.()}>Invite URL</a>
+            {activeTab === TabType.Projects
+              ? <a className="ui positive button" href={`/new?project_owner=${props.orgId}`}>New</a>
+              :
+              <div>
+                <a className="ui button positive" onClick={() => props.addMember?.()}>Add Member</a>
+                <a className="ui button org-invite-url-button" onClick={() => props.inviteUrl?.()}>Invite URL</a>
+              </div>
+            }
           </div>
         }
 
@@ -136,28 +141,31 @@ const Tab = (props: TabProps) => {
                   <th>Name</th>
                   <th>User ID</th>
                   <th>URL</th>
+                  <th></th>
                 </tr>
-                {
-                  (props.members ?? []).map((item) => (
-                    <tr key={item.userId}>
-                      <td>{item.name}</td>
-                      <td>{item.userId}</td>
-                      <td><a href={item.url} target="_blank">{item.url}</a>
-                      </td>
-                      {
-                        isAdmin &&
-                        <td style={{ width: '50px' }}>
-                          <MenuButton
-                            buttons={[
-                              { title: 'Change Role', onClick: item.changeRole },
-                              { title: 'Remove From Organization', onClick: item.removeFromOrganization }
-                            ]}
-                          />
+                <tbody>
+                  {
+                    (props.members ?? []).map((item) => (
+                      <tr key={item.userId}>
+                        <td>{item.name}</td>
+                        <td>{item.userId}</td>
+                        <td><a href={item.url} target="_blank">{item.url}</a>
                         </td>
-                      }
-                    </tr>
-                  ))
-                }
+                        {
+                          isAdmin &&
+                          <td style={{ width: '50px' }}>
+                            <MenuButton
+                              buttons={[
+                                { title: 'Change Role', onClick: () => props.changeRole(item.userId) },
+                                { title: 'Remove From Organization', onClick: () => props.removeFromOrganization(item.userId)}
+                              ]}
+                            />
+                          </td>
+                        }
+                      </tr>
+                    ))
+                  }
+                </tbody>
               </table>
             </div>
           }

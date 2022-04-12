@@ -4,20 +4,34 @@
   padding-left: 15px;
   padding-right: 15px; }
 
+  .menuWrapper {
+    position: relative;
+  }
+
   .menu {
     padding: 8px;
     margin: 8px;
+    z-index: 5;
+    position: absolute;
+    top: 30px;
+    background: #fff;
+    font-size: 1em;
+    text-shadow: none;
+    text-align: left;
+    -webkit-box-shadow: 0 2px 3px 0 rgb(34 36 38 / 15%);
+    box-shadow: 0 2px 3px 0 rgb(34 36 38 / 15%);
+    border: 1px solid rgba(34,36,38,.15);
+    border-radius: 0.28571429rem;
+  }
+
+  .menuClosed {
     visibility: hidden;
   }
-  
+
   .menuVisible {
-    padding: 8px;
     visibility: visible;
-    border: 1px solid #eeeeee;
-    margin: 8px;
-    font-size: 11px;
   }
-  
+
   .menuItem {
     font-size: 11px !important;
     padding: 5px 0px;
@@ -137,12 +151,7 @@
         font-size: 17px;
         display: inline-block;
         color: #072f47;
-        text-decoration: none;
-        -webkit-transition: all .25s ease;
-        -moz-transition: all .25s ease;
-        -ms-transition: all .25s ease;
-        -o-transition: all .25s ease;
-        transition: all .25s ease; }
+        text-decoration: none; }
       .table .members_table td a:hover, .table .members_table th a:hover {
         color: #01060a; }
     .table .members_table tr:nth-child(odd) {
@@ -291,21 +300,15 @@
   .table .members_table td, .table .members_table th {
     width: 33.33%;
     white-space: nowrap;
-    overflow: hidden;
     text-overflow: ellipsis;
     position: relative; }
     .table .members_table td a, .table .members_table th a {
-      position: absolute;
-      white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       width: calc(100% - 30px);
       display: block;
-      left: 15px;
-      right: 15px;
       font-size: 13px;
-      top: 50%;
-      transform: translateY(-50%); }
+    }
   .table .members_table table {
     table-layout: fixed; }
   .table .topsection .infos .tit {
