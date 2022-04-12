@@ -10,6 +10,11 @@
             [reagent.core :as r]
             [sysrev.util :as util :refer [in?]]))
 
+(def graphql-endpoint
+  (delay
+   (some-> (.getElementById js/document "datapub-api")
+           (.getAttribute "data-datapub-api"))))
+
 (s/def ::method (and keyword? (in? [:get :post :put :delete])))
 (s/def ::uri string?)
 (s/def ::content any?)
@@ -166,6 +171,9 @@
 (defn GET [url & [opts]]
   (make-request ajax/GET url opts))
 
+(defn POST [url & [opts]]
+  (make-request ajax/POST url opts))
+
 (defn atom-handler [{:keys [handler]} atom]
   (fn [response]
     (reset! atom response)
@@ -178,3 +186,18 @@
       (assoc opts
              :handler (atom-handler opts ratom)))
     ratom))
+
+(defn rPOST [url & [opts]]
+  (let [ratom (r/atom nil)]
+    (POST url
+      (assoc opts
+             :handler (atom-handler opts ratom)))
+    ratom))
+
+(defn rGQL [query & [variables opts]]
+  (rPOST @graphql-endpoint
+         (assoc opts
+                :format :json
+                :keywords? true
+                :params {:query query :variables variables}
+                :response-format :json)))

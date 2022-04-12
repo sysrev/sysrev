@@ -1,12 +1,8 @@
 (ns sysrev.datapub
   (:require [clojure.string :as str]
             [re-frame.core :refer [dispatch reg-sub]]
+            [sysrev.ajax :as ajax]
             [sysrev.data.core :refer [def-data]]))
-
-(def api-endpoint
-  (delay
-    (some-> (.getElementById js/document "datapub-api")
-            (.getAttribute "data-datapub-api"))))
 
 (def websocket-endpoint
   (delay
@@ -38,7 +34,7 @@
   :loaded? (fn [db entity-id]
              (boolean (get-in db [:data :datapub :entities entity-id])))
   :method :post
-  :uri #(deref api-endpoint)
+  :uri #(deref ajax/graphql-endpoint)
   :content-type "application/json"
   :content (fn [entity-id]
              {:query (dataset-entity "contentUrl externalCreated externalId groupingId mediaType metadata")
@@ -70,7 +66,7 @@
   :loaded? (fn [db dataset-id external-id]
              (boolean (get-in db [:data :datapub :entities-for-external-id dataset-id external-id])))
   :method :post
-  :uri #(deref api-endpoint)
+  :uri #(deref ajax/graphql-endpoint)
   :content-type "application/json"
   :content (fn [dataset-id external-id]
              {:query (dataset-entities-for-external-id "externalCreated id")
@@ -90,7 +86,7 @@
   :loaded? (fn [db dataset-id grouping-id]
              (boolean (get-in db [:data :datapub :entities-for-grouping-id dataset-id grouping-id])))
   :method :post
-  :uri #(deref api-endpoint)
+  :uri #(deref ajax/graphql-endpoint)
   :content-type "application/json"
   :content (fn [dataset-id grouping-id]
              {:query (dataset-entities-for-grouping-id "externalCreated id")
