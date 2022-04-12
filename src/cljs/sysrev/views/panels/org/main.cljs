@@ -117,6 +117,7 @@
                :title @(subscribe [:org/name org-id])
                :url nil
                :logoImgUrl nil
+               :orgId org-id
                :userIsAdmin true
                :inviteUrl #(reset! inviteModalOpen? true)
                :addMember #(reset! addModalOpen? true)
