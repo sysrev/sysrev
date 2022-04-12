@@ -88,45 +88,44 @@
   (reset! user-ref user-id))
 
 (defn- OrgContent [org-id child]
-  (let [inviteModalOpen? (r/atom false)
-        addModalOpen? (r/atom false)
-        removeModalOpen? (r/atom false)
-        changeModalOpen? (r/atom false)
-        user-to-update (r/atom nil)]
-    (fn []
-      (let [active-panel @(subscribe [:active-panel])
-            active? #(= active-panel [:org %])
-            users @(subscribe [:org/users org-id])
-            projects @(subscribe [:org/projects org-id])
-            project-descriptions (mapv #(subscribe [:project/markdown-description (:project-id %)]) projects)]
-        (doseq [{:keys [project-id]} projects]
-          (load-data :project/markdown-description project-id))
-        [:div
-         [OrgInviteUrlModal inviteModalOpen? org-id]
-         [AddModal addModalOpen? org-id]
-         [RemoveModal removeModalOpen? org-id user-to-update]
-         [ChangeRoleModal changeModalOpen? org-id user-to-update]
-         (when-not (some active? #{:plans :payment})
-           [:div
-            [:f> (.-Tab OrgPage)
-             (clj->js
-              {:projects (->>
-                          (map #(assoc % :markdown-description @%2) projects project-descriptions)
-                          (mapv project->js))
-               :members (mapv member->js users)
-               :title @(subscribe [:org/name org-id])
-               :url nil
-               :logoImgUrl nil
-               :orgId org-id
-               :userIsAdmin true
-               :inviteUrl #(reset! inviteModalOpen? true)
-               :addMember #(reset! addModalOpen? true)
-               :changeRole #(open-modal changeModalOpen? user-to-update %)
-               :removeFromOrganization #(open-modal removeModalOpen? user-to-update %)})]])
-         (when (nil? child)
-           [Message {:negative true}
-            [MessageHeader {:as "h4"} "Organizations Error"]
-            [:p "This page does not exist."]])]))))
+  (r/with-let [inviteModalOpen? (r/atom false)
+               addModalOpen? (r/atom false)
+               removeModalOpen? (r/atom false)
+               changeModalOpen? (r/atom false)
+               user-to-update (r/atom nil)]
+    (let [active-panel @(subscribe [:active-panel])
+          active? #(= active-panel [:org %])
+          users @(subscribe [:org/users org-id])
+          projects @(subscribe [:org/projects org-id])
+          project-descriptions (mapv #(subscribe [:project/markdown-description (:project-id %)]) projects)]
+      (doseq [{:keys [project-id]} projects]
+        (load-data :project/markdown-description project-id))
+      [:div
+       [OrgInviteUrlModal inviteModalOpen? org-id]
+       [AddModal addModalOpen? org-id]
+       [RemoveModal removeModalOpen? org-id user-to-update]
+       [ChangeRoleModal changeModalOpen? org-id user-to-update]
+       (when-not (some active? #{:plans :payment})
+         [:div
+          [:f> (.-Tab OrgPage)
+           (clj->js
+            {:projects (->>
+                        (map #(assoc % :markdown-description @%2) projects project-descriptions)
+                        (mapv project->js))
+             :members (mapv member->js users)
+             :title @(subscribe [:org/name org-id])
+             :url nil
+             :logoImgUrl nil
+             :orgId org-id
+             :userIsAdmin true
+             :inviteUrl #(reset! inviteModalOpen? true)
+             :addMember #(reset! addModalOpen? true)
+             :changeRole #(open-modal changeModalOpen? user-to-update %)
+             :removeFromOrganization #(open-modal removeModalOpen? user-to-update %)})]])
+       (when (nil? child)
+         [Message {:negative true}
+          [MessageHeader {:as "h4"} "Organizations Error"]
+          [:p "This page does not exist."]])])))
 
 (defn on-navigate-org [org-id to-panel]
   (let [_from-panel @(subscribe [:active-panel])]
