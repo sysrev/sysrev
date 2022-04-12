@@ -211,7 +211,7 @@
              sr-context :pdf-zip project-1-id {:file pdf-zip :filename filename}
              {:use-future? false}))
           (is (= 4 (project/project-article-count project-1-id)))
-          (let [[{:keys [source-id] :as source}] (source/project-sources project-2-id)]
+          (let [[{:keys [source-id] :as source}] (source/project-sources sr-context project-2-id)]
             (is (= 4 (living-data-sources/check-new-articles-project-filter source)))
             (is (= {:source-id source-id}
                    (source/re-import {:sr-context sr-context} project-2-id source)))

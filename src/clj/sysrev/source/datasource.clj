@@ -17,7 +17,7 @@
 
 (defmethod import-source :datasource-query
   [sr-context _ project-id {:keys [query entities]} & {:as options}]
-  (if (seq (->> (source/project-sources project-id)
+  (if (seq (->> (source/project-sources sr-context project-id)
                 (filter #(= (get-in % [:meta :query]) query))))
     (do (log/warnf "import-source %s - query %s already imported" :datasource-query (pr-str query))
         {:error {:message (format "Datasource query %s already imported" (pr-str query))}})
@@ -56,7 +56,7 @@
 
 (defmethod import-source :datasource
   [sr-context _ project-id {:keys [datasource-id entities datasource-name]} & {:as options}]
-  (if (seq (->> (source/project-sources project-id)
+  (if (seq (->> (source/project-sources sr-context project-id)
                 (filter #(= (get-in % [:meta :datasource-id]) datasource-id))))
     (do (log/warnf "import-source %s - datasource-id %s already imported" :datasource datasource-id)
         {:error {:message (format "datasource-id %s already imported" datasource-id)}})
@@ -97,7 +97,7 @@
 
 (defmethod import-source :dataset
   [sr-context _ project-id {:keys [dataset-id entities dataset-name]} & {:as options}]
-  (if (seq (->> (source/project-sources project-id)
+  (if (seq (->> (source/project-sources sr-context project-id)
                 (filter #(= (get-in % [:meta :dataset-id]) dataset-id))))
     (do (log/warnf "import-source %s - dataset-id %s already imported" :dataset dataset-id)
         {:error {:message (format "dataset-id %s already imported" dataset-id)}})

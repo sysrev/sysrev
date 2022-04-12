@@ -7,10 +7,6 @@
             [sysrev.source.core :as source]
             [sysrev.util :as util]))
 
-(defn datapub-opts [{:keys [config]}]
-  {:auth-token (:sysrev-dev-key config)
-   :endpoint (:datapub-api config)})
-
 (defn create-source! [sr-context project-id dataset-id]
   (->> {:insert-into :project-source
         :values [{:dataset-id dataset-id
@@ -64,7 +60,7 @@
       nil)))
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
-  (let [datapub-opts (datapub-opts sr-context)]
+  (let [datapub-opts (source/datapub-opts sr-context)]
     (doseq [{:keys [filename tempfile]} files]
       (db/with-tx [sr-context sr-context]
         (let [fname (fs/base-name filename)
@@ -84,7 +80,7 @@
                           :name (random-uuid)
                           :public false}
                          "id"
-                         (datapub-opts sr-context)))
+                         (source/datapub-opts sr-context)))
         source-id (create-source! sr-context project-id dataset-id)]
     (db/clear-project-cache project-id)
     (future

@@ -117,7 +117,7 @@
        :project-name project-name
        :owner-name (:name owner)})))
 
-(defn project-info [project-id]
+(defn project-info [sr-context project-id]
   (with-project-cache project-id [:project-info]
     (let [[[fields users labels keywords members predict
             url-ids files owner plan subscription-lapsed?]
@@ -141,10 +141,9 @@
                     (pplan/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
                    [(label/query-public-article-labels project-id)
-                    (pvalues nil #_(label/project-article-status-counts project-id)
-                             (label/query-progress-over-time project-id 30))]
+                    [(label/query-progress-over-time project-id 30)]]
                    [(project/project-article-count project-id)
-                    (source/project-sources project-id)]
+                    (source/project-sources sr-context project-id)]
                    (parent-project-info project-id)
                    (gengroup/read-project-member-gengroups project-id))]
       {:project {:project-id project-id
@@ -218,7 +217,7 @@
                      :type :not-found
                      :message (format "Project (%s) not found" project-id)}}
             (do (record-user-project-interaction request)
-                (project-info project-id)))))))
+                (project-info (:sr-context request) project-id)))))))
 
 (dr (POST "/api/join-project" request
       (with-authorize request {:logged-in true}
@@ -349,30 +348,22 @@
           (when (= (:project-id article) project-id)
             result)))))
 
-(dr (POST "/api/project-articles" request
+(dr (POST "/api/project-articles" {:keys [body sr-context] :as request}
       (with-authorize request {:allow-public true}
-        (let [project-id (active-project request)
-              {:keys [text-search sort-by sort-dir lookup-count
-                      n-count n-offset] :as args} (-> request :body)
-              n-count (some-> n-count parse-integer)
-              n-offset (some-> n-offset parse-integer)
-              lookup-count (some-> lookup-count str (= "true"))
-              text-search (not-empty text-search)
-              filters (vec (->> [(:filters args)
-                                 (when text-search [{:text-search text-search}])]
-                                (apply concat) (remove nil?)))
-              query-result (alist/query-project-article-list
-                            project-id (cond-> {}
-                                         n-count (merge {:n-count n-count})
-                                         n-offset (merge {:n-offset n-offset})
-                                         (not-empty filters) (merge {:filters filters})
-                                         sort-by (merge {:sort-by sort-by})
-                                         sort-dir (merge {:sort-dir sort-dir})))]
-          {:result (if lookup-count
+        (let [{:keys [filters lookup-count text-search]} body
+              filters (->> [filters
+                            (when (seq text-search)
+                              [{:text-search text-search}])]
+                           (apply concat)
+                           (remove nil?))
+              query-result (-> (select-keys body [:n-count :n-offset :sort-by :sort-dir])
+                               (assoc :filters filters)
+                               (->> (alist/query-project-article-list
+                                     sr-context (active-project request))))]
+          {:result (if (some-> lookup-count str (= "true"))
                      (:total-count query-result)
                      (:entries query-result))}))))
 
-;;;
 ;;; Overview Charts data
 ;;;
 (dr (GET "/api/review-status" request
@@ -640,7 +631,7 @@
 
 (dr (GET "/api/project-sources" request
       (with-authorize request {:allow-public true}
-        (api/project-sources (active-project request)))))
+        (api/project-sources (:sr-context request) (active-project request)))))
 
 (dr (POST "/api/delete-source" request
       (with-authorize request {:roles ["admin"]}

@@ -1,19 +1,23 @@
 (ns sysrev.source.core
   (:require [clojure.spec.alpha :as s]
-            [orchestra.core :refer [defn-spec]]
             [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer [select from where join left-join group having
-                                               delete-from merge-where insert-into values]]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction with-project-cache]]
-            [sysrev.db.queries :as q]
-            [sysrev.project.core :as project]
+            [honeysql.helpers :as sqlh :refer [delete-from from group having
+                                               insert-into join left-join merge-where select
+                                               values where]]
+            [orchestra.core :refer [defn-spec]]
             [sysrev.article.core :as article]
+            [sysrev.datapub-client.interface :as dpc]
+            [sysrev.db.core :as db :refer
+             [do-execute do-query with-project-cache
+              with-transaction]]
+            [sysrev.db.queries :as q]
             [sysrev.file.s3 :as s3-file]
-            [sysrev.util :as util :refer [map-values index-by]]))
+            [sysrev.project.core :as project]
+            [sysrev.util :as util :refer [index-by map-values]]))
 
-;; for clj-kondo
-(declare source-id->project-id alter-source-meta)
+(defn datapub-opts [{:keys [config]}]
+  {:auth-token (:sysrev-dev-key config)
+   :endpoint (:datapub-api config)})
 
 (defn get-source
   "Get fields for project-source entry matching source-id."
@@ -121,7 +125,7 @@
   "Update the enabled fields of articles associated with project-id."
   [project-id int?]
   (db/with-clear-project-cache project-id
-    (let [ ;; get id for all articles in project
+    (let [;; get id for all articles in project
           article-ids (project/project-article-ids project-id)
           ;; get list of enabled sources for each article
           a-sources (project-article-sources-map project-id :enabled true)
@@ -260,22 +264,32 @@
                                                   (where [:= :asrc.source-id source-id])
                                                   do-query first :count)}))))))))
 
+(defn-spec entity-count int?
+  [sr-context map? {:keys [dataset-id]} map?]
+  (when (seq dataset-id)
+    (->> (datapub-opts sr-context)
+         (dpc/get-dataset dataset-id "entities{totalCount}")
+         :entities :totalCount)))
+
 (defn-spec project-sources vector?
   "Returns vector of source information maps for project-id."
-  [project-id int?]
+  [sr-context map? project-id int?]
   (with-transaction
     (let [overlap-coll (project-sources-overlap project-id)
           unique-coll (source-unique-articles-count project-id)]
-      (-> (select :source-id :project-id :meta :enabled :date-created :import-date :check-new-results :import-new-results :notes :new-articles-available)
+      (-> (select :dataset-id :source-id :project-id :meta :enabled :date-created
+                  :import-date :check-new-results :import-new-results :notes
+                  :new-articles-available)
           (from [:project-source :ps])
           (where [:= :ps.project-id project-id])
           (->> do-query
                (mapv (fn [{:keys [source-id] :as psource}]
                        (merge psource
-                              {:article-count (-> (select :%count.*)
-                                                  (from [:article-source :asrc])
-                                                  (where [:= :asrc.source-id source-id])
-                                                  do-query first :count)
+                              {:article-count (or (entity-count sr-context psource)
+                                                  (-> (select :%count.*)
+                                                      (from [:article-source :asrc])
+                                                      (where [:= :asrc.source-id source-id])
+                                                      do-query first :count))
                                :labeled-article-count (source-articles-with-labels source-id)
                                :overlap (->> overlap-coll
                                              (filter #(= (:source-id %) source-id))
@@ -340,5 +354,5 @@
 ;; FIX: handle duplicate file uploads, don't create new copy
 (defn save-import-file [source-id filename file]
   (let [file-hash (s3-file/save-file file :import)
-        file-meta {:filename filename :key file-hash} ]
+        file-meta {:filename filename :key file-hash}]
     (alter-source-meta source-id #(assoc % :s3-file file-meta))))

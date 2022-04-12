@@ -58,7 +58,7 @@
   (let [{:keys [max-import-articles]} env
         query (fda-drugs-docs/canonicalize-query query)
         {:keys [filters search]} query]
-    (cond (->> (source/project-sources project-id)
+    (cond (->> (source/project-sources sr-context project-id)
                (some
                 (fn [{{:keys [filters search-term source]} :meta}]
                   (and (= source-name source)

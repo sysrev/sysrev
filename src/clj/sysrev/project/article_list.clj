@@ -23,14 +23,14 @@
     (with-project-cache project-id [:article-list :predicts label-value]
       (when-let [predict-run-id (q/project-latest-predict-run-id project-id)]
         (-> (q/select-project-articles
-              project-id [:lp.article-id :lp.label-id [:lp.val :score]])
+             project-id [:lp.article-id :lp.label-id [:lp.val :score]])
             (-> (q/join-article-predict-values predict-run-id)
                 (merge-where [:= :lp.label-value label-value]))
             (->> do-query
                  (group-by :article-id)
                  (map-values
-                   #(->> % (map (fn [{:keys [label-id score label-value]}] {label-id score}))
-                         (apply merge)))))))))
+                  #(->> % (map (fn [{:keys [label-id score label-value]}] {label-id score}))
+                        (apply merge)))))))))
 
 (defn project-article-sources [project-id]
   (with-project-cache project-id [:article-list :sources]
@@ -270,16 +270,15 @@
 ;;;
 
 (defn project-article-list-filtered
-  [{:keys [project-id] :as context} filters sort-by sort-dir]
+  [_sr-context & {:keys [filters project-id sort-by sort-dir] :as opts}]
   (with-project-cache project-id [:filtered-article-list [filters sort-by sort-dir]]
     (let [;; get these in parallel first, always needed for updated-time
-          [article-ids labels notes annotations]
-          (pvalues (project/project-article-ids project-id true)
-                   (project-article-labels project-id)
-                   (project-article-notes project-id)
-                   (project-article-annotations project-id))
+          article-ids (project/project-article-ids project-id true)
+          labels (project-article-labels project-id)
+          notes (project-article-notes project-id)
+          annotations (project-article-annotations project-id)
           sort-fn (get-sort-fn sort-by sort-dir)
-          filter-fns (mapv (get-filter-fn context) filters)
+          filter-fns (mapv (get-filter-fn opts) filters)
           filter-all-fn (if (empty? filters)
                           (constantly true)
                           (apply every-pred filter-fns))]
@@ -303,15 +302,17 @@
          (index-by :article-id))))
 
 (defn query-project-article-list
-  [project-id {:keys [filters sort-by sort-dir n-offset n-count user-id]
-               :or {filters []
-                    sort-by :content-updated
-                    sort-dir :desc
-                    n-offset 0
-                    n-count 20
-                    user-id nil}}]
-  (let [context {:project-id project-id :user-id user-id}
-        all-entries (project-article-list-filtered context filters sort-by sort-dir)
+  [sr-context project-id
+   & {:keys [filters sort-by sort-dir n-offset n-count user-id]
+      :or {filters []
+           sort-by :content-updated
+           sort-dir :desc
+           n-offset 0
+           n-count 20
+           user-id nil}}]
+  (let [all-entries (project-article-list-filtered
+                     sr-context :filters filters :project-id project-id
+                     :sort-by sort-by :sort-dir sort-dir)
         display-entries (->> all-entries (drop n-offset) (take n-count))
         articles (lookup-article-entries project-id (map :article-id display-entries))]
     {:entries (->> display-entries (mapv #(merge % (get articles (:article-id %)))))

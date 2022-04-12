@@ -20,8 +20,8 @@
          (log/info "Bad Format " (.getMessage e))
          nil)))
 
-(defn- pmid-source-exists? [project-id filename]
-  (->> (source/project-sources project-id)
+(defn- pmid-source-exists? [sr-context project-id filename]
+  (->> (source/project-sources sr-context project-id)
        (filter #(= (get-in % [:meta :filename]) filename))
        not-empty))
 
@@ -33,7 +33,7 @@
       (empty? pmids)
       {:error {:message "Unable to parse file"}}
 
-      (pmid-source-exists? project-id filename)
+      (pmid-source-exists? sr-context project-id filename)
       {:error {:message (format "Source already exists for %s" (pr-str filename))}}
 
       (> (count pmids) max-import-articles)

@@ -1,28 +1,30 @@
 (ns sysrev.views.article
-  (:require ["react-json-view" :default ReactJson]
-            ["react-markdown" :as ReactMarkdown]
-            ["react-xml-viewer" :as XMLViewer]
-            ["remark-gfm" :as gfm]
-            ["xml2js" :as xml2js]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             goog.object
             [medley.core :as medley]
             [re-frame.core :refer [dispatch reg-sub subscribe]]
+            ["react-json-view" :default ReactJson]
+            ["react-markdown" :as ReactMarkdown]
+            ["react-xml-viewer" :as XMLViewer]
             [reagent.core :as r]
-            [sysrev.shared.labels :refer [predictable-label-types]]
-            [sysrev.data.cursors :refer [map-from-cursors]]
-            [sysrev.state.nav :refer [project-uri]]
+            ["remark-gfm" :as gfm]
+            [sysrev.ajax :as ajax]
             [sysrev.annotation :as ann]
+            [sysrev.data.cursors :refer [map-from-cursors]]
+            [sysrev.datapub :as datapub]
+            [sysrev.macros :refer-macros [with-loader]]
             [sysrev.pdf :as pdf]
+            [sysrev.shared.components :as shared :refer [colors]]
+            [sysrev.shared.labels :refer [predictable-label-types]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :as util :refer [css filter-values format nbsp]]
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components.core :as ui]
-            [sysrev.views.keywords :refer [render-keywords render-abstract]]
+            [sysrev.views.keywords :refer [render-abstract render-keywords]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
-            [sysrev.util :as util :refer [css filter-values nbsp format]]
-            [sysrev.macros :refer-macros [with-loader]]
-            [sysrev.shared.components :as shared :refer [colors]]))
+            ["xml2js" :as xml2js]))
 
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 
@@ -335,6 +337,15 @@
                             "monokai"
                             "rjv-default")}])])))))))
 
+(defn DatapubEntity* [entity-id]
+  (r/with-let [entity (-> (ajax/rGQL (datapub/dataset-entity "id") {:id entity-id}))]
+    [:div (pr-str @entity)]))
+
+(defn DatapubEntity [article-id]
+  (let [{:keys [external-id]} @(subscribe [:article/raw article-id])]
+    (when external-id
+      [DatapubEntity* external-id])))
+
 (defn FDADrugsDocs []
   (let [state (r/atom {:current-version nil :versions nil})]
     (fn [article-id]
@@ -473,7 +484,7 @@
                                  :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
-        {:keys [types]} @(subscribe [:article/raw article-id])
+        {:keys [article-type types]} @(subscribe [:article/raw article-id])
         status @(subscribe [:article/review-status article-id])
         score @(subscribe [:article/score article-id])
         datasource-name @(subscribe [:article/datasource-name article-id])
@@ -517,7 +528,8 @@
               ;; work around by checking :types
               (condp = (if types
                          [(:article-type types) (:article-subtype types)]
-                         datasource-name)
+                         (or datasource-name article-type))
+                "datapub" [DatapubEntity article-id]
                 "entity" [Entity article-id]
                 ["json" "ctgov"]  [CTDocument article-id]
                 ["pdf" "fda-drugs-docs"] [FDADrugsDocs article-id]

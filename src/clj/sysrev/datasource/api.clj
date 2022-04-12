@@ -124,12 +124,13 @@
                    :args {:ids entity-ids}
                    :fields [:content :mimetype :id]})
        (index-by :id)))
-
 (defmulti enrich-articles (fn [datasource _articles] datasource))
 
 (defmethod enrich-articles :default [_ articles]
   (vec (for [{:keys [content] :as x} articles]
-         (merge content (select-keys x [:article-id :project-id :title])))))
+         (merge content
+                (select-keys x [:article-id :article-subtype :article-type
+                                :external-id :project-id :title])))))
 
 (defmethod enrich-articles "pubmed" [_ articles]
   (let [data (->> articles (map :external-id) (fetch-pubmed-articles))]
@@ -192,7 +193,8 @@
    `article-data` table."
   [article-ids (s/every int?)]
   (->> (q/get-article (distinct article-ids)
-                      [:a.* :ad.datasource-name :ad.external-id :ad.content :ad.title]
+                      [:a.* :ad.datasource-name :ad.external-id :ad.content :ad.title
+                       :ad.article-subtype :ad.article-type]
                       :include-disabled true)
        enrich-articles-with-datasource
        (index-by :article-id)))

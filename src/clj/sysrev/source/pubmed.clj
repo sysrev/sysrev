@@ -25,8 +25,8 @@
        (apply concat)
        vec))
 
-(defn- pubmed-source-exists? [project-id search-term]
-  (->> (source/project-sources project-id)
+(defn- pubmed-source-exists? [sr-context project-id search-term]
+  (->> (source/project-sources sr-context project-id)
        (filter #(= (get-in % [:meta :search-term]) search-term))
        not-empty))
 
@@ -36,7 +36,7 @@
   (let [{:keys [max-import-articles]} config/env
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]
     (cond
-      (pubmed-source-exists? project-id search-term)
+      (pubmed-source-exists? sr-context project-id search-term)
       {:error {:message (format "Source already exists for %s" (pr-str search-term))}}
 
       (> pmids-count max-import-articles)

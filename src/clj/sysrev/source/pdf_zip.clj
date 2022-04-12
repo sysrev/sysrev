@@ -28,14 +28,14 @@
                  ;; there seems to be spurious entries; filter based on size
                  (> (.getSize entry) 256)))))))
 
-(defn- lookup-filename-sources [project-id filename]
-  (->> (source/project-sources project-id)
+(defn- lookup-filename-sources [sr-context project-id filename]
+  (->> (source/project-sources sr-context project-id)
        (filter #(= filename (get-in % [:meta :filename])))))
 
 ;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
   [sr-context _ project-id {:keys [file filename]} {:as options}]
-  (let [filename-sources (lookup-filename-sources project-id filename)]
+  (let [filename-sources (lookup-filename-sources sr-context project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source pdf-zip - non-empty filename-sources -" filename-sources)
           {:error {:message "File name already imported"}})

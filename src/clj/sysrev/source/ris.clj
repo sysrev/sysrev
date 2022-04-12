@@ -67,7 +67,7 @@
     out-file))
 
 (defmethod import-source :ris [sr-context _ project-id {:keys [file filename]} {:as options}]
-  (let [filename-sources (->> (source/project-sources project-id)
+  (let [filename-sources (->> (source/project-sources sr-context project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
     ;; this source already exists
     (if (seq filename-sources)

@@ -361,33 +361,37 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
 (reg-sub :source/display-type
          (fn [[_ source-id project-id]]
            (subscribe [:project/sources source-id project-id]))
-         (fn [source]
-           (let [stype (-> source :meta :source)]
-             (condp = stype
-               "PubMed search"   "PubMed Search"
-               "PMID file"       "PMIDs from File"
-               "PMID vector"     "PMIDs from API"
-               "fact"            "PMIDs from FACTS"
-               "EndNote file"    "EndNote XML"
-               "legacy"          "Legacy Import"
-               "PDF Zip file"    "PDF Zip File"
-               stype))))
+         (fn [{:keys [dataset-id meta]}]
+           (if dataset-id
+             "Dataset"
+             (let [stype (:source meta)]
+               (condp = stype
+                 "PubMed search"   "PubMed Search"
+                 "PMID file"       "PMIDs from File"
+                 "PMID vector"     "PMIDs from API"
+                 "fact"            "PMIDs from FACTS"
+                 "EndNote file"    "EndNote XML"
+                 "legacy"          "Legacy Import"
+                 "PDF Zip file"    "PDF Zip File"
+                 stype)))))
 
 (reg-sub :source/display-info
          (fn [[_ source-id project-id]]
            (subscribe [:project/sources source-id project-id]))
-         (fn [{:keys [meta] :as source} _]
-           (case (:source meta)
-             "PubMed search"      (str (:search-term meta))
-             ("PMID file" "EndNote file" "PDF Zip file"
-                          "RIS file")         (str (:filename meta))
-             "Datasource Query"   (str (:query meta))
-             "Dataset"            (str "Dataset ID: " (:dataset-id meta))
-             "Datasource"         (str "Datasource ID: " (:datasource-id meta))
-             "Project Filter"     (let [{:keys [source-project-id filters]} (:meta source)]
-                                    (-> {:source-project-id source-project-id :filters filters}
-                                        (util/write-json true)))
-             nil)))
+         (fn [{:keys [dataset-id meta]}]
+           (if dataset-id
+             (str "Dataset ID: " dataset-id)
+             (case (:source meta)
+               "PubMed search"      (str (:search-term meta))
+               ("PMID file" "EndNote file" "PDF Zip file"
+                            "RIS file")         (str (:filename meta))
+               "Datasource Query"   (str (:query meta))
+               "Dataset"            (str "Dataset ID: " (:dataset-id meta))
+               "Datasource"         (str "Datasource ID: " (:datasource-id meta))
+               "Project Filter"     (let [{:keys [source-project-id filters]} meta]
+                                      (-> {:source-project-id source-project-id :filters filters}
+                                          (util/write-json true)))
+               nil))))
 
 (defn ReImportSource [source]
   (when (> (:new-articles-available source) 0)
@@ -472,7 +476,7 @@ contact us at info@insilica.co with a copy of your JSON file."]]))
                     (js/setTimeout 200))
                 {}))
 
-(defn ArticleSource [_source]
+(defn ArticleSource []
   (let [editing-view? (r/atom false)]
     (fn [source]
       (let [project-id @(subscribe [:active-project-id])

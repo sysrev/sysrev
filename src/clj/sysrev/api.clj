@@ -299,8 +299,8 @@
 (s/def ::sources vector?)
 
 (defn-spec project-sources (req-un ::sources)
-  [project-id int?]
-  {:sources (source/project-sources project-id)})
+  [sr-context map? project-id int?]
+  {:sources (source/project-sources sr-context project-id)})
 
 (defn-spec delete-source! (-> (req-un ::success) or-error)
   [source-id int?]

@@ -7,7 +7,7 @@
 
 (defmethod import-source :endnote-xml
   [sr-context _ project-id {:keys [file filename]} {:as options}]
-  (let [filename-sources (->> (source/project-sources project-id)
+  (let [filename-sources (->> (source/project-sources sr-context project-id)
                               (filter #(= (get-in % [:meta :filename]) filename)))]
     (if (seq filename-sources)
       (do (log/warn "import-source endnote-xml - non-empty filename-sources:" filename-sources)

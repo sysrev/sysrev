@@ -5,8 +5,8 @@
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util]))
 
-(defn- lookup-filename-sources [project-id filename]
-  (->> (source/project-sources project-id)
+(defn- lookup-filename-sources [sr-context project-id filename]
+  (->> (source/project-sources sr-context project-id)
        (filter #(= filename (get-in % [:meta :filename])))))
 
 (defn get-helper-text [{:keys [lvl1 lvl2 lvl3]}]
@@ -20,7 +20,7 @@
 
 (defmethod import-source :json
   [sr-context _ project-id {:keys [file filename]} {:as options}]
-  (let [filename-sources (lookup-filename-sources project-id filename)]
+  (let [filename-sources (lookup-filename-sources sr-context project-id filename)]
     (if (seq filename-sources)
       (do (log/warn "import-source json - non-empty filename-sources -" filename-sources)
           {:error {:message "File name already imported"}})
