@@ -83,9 +83,9 @@
       :projectId project-id
       :title name})
 
-(defn open-modal [modal-ref user-ref user-id]
+(defn open-modal [modal-ref user-ref user]
   (reset! modal-ref  true)
-  (reset! user-ref user-id))
+  (reset! user-ref user))
 
 (defn- OrgContent [org-id]
   (r/with-let [inviteModalOpen? (r/atom false)
@@ -120,8 +120,8 @@
              :userIsAdmin true
              :inviteUrl #(reset! inviteModalOpen? true)
              :addMember #(reset! addModalOpen? true)
-             :changeRole #(open-modal changeModalOpen? user-to-update %)
-             :removeFromOrganization #(open-modal removeModalOpen? user-to-update %)})]])
+             :changeRole #(open-modal changeModalOpen? user-to-update (js->clj % :keywordize-keys true))
+             :removeFromOrganization #(open-modal removeModalOpen? user-to-update (js->clj % :keywordize-keys true))})]])
        (when (nil? org-id)
          [Message {:negative true}
           [MessageHeader {:as "h4"} "Organizations Error"]

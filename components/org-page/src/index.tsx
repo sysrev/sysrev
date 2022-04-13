@@ -37,8 +37,8 @@ export interface TabProps {
   orgId?: number
   addMember?: () => void
   inviteUrl?: () => void
-  changeRole: (id: number) => void
-  removeFromOrganization: (id: number) => void
+  changeRole: (user: MemberProps) => void
+  removeFromOrganization: (user: MemberProps) => void
 }
 
 enum TabType {
@@ -158,8 +158,8 @@ const Tab = (props: TabProps) => {
                           <td style={{ width: '50px' }}>
                             <MenuButton
                               buttons={[
-                                { title: 'Change Role', onClick: () => props.changeRole(item.userId) },
-                                { title: 'Remove From Organization', onClick: () => props.removeFromOrganization(item.userId)}
+                                { title: 'Change Role', onClick: () => props.changeRole(item) },
+                                { title: 'Remove From Organization', onClick: () => props.removeFromOrganization(item)}
                               ]}
                             />
                           </td>

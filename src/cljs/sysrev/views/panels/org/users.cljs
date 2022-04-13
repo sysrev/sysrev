@@ -182,9 +182,8 @@
                                      "Add Member"])}])}]]
         [CursorMessage error {:negative true}]]]]]))
 
-(defn RemoveModal [modal-open org-id user-id]
+(defn RemoveModal [modal-open org-id user]
   (let [error      (r/cursor state [:remove-user :error])
-        username   (subscribe [:user/username @user-id])
         running?   (action/running? :org/remove-user)]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
@@ -192,30 +191,29 @@
      [ModalHeader (str "Removing 1 member from " @(subscribe [:org/name org-id]))]
      [ModalContent
       [ModalDescription
-       [Form {:on-submit #(run-action :org/remove-user org-id @user-id modal-open)}
+       [Form {:on-submit #(run-action :org/remove-user org-id (:userId @user) modal-open)}
         [:h4 "The following members will be removed:"]
         [Table {:basic true :style {:width "50%"}}
          [TableBody
           [TableRow
            [TableCell
-            [Avatar {:user-id @user-id}]
-            [UserPublicProfileLink {:user-id @user-id :username @username}]]]]]
+            [Avatar {:user-id (:userId @user)}]
+            [UserPublicProfileLink {:user-id (:userId @user) :username (:name @user)}]]]]]
         [Button {:color "orange" :disabled running?}
          "Remove members"]
         [CursorMessage error {:negative true}]]]]]))
 
-(defn ChangeRoleModal [modal-open org-id user-id]
-  (let [username   (subscribe [:user/username @user-id])
-        new-role   (r/cursor state [:change-role :new-role])
+(defn ChangeRoleModal [modal-open org-id user]
+  (let [new-role   (r/cursor state [:change-role :new-role])
         error      (r/cursor state [:change-role :error])
         running?   (action/running? :org/change-user-role)]
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)}
-     [ModalHeader (str "Change the role of " @username "?")]
+     [ModalHeader (str "Change the role of " (:name @user) "?")]
      [ModalContent
       [ModalDescription
-       [Form {:on-submit #(run-action :org/change-user-role org-id @user-id [@new-role] modal-open)}
+       [Form {:on-submit #(run-action :org/change-user-role org-id (:userId @user) [@new-role] modal-open)}
         [FormGroup
          [Checkbox {:label "Admin"
                     :as "h4", :radio true, :style {:display "block"}
