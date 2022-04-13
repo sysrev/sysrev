@@ -231,17 +231,6 @@
        (catch Throwable e
          {:error {:message (.getMessage e)}})))
 
-;;https://stripe.com/docs/connect/quickstart?code=ac_Dqv4kl5grW1R7eRtNRQHahcuO6TGcQIq&state=state#express-account-creation
-(defn finalize-stripe-user!
-  "finalize the stripe user on stripe, return the stripe customer-id"
-  [stripe-code]
-  (http/post "https://connect.stripe.com/oauth/token"
-             (assoc default-req
-                    :form-params
-                    {"client_secret" stripe-secret-key
-                     "code" stripe-code
-                     "grant_type" "authorization_code"})))
-
 (defn get-setup-intent []
   (stripe-post "/setup_intents"))
 

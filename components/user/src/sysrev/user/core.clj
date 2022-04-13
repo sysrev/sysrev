@@ -266,12 +266,6 @@
   (q/modify :project-member {:user-id user-id :project-id project-id}
             {:access-date db/sql-now}))
 
-(defn create-user-stripe [stripe-acct user-id]
-  (q/create :user-stripe {:stripe-acct stripe-acct :user-id user-id}))
-
-(defn user-stripe-account [user-id]
-  (q/find-one :user-stripe {:user-id user-id}))
-
 (defn verified-primary-email?
   "Is this email already primary and verified?"
   [email]

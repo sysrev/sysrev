@@ -627,16 +627,6 @@
 ;; Everyone is Premium (formerly team pro) now
 (def user-available-plans org-available-plans)
 
-(defn finalize-stripe-user!
-  "Save a stripe user in our database for payouts"
-  [user-id stripe-code]
-  (let [{:keys [body] :as response} (stripe/finalize-stripe-user! stripe-code)]
-    (if-let [stripe-user-id (:stripe_user_id body)]
-      (do (user/create-user-stripe stripe-user-id user-id)
-          {:success true})
-      {:error {:status (:status response)
-               :message (:error_description body)}})))
-
 (defn user-default-stripe-source [user-id]
   (with-transaction
     {:default-source (or (some-> (q/get-user user-id :stripe-id)
@@ -648,9 +638,6 @@
     {:default-source (or (some-> (group/group-stripe-id org-id)
                                  (stripe/get-customer-invoice-default-payment-method))
                          [])}))
-
-(defn user-has-stripe-account? [user-id]
-  {:connected (boolean (user/user-stripe-account user-id))})
 
 (defn read-project-compensations
   "Return all project compensations for project-id"

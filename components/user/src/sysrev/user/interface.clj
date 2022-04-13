@@ -26,11 +26,6 @@
   (apply user/create-user email password
          (apply concat opts)))
 
-(defn create-user-stripe
-  "Create a DB record relating stripe-acct to user-id."
-  [stripe-acct user-id]
-  (user/create-user-stripe stripe-acct user-id))
-
 (defn create-user-stripe-customer!
   "Create a stripe customer from user"
   [user]
@@ -162,9 +157,6 @@
 
 (defn user-settings [user-id]
   (user/user-settings user-id))
-
-(defn user-stripe-account [user-id]
-  (user/user-stripe-account user-id))
 
 (defn valid-password?
   "Does this password match the stored hash for the user with this email?"

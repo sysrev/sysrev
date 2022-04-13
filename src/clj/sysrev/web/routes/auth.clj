@@ -9,7 +9,6 @@
             [sysrev.db.queries :as q]
             [sysrev.mail.core :refer [send-email]]
             [sysrev.user.interface :as user :refer [user-by-email]]
-            [sysrev.web.app :as web :refer [with-authorize]]
             [sysrev.web.routes.core :refer [setup-local-routes]]))
 
 ;; for clj-kondo
@@ -22,17 +21,14 @@
                      :finalize finalize-routes})
 
 (dr (GET "/api/auth/google-oauth-url" request
-      #_(log/infof "auth/google-oauth-url:\n%s" (util/pp-str request))
       (let [{:keys [params]} request
             {:keys [base-url register]} params
             url (google/get-google-oauth-url base-url (= register "true"))]
-        #_(log/infof "auth/google-oauth-url: %s" url)
         (-> {:body {:result url}}
             (response/set-cookie "_baseurl" base-url
                                  {:same-site :lax, :domain ""})))))
 
 (dr (GET "/api/auth/login/google" request
-      #_(log/infof "auth/login/google:\n%s" (util/pp-str request))
       (let [{:keys [params session cookies]} request
             {:keys [code]} params
             base-url (get-in cookies ["_baseurl" :value])
@@ -53,9 +49,6 @@
                       (nil? user-info) (get-redirect "/login" {:auth-error "google-login"})
                       :else            (get-redirect "/login" {:auth-error "sysrev-login"
                                                                :auth-email email}))]
-        #_(log/infof "auth/login/google: base-url=%s" base-url)
-        #_(log/infof "auth/login/google: user-info=%s" (util/pp-str user-info))
-        #_(log/infof "auth/login/google: %s" url)
         (when (and user (some-> (not-empty google-user-id)
                                 (not= (:google-user-id user))))
           (q/modify :web-user {:user-id user-id} {:google-user-id google-user-id}))
@@ -92,7 +85,6 @@
                             :project-id project-id :org-id org-id))))
 
 (dr (GET "/api/auth/register/google" request
-      #_(log/infof "auth/register/google:\n%s" (util/pp-str request))
       (let [{:keys [params session cookies]} request
             {:keys [code]} params
             base-url (get-in cookies ["_baseurl" :value])
@@ -117,8 +109,6 @@
                                                      {:auth-error (:message result)})
                       :else            (get-redirect "/register"
                                                      {:auth-error "sysrev-signup"}))]
-        #_(log/infof "auth/register/google: base-url=%s" base-url)
-        #_(log/infof "auth/register/google: %s" url)
         (if user
           (with-meta (response/redirect url)
             {:session (assoc session :identity
@@ -164,16 +154,6 @@
         (api/change-datasource-password! user-id)
         (user/clear-password-reset-code user-id)
         {:success true})))
-
-(dr (GET "/api/stripe/connected/:user-id" request
-      (with-authorize request {:logged-in true}
-        (let [user-id (-> request :params :user-id Integer/parseInt)]
-          (api/user-has-stripe-account? user-id)))))
-;; unused
-(dr (POST "/api/stripe/finalize-user" request
-      (with-authorize request {:logged-in true}
-        (let [{:keys [user-id stripe-code]} (-> request :body)]
-          (api/finalize-stripe-user! user-id stripe-code)))))
 
 (finalize-routes)
 
