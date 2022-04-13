@@ -20,6 +20,8 @@ rebuild_js () {
     fi
 }
 
+sync_package_json;
+
 cd components/org-page
 
 sync_package_json;
