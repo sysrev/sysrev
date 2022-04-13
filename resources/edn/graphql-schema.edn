@@ -132,8 +132,12 @@
   :ReviewerTimeInterval {:fields {:article {:type :Article}
                                   :reviewer {:type :Reviewer}
                                   :start {:type Timestamp}
-                                  :end {:type Timestamp}}}}
- :queries {:project {:type :Project
+                                  :end {:type Timestamp}}}
+  :TokenInfo {:fields {:userId {:type ID}}}}
+ :queries {:getTokenInfo {:type :TokenInfo
+                          :args {:token {:type (non-null String)}}
+                          :resolve :getTokenInfo}
+           :project {:type :Project
                      :description "Read a project by its id"
                      :args {:id {:type (non-null Int)}}
                      :resolve :resolve-project}}

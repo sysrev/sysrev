@@ -8,17 +8,18 @@
             [com.walmartlabs.lacinia :refer [execute]]
             [com.walmartlabs.lacinia.schema :as schema]
             [com.walmartlabs.lacinia.util :refer [attach-resolvers]]
+            [sysrev.article.graphql :refer [parse-set-label-input
+                                            serialize-set-label-input set-labels!]]
             [sysrev.graphql.authorization :refer [authorized?]]
+            [sysrev.graphql.token :as token]
             [sysrev.project.graphql :as project]
             [sysrev.reviewer-time.interface :as reviewer-time]
             [sysrev.source.datasource
              :refer
-             [import-dataset
-              import-datasource
+             [import-dataset import-datasource
               import-datasource-flattened
               import-ds-query]]
             [sysrev.source.project-filter :refer [import-article-filter-url!]]
-            [sysrev.article.graphql :refer [set-labels! parse-set-label-input serialize-set-label-input]]
             [sysrev.util :as util]))
 
 (def scalars
@@ -37,6 +38,7 @@
       slurp
       edn/read-string
       (attach-resolvers {:Project/reviewerTime #'reviewer-time/Project-reviewerTime
+                         :getTokenInfo #'token/getTokenInfo
                          :resolve-project #'project/project
                          :resolve-import-articles! #'import-ds-query
                          :resolve-import-dataset! #'import-dataset
@@ -126,12 +128,13 @@
   "Accepts a GraphQL query via GET or POST, and executes the query.
   Returns the result as text/json."
   [compiled-schema]
-  (fn [request]
-    (let [request (assoc request :body (slurp (:body request)))
+  (fn [{:keys [body sr-context] :as request}]
+    (let [request (assoc request :body (slurp body))
           vars (variable-map request)
           query (extract-query request)
           context {:authorization (get-authorization-key request)
-                   :request request}
+                   :request request
+                   :sr-context sr-context}
           authorization-result (authorized? query vars context)
           result (if (-> authorization-result :resolved-value :behavior (= :error))
                    {:errors [(-> authorization-result :resolved-value :data)]}
