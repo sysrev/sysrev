@@ -98,6 +98,7 @@
                                         sysrev.user.core               user
                                         sysrev.util                    util
                                         sysrev.util-lite.interface     ul
+                                        sysrev.web.app                 app
 ;;; sysrev namespaces  [CLJS]
                                         sysrev.action.core             action
                                         sysrev.chartjs                 chartjs
@@ -118,6 +119,7 @@
            orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
            reagent.core/with-let clojure.core/let
            sysrev.db.core/with-long-transaction clojure.core/with-open
+           sysrev.db.core/with-tx clojure.core/with-open
            sysrev.file-util.interface/with-temp-file clojure.core/with-open
            sysrev.file-util.interface/with-temp-files clojure.core/with-open
            sysrev.pdf-read.interface/with-PDDocument clojure.core/with-open

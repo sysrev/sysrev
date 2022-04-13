@@ -2,8 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
             [etaoin.api :as ea]
-            [sysrev.api :refer [clone-project-for-org!
-                                import-articles-from-pdfs]]
+            [sysrev.api :as api]
             [sysrev.db.queries :as q]
             [sysrev.etaoin-test.interface :as et]
             [sysrev.group.core :refer [add-user-to-group! create-group!]]
@@ -12,6 +11,7 @@
             [sysrev.project.core :refer [create-project]]
             [sysrev.project.invitation :as invitation]
             [sysrev.project.member :refer [add-project-member]]
+            [sysrev.source.files :as files]
             [sysrev.test.core :as test]
             [sysrev.test.e2e.account :as account]
             [sysrev.test.e2e.core :as e]
@@ -29,14 +29,12 @@
       (add-project-member project-a-id importer-id)
       (add-project-member project-a-id user-id)
       (let [{:keys [result]}
-            #__ (import-articles-from-pdfs
+            #__ (files/import!
                  sr-context project-a-id
-                 {"files[]"
-                  {:filename "sysrev-7539906377827440851.pdf"
+                 [{:filename "sysrev-7539906377827440851.pdf"
                    :content-type "application/pdf"
                    :tempfile (util/create-tempfile :suffix ".pdf")
-                   :size 0}}
-                 :user-id importer-id)
+                   :size 0}])
             _ (Thread/sleep 1000)
             article-id (q/find-one [:article-data :ad]
                                    {:a.project-id project-a-id
@@ -67,7 +65,7 @@
           _ (add-user-to-group! creator-id group-id :permissions ["admin"])
           _ (add-user-to-group! user-id group-id :permissions ["admin"])
           {:keys [dest-project-id]}
-          #__ (clone-project-for-org!
+          #__ (api/clone-project-for-org!
                {:src-project-id project-a-id :user-id creator-id :org-id group-id})]
       (account/log-in test-resources user)
       (testing ":group-has-new-project notifications"
@@ -80,32 +78,6 @@
                                 {:fn/has-text "TestGroupA"}]))
         (is (nil? (ea/wait-predicate
                    #(str/ends-with? (e/get-path driver) (str "/p/" dest-project-id "/add-articles")))))))))
-
-(deftest ^:optional project-source-added-notifications
-  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [sr-context]} system
-          article-adder (test/create-test-user system)
-          {:keys [user-id] :as user} (test/create-test-user system)
-          project-a-id (:project-id (create-project "Mangiferin"))]
-      (account/log-in test-resources user)
-      (add-project-member project-a-id (:user-id article-adder))
-      (add-project-member project-a-id user-id)
-      (let [{:keys [result]}
-            #__ (import-articles-from-pdfs
-                 sr-context project-a-id
-                 {"files[]"
-                  {:filename "sysrev-7539906377827440850.pdf"
-                   :content-type "application/pdf"
-                   :tempfile (util/create-tempfile :suffix ".pdf")
-                   :size 0}}
-                 :user-id (:user-id article-adder))]
-        (testing ":project-source-added notifications"
-          (is (true? (:success result)))
-          (doto driver
-            (et/is-click-visible {:fn/has-class :notifications-icon})
-            (et/is-wait-visible {:fn/has-class :notifications-footer})
-            (et/is-wait-visible {:fn/has-text (:username article-adder)})
-            (et/is-wait-visible {:fn/has-text "added a new article source"})))))))
 
 (deftest ^:optional project-has-new-user-notifications
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]

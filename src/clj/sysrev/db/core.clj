@@ -13,6 +13,7 @@
             [honeysql.core :as sql]
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh :refer [where]]
+            [next.jdbc :as jdbc]
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as result-set]
             [orchestra.core :refer [defn-spec]]
@@ -191,6 +192,24 @@
   (j/execute! (or conn *conn* @*active-db*)
               (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
+
+(defmacro with-tx
+  "Either use an existing :tx in the sr-context, or create a new transaction
+  and assign it to :tx in the sr-context."
+  [[binding sr-context] & body]
+  `(let [sr-context# ~sr-context]
+     (if-let [tx# (:tx sr-context#)]
+       (let [~binding sr-context#] ~@body)
+       (jdbc/with-transaction [tx# (get-in sr-context# [:postgres :datasource])
+                               {:isolation :serializable}]
+         (let [~binding (assoc sr-context# :tx tx#)]
+           ~@body)))))
+
+(defn execute-one!
+  "Execute a HoneySQL 2 map."
+  [sr-context sqlmap]
+  (with-tx [{:keys [tx]} sr-context]
+    (pg/execute-one! tx sqlmap)))
 
 (defn minc-time-ms
   "Returns a monotonically increasing time value in milliseconds. No relation

@@ -2,11 +2,11 @@
   (:require [clojure.java.io :as io]
             [clojure.test :refer :all]
             [etaoin.api :as ea]
-            [sysrev.api :as api]
             [sysrev.etaoin-test.interface :as et]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
+            [sysrev.source.files :as files]
             [sysrev.source.interface :as src]
             [sysrev.test.core :as test]
             [sysrev.test.e2e.account :as account]
@@ -17,17 +17,16 @@
 
 (deftest ^:e2e test-disabled-required-label
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [user-id] :as user} (test/create-test-user system)
+    (let [{:keys [sr-context]} system
+          {:keys [user-id] :as user} (test/create-test-user system)
           project-id (:project-id (project/create-project "Disabled Required Label"))]
       (member/add-project-member project-id user-id
                                  :permissions ["admin" "member"])
-      (api/import-articles-from-pdfs
-       (:sr-context system) project-id
-       {"files[]"
-        {:filename "sysrev-7539906377827440850.pdf"
+      (files/import!
+       sr-context project-id
+       [{:filename "sysrev-7539906377827440850.pdf"
          :content-type "application/pdf"
-         :tempfile (io/resource "test-files/test-pdf-import/Weyers Ciprofloxacin.pdf")}}
-       :user-id user-id)
+         :tempfile (io/resource "test-files/test-pdf-import/Weyers Ciprofloxacin.pdf")}])
       (label/add-label-overall-include project-id)
       (label/add-label-entry-boolean project-id
                                      {:enabled false

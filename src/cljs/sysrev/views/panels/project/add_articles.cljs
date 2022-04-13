@@ -243,7 +243,7 @@
   (let [project-id @(subscribe [:active-project-id])]
     [:div {:style {:margin-left "auto" :margin-right "auto"
                    :margin-top "1em"}}
-     [uppy/Dashboard {:endpoint (str "/api/import-articles/pdfs/" project-id)
+     [uppy/Dashboard {:endpoint (str "/api/import-files/" project-id)
                       :on-complete #(dispatch [:on-add-source project-id])
                       :project-id project-id}]]))
 

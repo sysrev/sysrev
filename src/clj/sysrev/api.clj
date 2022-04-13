@@ -58,7 +58,6 @@
             [sysrev.source.interface :as src]
             sysrev.source.json
             sysrev.source.pdf-zip
-            sysrev.source.pdfs
             sysrev.source.pmid
             [sysrev.source.project-filter :as project-filter]
             sysrev.source.pubmed
@@ -255,11 +254,6 @@
   [sr-context project-id file filename & {:keys [] :as options}]
   (wrap-import-api #(src/import-source sr-context :json project-id % options)
                    {:file file :filename filename}))
-
-(defn import-articles-from-pdfs [sr-context project-id multipart-params & {:keys [threads] :as options}]
-  (let [files (get multipart-params "files[]")]
-    (wrap-import-api #(src/import-source sr-context :pdfs project-id % options)
-                     (if (map? files) [files] files))))
 
 (defn import-articles-from-ris-file
   "Import articles from a RIS file."

@@ -31,14 +31,15 @@
             [sysrev.project.core :as project]
             [sysrev.project.description
              :refer [read-project-description
-                                                set-project-description!]]
+                     set-project-description!]]
             [sysrev.project.member :as member]
             [sysrev.project.plan :as pplan]
             [sysrev.shared.keywords :as keywords]
             [sysrev.source.core :as source]
+            [sysrev.source.files :as files]
             [sysrev.user.interface :as user]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.web.app :as web :refer [active-project current-user-id
+            [sysrev.web.app :as app :refer [active-project current-user-id
                                             with-authorize]]
             [sysrev.web.routes.core :refer [setup-local-routes]])
   (:import (java.io File)))
@@ -140,7 +141,7 @@
                     (pplan/project-owner-plan project-id)
                     (api/subscription-lapsed? project-id)]
                    [(label/query-public-article-labels project-id)
-                    (pvalues nil #_ (label/project-article-status-counts project-id)
+                    (pvalues nil #_(label/project-article-status-counts project-id)
                              (label/query-progress-over-time project-id 30))]
                    [(project/project-article-count project-id)
                     (source/project-sources project-id)]
@@ -151,7 +152,7 @@
                  :project-uuid (:project-uuid fields)
                  :members members
                  :stats {:articles articles
-                         #_ :status-counts #_ status-counts
+                         #_:status-counts #_status-counts
                          :predict predict
                          :progress progress}
                  :labels labels
@@ -201,281 +202,283 @@
                      :finalize finalize-routes})
 
 (dr (GET "/api/public-projects" request
-         (with-authorize request {}
-           (api/public-projects))))
+      (with-authorize request {}
+        (api/public-projects))))
 
 (dr (GET "/api/project-info" request
-         (with-authorize request {:allow-public true
-                                  :bypass-subscription-lapsed? true}
-           (let [project-id (active-project request)
-                 valid-project
-                 (and (integer? project-id)
-                      (project/project-exists? project-id :include-disabled? false))]
-             (assert (integer? project-id))
-             (if (not valid-project)
-               {:error {:status 404
-                        :type :not-found
-                        :message (format "Project (%s) not found" project-id)}}
-               (do (record-user-project-interaction request)
-                   (project-info project-id)))))))
+      (with-authorize request {:allow-public true
+                               :bypass-subscription-lapsed? true}
+        (let [project-id (active-project request)
+              valid-project
+              (and (integer? project-id)
+                   (project/project-exists? project-id :include-disabled? false))]
+          (assert (integer? project-id))
+          (if (not valid-project)
+            {:error {:status 404
+                     :type :not-found
+                     :message (format "Project (%s) not found" project-id)}}
+            (do (record-user-project-interaction request)
+                (project-info project-id)))))))
 
 (dr (POST "/api/join-project" request
-          (with-authorize request {:logged-in true}
-            (let [project-id (active-project request)
-                  user-id (current-user-id request)
-                  session (:session request)]
-              (when (member/project-member project-id user-id)
-                (throw (ex-info "join-project: User is already a member of this project"
-                                {:project-id project-id :user-id user-id})))
-              (member/add-project-member project-id user-id)
-              (with-meta
-                {:result {:project-id project-id}}
-                {:session session})))))
+      (with-authorize request {:logged-in true}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)
+              session (:session request)]
+          (assert (nil? (member/project-member project-id user-id))
+                  "join-project: User is already a member of this project")
+          (member/add-project-member project-id user-id)
+          (with-meta
+            {:result {:project-id project-id}}
+            {:session session})))))
 
 (dr (POST "/api/remove-user-from-project" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [project-id user-id]} (-> request :body)]
-              (api/remove-member-from-project! project-id user-id)
-              {:success true}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [project-id user-id]} (-> request :body)]
+          (api/remove-member-from-project! project-id user-id)
+          {:success true}))))
 
 
 (dr (POST "/api/create-project" request
-          (with-authorize request {:logged-in true}
-            (let [{:keys [project-name public-access]} (-> request :body)
-                  user-id (current-user-id request)]
-              (assert (integer? user-id))
-              (api/create-project-for-user!
-               (:sr-context request)
-               project-name user-id public-access)))))
+      (with-authorize request {:logged-in true}
+        (let [{:keys [project-name public-access]} (-> request :body)
+              user-id (current-user-id request)]
+          (assert (integer? user-id))
+          (api/create-project-for-user!
+           (:sr-context request)
+           project-name user-id public-access)))))
 
 (dr (POST "/api/clone-project" request
-          (with-authorize request {:logged-in true}
-            (let [user-id (current-user-id request)
-                  {:keys [src-project-id]} (:body request)]
-              (assert (integer? user-id))
-              (api/clone-project-for-user! {:src-project-id src-project-id
-                                            :user-id user-id})))))
+      (with-authorize request {:logged-in true}
+        (let [user-id (current-user-id request)
+              {:keys [src-project-id]} (:body request)]
+          (assert (integer? user-id))
+          (api/clone-project-for-user! {:src-project-id src-project-id
+                                        :user-id user-id})))))
 
 (dr (POST "/api/delete-project" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  user-id (current-user-id request)]
-              (api/delete-project! project-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/delete-project! project-id user-id)))))
 
 (dr (POST "/api/create-gengroup" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [gengroup-name gengroup-description]} (:body request)]
-              (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
-              {:success true
-               :message "Group created."}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [gengroup-name gengroup-description]} (:body request)]
+          (gengroup/create-project-member-gengroup! project-id gengroup-name gengroup-description)
+          {:success true
+           :message "Group created."}))))
 
 (dr (POST "/api/update-gengroup" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [gengroup-id gengroup-name gengroup-description]} (:body request)]
-              (gengroup/update-project-member-gengroup! project-id gengroup-id gengroup-name gengroup-description)
-              {:success true
-               :message "Group updated."}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [gengroup-id gengroup-name gengroup-description]} (:body request)]
+          (gengroup/update-project-member-gengroup! project-id gengroup-id gengroup-name gengroup-description)
+          {:success true
+           :message "Group updated."}))))
 
 (dr (POST "/api/delete-gengroup" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [gengroup-id]} (:body request)]
-              (gengroup/delete-project-member-gengroup! project-id gengroup-id)
-              {:success true
-               :message "Group deleted."}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [gengroup-id]} (:body request)]
+          (gengroup/delete-project-member-gengroup! project-id gengroup-id)
+          {:success true
+           :message "Group deleted."}))))
 
 (dr (POST "/api/add-member-to-gengroup" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [gengroup-id membership-id]} (:body request)]
-              (gengroup/project-member-gengroup-add project-id gengroup-id membership-id)
-              {:success true
-               :message "Member added to group"}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [gengroup-id membership-id]} (:body request)]
+          (gengroup/project-member-gengroup-add project-id gengroup-id membership-id)
+          {:success true
+           :message "Member added to group"}))))
 
 (dr (POST "/api/remove-member-from-gengroup" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [gengroup-id membership-id]} (:body request)]
-              (gengroup/project-member-gengroup-remove project-id gengroup-id membership-id)
-              {:success true
-               :message "Member removed from group"}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [gengroup-id membership-id]} (:body request)]
+          (gengroup/project-member-gengroup-remove project-id gengroup-id membership-id)
+          {:success true
+           :message "Member removed from group"}))))
 
 (dr (GET "/api/lookup-project-url" request
-         (with-authorize request {}
-           {:result (let [url-id (-> request :params :url-id util/read-transit-str)
-                          [project-url-id {:keys [user-url-id org-url-id]}] url-id
+      (with-authorize request {}
+        {:result (let [url-id (-> request :params :url-id util/read-transit-str)
+                       [project-url-id {:keys [user-url-id org-url-id]}] url-id
                           ;; TODO: lookup project-id from combination of owner/project names
-                          project-id (project/project-id-from-url-id project-url-id)
-                          owner (some-> project-id project/get-project-owner)
-                          user-id (some-> user-url-id user/user-id-from-url-id)
-                          org-id (some-> org-url-id group/group-id-from-url-id)
-                          user-match? (and user-id (= user-id (:user-id owner)))
-                          org-match? (and org-id (= org-id (:group-id owner)))
-                          owner-url? (boolean (or user-url-id org-url-id))
-                          user-redirect? (and (not owner-url?) (:user-id owner))
-                          org-redirect? (and (not owner-url?) (:group-id owner))
-                          no-owner? (and (nil? owner) project-id)]
-                      (cond
+                       project-id (project/project-id-from-url-id project-url-id)
+                       owner (some-> project-id project/get-project-owner)
+                       user-id (some-> user-url-id user/user-id-from-url-id)
+                       org-id (some-> org-url-id group/group-id-from-url-id)
+                       user-match? (and user-id (= user-id (:user-id owner)))
+                       org-match? (and org-id (= org-id (:group-id owner)))
+                       owner-url? (boolean (or user-url-id org-url-id))
+                       user-redirect? (and (not owner-url?) (:user-id owner))
+                       org-redirect? (and (not owner-url?) (:group-id owner))
+                       no-owner? (and (nil? owner) project-id)]
+                   (cond
                         ;; TODO: remove this after migration to set owners
-                        no-owner?       {:project-id project-id}
-                        user-match?     {:project-id project-id :user-id user-id}
-                        org-match?      {:project-id project-id :org-id org-id}
-                        user-redirect?  {:project-id project-id :user-id (:user-id owner)}
-                        org-redirect?   {:project-id project-id :org-id (:group-id owner)}
-                        project-id      {:project-id project-id}
-                        :else        nil))})))
+                     no-owner?       {:project-id project-id}
+                     user-match?     {:project-id project-id :user-id user-id}
+                     org-match?      {:project-id project-id :org-id org-id}
+                     user-redirect?  {:project-id project-id :user-id (:user-id owner)}
+                     org-redirect?   {:project-id project-id :org-id (:group-id owner)}
+                     project-id      {:project-id project-id}
+                     :else        nil))})))
 
 (dr (GET "/api/consume-register-hash" request
-         (with-authorize request {}
-           (let [register-hash (-> request :params :register-hash)]
-             (if-let [data (enc/try-decrypt-wrapped64 register-hash)]
-               (case (:type data)
-                 "org-invite-hash"
-                 {:org {:org-id (:org-id data)
-                        :name (group/group-id->name (:org-id data))}})
-               (let [project-id (project/project-id-from-register-hash register-hash)]
-                 {:project (when project-id
-                             (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                               {:project-id project-id :name name}))}))))))
+      (with-authorize request {}
+        (let [register-hash (-> request :params :register-hash)]
+          (if-let [data (enc/try-decrypt-wrapped64 register-hash)]
+            (case (:type data)
+              "org-invite-hash"
+              {:org {:org-id (:org-id data)
+                     :name (group/group-id->name (:org-id data))}})
+            (let [project-id (project/project-id-from-register-hash register-hash)]
+              {:project (when project-id
+                          (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+                            {:project-id project-id :name name}))}))))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
-                 article-id (-> request :params :article-id parse-integer)
-                 {:keys [article] :as result} (article-info-full project-id article-id)]
-             (when (= (:project-id article) project-id)
-               result)))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              article-id (-> request :params :article-id parse-integer)
+              {:keys [article] :as result} (article-info-full project-id article-id)]
+          (when (= (:project-id article) project-id)
+            result)))))
 
 (dr (POST "/api/project-articles" request
-          (with-authorize request {:allow-public true}
-            (let [project-id (active-project request)
-                  {:keys [text-search sort-by sort-dir lookup-count
-                          n-count n-offset] :as args} (-> request :body)
-                  n-count (some-> n-count parse-integer)
-                  n-offset (some-> n-offset parse-integer)
-                  lookup-count (some-> lookup-count str (= "true"))
-                  text-search (not-empty text-search)
-                  filters (vec (->> [(:filters args)
-                                     (when text-search [{:text-search text-search}])]
-                                    (apply concat) (remove nil?)))
-                  query-result (alist/query-project-article-list
-                                project-id (cond-> {}
-                                             n-count (merge {:n-count n-count})
-                                             n-offset (merge {:n-offset n-offset})
-                                             (not-empty filters) (merge {:filters filters})
-                                             sort-by (merge {:sort-by sort-by})
-                                             sort-dir (merge {:sort-dir sort-dir})))]
-              {:result (if lookup-count
-                         (:total-count query-result)
-                         (:entries query-result))}))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              {:keys [text-search sort-by sort-dir lookup-count
+                      n-count n-offset] :as args} (-> request :body)
+              n-count (some-> n-count parse-integer)
+              n-offset (some-> n-offset parse-integer)
+              lookup-count (some-> lookup-count str (= "true"))
+              text-search (not-empty text-search)
+              filters (vec (->> [(:filters args)
+                                 (when text-search [{:text-search text-search}])]
+                                (apply concat) (remove nil?)))
+              query-result (alist/query-project-article-list
+                            project-id (cond-> {}
+                                         n-count (merge {:n-count n-count})
+                                         n-offset (merge {:n-offset n-offset})
+                                         (not-empty filters) (merge {:filters filters})
+                                         sort-by (merge {:sort-by sort-by})
+                                         sort-dir (merge {:sort-dir sort-dir})))]
+          {:result (if lookup-count
+                     (:total-count query-result)
+                     (:entries query-result))}))))
 
 ;;;
 ;;; Overview Charts data
 ;;;
 (dr (GET "/api/review-status" request
-         (with-authorize request {:allow-public true}
-           (label/project-article-status-counts (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (label/project-article-status-counts (active-project request)))))
 
 (dr (GET "/api/important-terms-text" request
-         (with-authorize request {:allow-public true}
-           (api/project-important-terms-text (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (api/project-important-terms-text (active-project request)))))
 
 (dr (GET "/api/prediction-histograms" request
-         (with-authorize request {:allow-public true}
-           (api/project-prediction-histogram (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (api/project-prediction-histogram (active-project request)))))
 
 (dr (GET "/api/charts/label-count-data" request
-         (with-authorize request {:allow-public true}
-           (api/label-count-chart-data (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (api/label-count-chart-data (active-project request)))))
 
 ;;;
 ;;; Analytics Charts data
 ;;;
 
 (dr (GET "/api/concordance" request
-         (with-authorize request {:allow-public true}
-           (let [{:keys [#_ n]} (-> request :params)]
-             (api/project-concordance
-              (active-project request)
-              :keep-resolved (= "true" (get-in request [:params :keep-resolved])))))))
+      (with-authorize request {:allow-public true}
+        (let [{:keys [#_n]} (-> request :params)]
+          (api/project-concordance
+           (active-project request)
+           :keep-resolved (= "true" (get-in request [:params :keep-resolved])))))))
 
 (dr (GET "/api/countgroup" request
-         (with-authorize request {:allow-public true}
-           (let [{:keys [#_ n]} (-> request :params)]
-             (api/project-label-count-groups (active-project request))))))
+      (with-authorize request {:allow-public true}
+        (let [{:keys [#_n]} (-> request :params)]
+          (api/project-label-count-groups (active-project request))))))
 
 ;;;
 ;;; Article import
 ;;;
 
 (dr (POST "/api/import-articles/pubmed" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [search-term]} (:body request)
-                  project-id (active-project request)
-                  user-id (current-user-id request)]
-              (api/import-articles-from-search
-               (:sr-context request) project-id search-term :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [search-term]} (:body request)
+              project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/import-articles-from-search
+           (:sr-context request) project-id search-term :user-id user-id)))))
 
 (dr (POST "/api/import-articles/pmid-file/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [tempfile filename]} (get-in request [:params :file])
-                  user-id (current-user-id request)]
-              (api/import-articles-from-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [tempfile filename]} (get-in request [:params :file])
+              user-id (current-user-id request)]
+          (api/import-articles-from-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/endnote-xml/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [tempfile filename]} (get-in request [:params :file])
-                  user-id (current-user-id request)]
-              (api/import-articles-from-endnote-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [tempfile filename]} (get-in request [:params :file])
+              user-id (current-user-id request)]
+          (api/import-articles-from-endnote-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/pdf-zip/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [tempfile filename]} (get-in request [:params :file])
-                  user-id (current-user-id request)]
-              (api/import-articles-from-pdf-zip-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [tempfile filename]} (get-in request [:params :file])
+              user-id (current-user-id request)]
+          (api/import-articles-from-pdf-zip-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-articles/json/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [tempfile filename]} (get-in request [:params :file])
-                  user-id (current-user-id request)]
-              (api/import-articles-from-json-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [tempfile filename]} (get-in request [:params :file])
+              user-id (current-user-id request)]
+          (api/import-articles-from-json-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
-(dr (POST "/api/import-articles/pdfs/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  user-id (current-user-id request)]
-              (api/import-articles-from-pdfs (:sr-context request) project-id (:multipart-params request) :user-id user-id)))))
+(dr (POST "/api/import-files/:project-id"
+      {:keys [multipart-params sr-context] :as request}
+      (with-authorize request {:roles ["admin"]}
+        (let [files (get multipart-params "files[]")]
+          (files/import!
+           sr-context
+           (app/active-project request)
+           (if (map? files) [files] files))))))
 
 (dr (POST "/api/import-articles/ris/:project-id" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [tempfile filename]} (get-in request [:params :file])
-                  user-id (current-user-id request)]
-              (api/import-articles-from-ris-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [tempfile filename]} (get-in request [:params :file])
+              user-id (current-user-id request)]
+          (api/import-articles-from-ris-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
 (dr (POST "/api/import-trials/ctgov" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [entity-ids query]} (:body request)
-                  project-id (active-project request)
-                  user-id (current-user-id request)]
-              (api/import-trials-from-search (:sr-context request) project-id query entity-ids
-                                             :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [entity-ids query]} (:body request)
+              project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/import-trials-from-search (:sr-context request) project-id query entity-ids
+                                         :user-id user-id)))))
 
 (dr (POST "/api/import-trials/fda-drugs-docs" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [entity-ids query]} (:body request)
-                  project-id (active-project request)
-                  user-id (current-user-id request)]
-              (api/import-trials-from-fda-drugs-docs
-               (:sr-context request) project-id query entity-ids
-               :user-id user-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [entity-ids query]} (:body request)
+              project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/import-trials-from-fda-drugs-docs
+           (:sr-context request) project-id query entity-ids
+           :user-id user-id)))))
 
 (dr (POST "/api/import-project-articles"
       {:keys [body sr-context] :as request}
@@ -487,37 +490,37 @@
 ;;;
 
 (dr (GET "/api/label-task" request
-         (with-authorize request {:roles ["member"]}
-           (if-let [{:keys [article-id today-count]}
-                    (assign/get-user-label-task (active-project request) (current-user-id request))]
-             (do
-               (assign/record-last-assigned article-id)
-               {:result (merge (article-info-full (active-project request) article-id)
-                               {:today-count today-count})})
-             {:result :none}))))
+      (with-authorize request {:roles ["member"]}
+        (if-let [{:keys [article-id today-count]}
+                 (assign/get-user-label-task (active-project request) (current-user-id request))]
+          (do
+            (assign/record-last-assigned article-id)
+            {:result (merge (article-info-full (active-project request) article-id)
+                            {:today-count today-count})})
+          {:result :none}))))
 
 (dr (POST "/api/set-labels" request
-          (with-authorize request {:roles ["member"]}
-            (let [user-id (current-user-id request)
-                  project-id (active-project request)
-                  {:keys [article-id label-values confirm? change? resolve?]
-                   :as body} (-> request :body)]
-              (answer/set-labels {:project-id project-id
-                                  :user-id user-id
-                                  :article-id article-id
-                                  :label-values label-values
-                                  :confirm? confirm?
-                                  :change? change?
-                                  :resolve? resolve?
-                                  :request request})
-              {:result body}))))
+      (with-authorize request {:roles ["member"]}
+        (let [user-id (current-user-id request)
+              project-id (active-project request)
+              {:keys [article-id label-values confirm? change? resolve?]
+               :as body} (-> request :body)]
+          (answer/set-labels {:project-id project-id
+                              :user-id user-id
+                              :article-id article-id
+                              :label-values label-values
+                              :confirm? confirm?
+                              :change? change?
+                              :resolve? resolve?
+                              :request request})
+          {:result body}))))
 
 (dr (POST "/api/set-article-note" request
-          (with-authorize request {:roles ["member"]}
-            (let [user-id (current-user-id request)
-                  {:keys [article-id content]} (:body request)]
-              (article/set-user-article-note article-id user-id content)
-              {:result (:body request)}))))
+      (with-authorize request {:roles ["member"]}
+        (let [user-id (current-user-id request)
+              {:keys [article-id content]} (:body request)]
+          (article/set-user-article-note article-id user-id content)
+          {:result (:body request)}))))
 
 ;;;
 ;;; PubMed search
@@ -534,530 +537,530 @@
 
 ;; Return a vector of PMIDs associated with the given search term
 (dr (GET "/api/pubmed/search" request
-         (with-authorize request {}
-           (let [{:keys [term page-number]} (-> :params request)]
-             (pubmed/get-search-query-response term (parse-integer page-number))))))
+      (with-authorize request {}
+        (let [{:keys [term page-number]} (-> :params request)]
+          (pubmed/get-search-query-response term (parse-integer page-number))))))
 
 ;; Return article summaries for a list of PMIDs
 (dr (GET "/api/pubmed/summaries" request
-         (with-authorize request {}
-           (let [{:keys [pmids]} (-> :params request)]
-             (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
+      (with-authorize request {}
+        (let [{:keys [pmids]} (-> :params request)]
+          (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
 
 ;;;
 ;;; Project settings
 ;;;
 
 (dr (GET "/api/project-settings" request
-         (with-authorize request {:allow-public true
-                                  :bypass-subscription-lapsed? true}
-           (let [project-id (active-project request)]
-             {:settings (project/project-settings project-id)
-              :project-name (q/find-one :project {:project-id project-id} :name)}))))
+      (with-authorize request {:allow-public true
+                               :bypass-subscription-lapsed? true}
+        (let [project-id (active-project request)]
+          {:settings (project/project-settings project-id)
+           :project-name (q/find-one :project {:project-id project-id} :name)}))))
 
 (dr (POST "/api/change-project-settings" request
-          (with-authorize request {:roles ["admin"]
-                                   :bypass-subscription-lapsed? true}
-            (let [project-id (active-project request)
-                  {:keys [changes]} (:body request)]
-              (api/change-project-settings project-id changes)))))
+      (with-authorize request {:roles ["admin"]
+                               :bypass-subscription-lapsed? true}
+        (let [project-id (active-project request)
+              {:keys [changes]} (:body request)]
+          (api/change-project-settings project-id changes)))))
 
 (dr (POST "/api/change-project-name" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [project-name]} (:body request)]
-              (project/change-project-name project-id project-name)
-              {:success true, :project-name project-name}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [project-name]} (:body request)]
+          (project/change-project-name project-id project-name)
+          {:success true, :project-name project-name}))))
 
 (dr (POST "/api/change-project-permissions" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [users-map]} (:body request)]
-              (api/change-project-permissions project-id users-map)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [users-map]} (:body request)]
+          (api/change-project-permissions project-id users-map)))))
 
 (dr (POST "/api/sync-project-labels" request
-          (with-authorize request {:roles ["admin"]}
-            (api/sync-labels
-             (active-project request)
-             (-> request :body :labels label/sanitize-labels)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/sync-labels
+         (active-project request)
+         (-> request :body :labels label/sanitize-labels)))))
 
 (dr (POST "/api/get-label-share-code" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [label-id]} (:body request)]
-              {:success true :share-code (label/get-share-code label-id)}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [label-id]} (:body request)]
+          {:success true :share-code (label/get-share-code label-id)}))))
 
 (dr (POST "/api/import-label" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [share-code]} (:body request)]
-              (api/import-label share-code project-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [share-code]} (:body request)]
+          (api/import-label share-code project-id)))))
 
 (dr (POST "/api/detach-label" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [label-id]} (:body request)]
-              (api/detach-label project-id label-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [label-id]} (:body request)]
+          (api/detach-label project-id label-id)))))
 
 (dr (GET "/api/project-description" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)]
-             {:project-description (read-project-description project-id)}))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)]
+          {:project-description (read-project-description project-id)}))))
 
 (dr (POST "/api/project-description" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [markdown]} (:body request)]
-              (set-project-description! project-id markdown)
-              {:project-description markdown}))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [markdown]} (:body request)]
+          (set-project-description! project-id markdown)
+          {:project-description markdown}))))
 
 (dr (POST "/api/send-project-invites" request
-          (with-authorize request {:roles ["admin"]}
-            (let [max-bulk-invitations (:max-bulk-invitations env)
-                  project-id (active-project request)
-                  {:keys [emails]} (-> request :body)
-                  unique-emails (set emails)
-                  unique-emails-count (count unique-emails)]
-              (cond
-                (zero? unique-emails-count)
+      (with-authorize request {:roles ["admin"]}
+        (let [max-bulk-invitations (:max-bulk-invitations env)
+              project-id (active-project request)
+              {:keys [emails]} (-> request :body)
+              unique-emails (set emails)
+              unique-emails-count (count unique-emails)]
+          (cond
+            (zero? unique-emails-count)
+            {:error {:status api/bad-request
+                     :message (str "At least 1 email is required")}}
+            (> unique-emails-count max-bulk-invitations)
+            {:error {:status api/bad-request
+                     :message (str "Maximum emails allowed are " max-bulk-invitations)}}
+            :else
+            (let [response (api/send-bulk-invitations project-id unique-emails)]
+              (if (:success response)
+                response
                 {:error {:status api/bad-request
-                         :message (str "At least 1 email is required")}}
-                (> unique-emails-count max-bulk-invitations)
-                {:error {:status api/bad-request
-                         :message (str "Maximum emails allowed are " max-bulk-invitations)}}
-                :else
-                (let [response (api/send-bulk-invitations project-id unique-emails)]
-                  (if (:success response)
-                    response
-                    {:error {:status api/bad-request
-                             :message (:message response)}})))))))
+                         :message (:message response)}})))))))
 
 ;;;
 ;;; Project sources
 ;;;
 
 (dr (GET "/api/project-sources" request
-         (with-authorize request {:allow-public true}
-           (api/project-sources (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (api/project-sources (active-project request)))))
 
 (dr (POST "/api/delete-source" request
-          (with-authorize request {:roles ["admin"]}
-            (let [source-id (-> request :body :source-id)
-                  _user-id (current-user-id request)]
-              (api/delete-source! source-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [source-id (-> request :body :source-id)
+              _user-id (current-user-id request)]
+          (api/delete-source! source-id)))))
 
 (dr (POST "/api/toggle-source" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [source-id enabled?]} (-> request :body)
-                  _user-id (current-user-id request)]
-              (api/toggle-source source-id enabled?)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [source-id enabled?]} (-> request :body)
+              _user-id (current-user-id request)]
+          (api/toggle-source source-id enabled?)))))
 
 (dr (POST "/api/update-source" request
-          (with-authorize request {:roles ["admin"]}
-            (let [{:keys [source-id check-new-results? import-new-results? notes]} (-> request :body)
-                  _user-id (current-user-id request)]
-              (api/update-source source-id check-new-results? import-new-results? notes)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [{:keys [source-id check-new-results? import-new-results? notes]} (-> request :body)
+              _user-id (current-user-id request)]
+          (api/update-source source-id check-new-results? import-new-results? notes)))))
 
 (dr (POST "/api/re-import-source" {:keys [body sr-context] :as request}
-          (with-authorize request {:roles ["admin"]}
-            (api/re-import-source sr-context (:source-id body)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/re-import-source sr-context (:source-id body)))))
 
 (dr (GET "/api/sources/download/:project-id/:source-id" request
-         (with-authorize request {:allow-public true}
-           (let [_project-id (active-project request)
-                 source-id (parse-integer (-> request :params :source-id))
-                 {:keys [meta]} (source/get-source source-id)
-                 {:keys [source filename hash]} meta
-                 {:keys [key]} (source/source-upload-file source-id)
-                 response-body (if (= source "RIS file")
-                                 (ds-api/download-file
-                                  {:filename filename
-                                   :hash hash})
-                                 (s3-file/get-file-stream key :import))]
-             (-> (response/response response-body)
-                 (response/header "Content-Disposition"
-                                  (format "attachment; filename=\"%s\"" filename)))))))
+      (with-authorize request {:allow-public true}
+        (let [_project-id (active-project request)
+              source-id (parse-integer (-> request :params :source-id))
+              {:keys [meta]} (source/get-source source-id)
+              {:keys [source filename hash]} meta
+              {:keys [key]} (source/source-upload-file source-id)
+              response-body (if (= source "RIS file")
+                              (ds-api/download-file
+                               {:filename filename
+                                :hash hash})
+                              (s3-file/get-file-stream key :import))]
+          (-> (response/response response-body)
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename)))))))
 
 ;; admin request because it could potentially expose
 ;; sensitive information
 (dr (GET "/api/sources/:source-id/sample-article" request
-         (with-authorize request {:roles ["admin"]}
-           (let [source-id (parse-integer (-> request :params :source-id))]
-             (api/source-sample source-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [source-id (parse-integer (-> request :params :source-id))]
+          (api/source-sample source-id)))))
 
 (dr (POST "/api/sources/:source-id/cursors" request
-          (with-authorize request {:roles ["admin"]}
-            (let [source-id (parse-integer (-> request :params :source-id))
-                  {:keys [cursors]} (-> request :body)]
-              (api/update-source-cursors! source-id cursors)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [source-id (parse-integer (-> request :params :source-id))
+              {:keys [cursors]} (-> request :body)]
+          (api/update-source-cursors! source-id cursors)))))
 
 ;;;
 ;;; Project document files
 ;;;
 
 (dr (GET "/api/files/:project-id" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
-                 files (doc-file/list-project-documents project-id)]
-             {:result (vec files)}))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              files (doc-file/list-project-documents project-id)]
+          {:result (vec files)}))))
 
 (dr (GET "/api/files/:project-id/download/:file-key" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
-                 {:keys [file-key]} (:params request)
-                 {:keys [filename]} (doc-file/lookup-document-file project-id file-key)]
-             (when filename
-               (-> (response/response (s3-file/get-file-stream file-key :document))
-                   (response/header "Content-Disposition"
-                                    (format "attachment; filename=\"%s\"" filename))))))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              {:keys [file-key]} (:params request)
+              {:keys [filename]} (doc-file/lookup-document-file project-id file-key)]
+          (when filename
+            (-> (response/response (s3-file/get-file-stream file-key :document))
+                (response/header "Content-Disposition"
+                                 (format "attachment; filename=\"%s\"" filename))))))))
 
 (dr (POST "/api/files/:project-id/upload" request
-          (with-authorize request {:roles ["member"]}
-            (let [project-id (active-project request)
-                  user-id (current-user-id request)
-                  {:keys [file]} (:params request)
-                  {:keys [tempfile filename]} file]
-              (doc-file/save-document-file project-id user-id filename tempfile)
-              {:result 1}))))
+      (with-authorize request {:roles ["member"]}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)
+              {:keys [file]} (:params request)
+              {:keys [tempfile filename]} file]
+          (doc-file/save-document-file project-id user-id filename tempfile)
+          {:result 1}))))
 
 (dr (POST "/api/files/:project-id/delete/:file-key" request
-          (with-authorize request {:roles ["member"]}
-            (let [project-id (active-project request)
-                  {:keys [file-key]} (:params request)]
-              {:result (doc-file/mark-document-file-deleted project-id file-key)}))))
+      (with-authorize request {:roles ["member"]}
+        (let [project-id (active-project request)
+              {:keys [file-key]} (:params request)]
+          {:result (doc-file/mark-document-file-deleted project-id file-key)}))))
 
 ;;
 ;; Project export files
 ;;
 
 (dr (GET "/api/project-exports" request
-         (with-authorize request {:allow-public true}
-           (get-project-exports (active-project request)))))
+      (with-authorize request {:allow-public true}
+        (get-project-exports (active-project request)))))
 
 (dr (POST "/api/generate-project-export/:project-id/:export-type" request
-          (with-authorize request {:allow-public true}
-            (let [project-id (active-project request)
-                  user-id (current-user-id request)
-                  export-type (-> request :params :export-type keyword)
-                  {:keys [filters text-search separator label-id]} (:body request)
-                  text-search (not-empty text-search)
-                  filters (vec (concat filters (when text-search [{:text-search text-search}])))
-                  article-ids (when filters
-                                (alist/query-project-article-ids {:project-id project-id} filters))
-                  tempfile (case export-type
-                             :user-answers
-                             (-> (export/export-user-answers-csv
-                                  project-id :article-ids article-ids :separator separator)
-                                 (write-csv)
-                                 (create-export-tempfile))
-                             :group-answers
-                             (-> (export/export-group-answers-csv
-                                  project-id :article-ids article-ids :separator separator)
-                                 (write-csv)
-                                 (create-export-tempfile))
-                             :articles-csv
-                             (-> (export/export-articles-csv
-                                  project-id :article-ids article-ids :separator separator)
-                                 (write-csv)
-                                 (create-export-tempfile))
-                             :annotations-csv
-                             (-> (export/export-annotations-csv
-                                  project-id :article-ids article-ids :separator separator)
-                                 (write-csv)
-                                 (create-export-tempfile))
-                             :endnote-xml
-                             (project-to-endnote-xml
-                              project-id :article-ids article-ids :to-file true)
-                             :group-label-csv
-                             (-> (export/export-group-label-csv project-id :label-id label-id)
-                                 (write-csv)
-                                 (create-export-tempfile))
-                             :json
-                             (-> (api/project-json project-id)
-                                 (clojure.data.json/write-str)
-                                 (create-export-tempfile))
-                             :uploaded-article-pdfs-zip
-                             (api/project-article-pdfs-zip project-id))
-                  {:keys [download-id]
-                   :as entry} (add-project-export
-                               project-id export-type tempfile
-                               {:user-id user-id :filters filters :separator separator})
-                  filename-base (case export-type
-                                  :user-answers     "UserAnswers"
-                                  :group-answers    "Answers"
-                                  :endnote-xml      "Articles"
-                                  :articles-csv     "Articles"
-                                  :annotations-csv  "Annotations"
-                                  :group-label-csv  "GroupLabel"
-                                  :uploaded-article-pdfs-zip "UPLOADED_PDFS"
-                                  :json             "JSON")
-                  filename-ext (case export-type
-                                 (:user-answers
-                                  :group-answers
-                                  :articles-csv
-                                  :annotations-csv
-                                  :group-label-csv)  "csv"
-                                 :endnote-xml        "xml"
-                                 :json               "json"
-                                 :uploaded-article-pdfs-zip "zip")
-                  filename-project (str "P" project-id)
-                  filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
-                  filename-date (util/today-string "MMdd")
-                  filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id label/get-label :short-label)) filename-articles)]
-                                     (str/join "_"))
-                                "." filename-ext)]
-              {:entry (-> (select-keys entry [:download-id :export-type :added-time])
-                          (assoc :filename filename
-                                 :url (str/join "/" ["/api/download-project-export" project-id
-                                                     (name export-type) download-id filename])))}))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)
+              export-type (-> request :params :export-type keyword)
+              {:keys [filters text-search separator label-id]} (:body request)
+              text-search (not-empty text-search)
+              filters (vec (concat filters (when text-search [{:text-search text-search}])))
+              article-ids (when filters
+                            (alist/query-project-article-ids {:project-id project-id} filters))
+              tempfile (case export-type
+                         :user-answers
+                         (-> (export/export-user-answers-csv
+                              project-id :article-ids article-ids :separator separator)
+                             (write-csv)
+                             (create-export-tempfile))
+                         :group-answers
+                         (-> (export/export-group-answers-csv
+                              project-id :article-ids article-ids :separator separator)
+                             (write-csv)
+                             (create-export-tempfile))
+                         :articles-csv
+                         (-> (export/export-articles-csv
+                              project-id :article-ids article-ids :separator separator)
+                             (write-csv)
+                             (create-export-tempfile))
+                         :annotations-csv
+                         (-> (export/export-annotations-csv
+                              project-id :article-ids article-ids :separator separator)
+                             (write-csv)
+                             (create-export-tempfile))
+                         :endnote-xml
+                         (project-to-endnote-xml
+                          project-id :article-ids article-ids :to-file true)
+                         :group-label-csv
+                         (-> (export/export-group-label-csv project-id :label-id label-id)
+                             (write-csv)
+                             (create-export-tempfile))
+                         :json
+                         (-> (api/project-json project-id)
+                             (clojure.data.json/write-str)
+                             (create-export-tempfile))
+                         :uploaded-article-pdfs-zip
+                         (api/project-article-pdfs-zip project-id))
+              {:keys [download-id]
+               :as entry} (add-project-export
+                           project-id export-type tempfile
+                           {:user-id user-id :filters filters :separator separator})
+              filename-base (case export-type
+                              :user-answers     "UserAnswers"
+                              :group-answers    "Answers"
+                              :endnote-xml      "Articles"
+                              :articles-csv     "Articles"
+                              :annotations-csv  "Annotations"
+                              :group-label-csv  "GroupLabel"
+                              :uploaded-article-pdfs-zip "UPLOADED_PDFS"
+                              :json             "JSON")
+              filename-ext (case export-type
+                             (:user-answers
+                              :group-answers
+                              :articles-csv
+                              :annotations-csv
+                              :group-label-csv)  "csv"
+                             :endnote-xml        "xml"
+                             :json               "json"
+                             :uploaded-article-pdfs-zip "zip")
+              filename-project (str "P" project-id)
+              filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
+              filename-date (util/today-string "MMdd")
+              filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id label/get-label :short-label)) filename-articles)]
+                                 (str/join "_"))
+                            "." filename-ext)]
+          {:entry (-> (select-keys entry [:download-id :export-type :added-time])
+                      (assoc :filename filename
+                             :url (str/join "/" ["/api/download-project-export" project-id
+                                                 (name export-type) download-id filename])))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
-                 export-type (-> request :params :export-type keyword)
-                 {:keys [download-id filename]} (-> request :params)
-                 entry (->> (get-project-exports project-id)
-                            (filter #(and (= (:export-type %) export-type)
-                                          (= (:download-id %) download-id)))
-                            first)
-                 file (some-> entry :tempfile-path io/file)]
-             (cond (empty? filename) (web/make-error-response
-                                      api/bad-request :file "No filename given")
-                   (nil? file) (web/make-error-response
-                                api/not-found :file "Export file not found")
-                   :else (case export-type
-                           (:user-answers :group-answers :articles-csv :annotations-csv :group-label-csv)
-                           (-> (io/reader file) (web/csv-file-response filename))
-                           :endnote-xml
-                           (-> (io/reader file) (web/xml-file-response filename))
-                           :json (-> (io/reader file) (web/text-file-response filename))
-                           :uploaded-article-pdfs-zip (ring-io/piped-input-stream (fn [os] (io/copy file os)))))))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              export-type (-> request :params :export-type keyword)
+              {:keys [download-id filename]} (-> request :params)
+              entry (->> (get-project-exports project-id)
+                         (filter #(and (= (:export-type %) export-type)
+                                       (= (:download-id %) download-id)))
+                         first)
+              file (some-> entry :tempfile-path io/file)]
+          (cond (empty? filename) (app/make-error-response
+                                   api/bad-request :file "No filename given")
+                (nil? file) (app/make-error-response
+                             api/not-found :file "Export file not found")
+                :else (case export-type
+                        (:user-answers :group-answers :articles-csv :annotations-csv :group-label-csv)
+                        (-> (io/reader file) (app/csv-file-response filename))
+                        :endnote-xml
+                        (-> (io/reader file) (app/xml-file-response filename))
+                        :json (-> (io/reader file) (app/text-file-response filename))
+                        :uploaded-article-pdfs-zip (ring-io/piped-input-stream (fn [os] (io/copy file os)))))))))
 
 ;; Legacy route for existing API code
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
-         (with-authorize request {:allow-public true}
-           (-> (export/export-user-answers-csv (active-project request))
-               (write-csv)
-               (web/csv-file-response (-> request :params :filename))))))
+      (with-authorize request {:allow-public true}
+        (-> (export/export-user-answers-csv (active-project request))
+            (write-csv)
+            (app/csv-file-response (-> request :params :filename))))))
 
 ;;;
 ;;; Project support subscriptions
 ;;;
 
 (dr (GET "/api/user-support-subscriptions" request
-         (with-authorize request {:logged-in true}
-           (api/user-support-subscriptions
-            (q/get-user (current-user-id request))))))
+      (with-authorize request {:logged-in true}
+        (api/user-support-subscriptions
+         (q/get-user (current-user-id request))))))
 
 (dr (GET "/api/current-support" request
-         (with-authorize request {:logged-in true}
-           (api/user-project-support-level
-            (q/get-user (current-user-id request))
-            (active-project request)))))
+      (with-authorize request {:logged-in true}
+        (api/user-project-support-level
+         (q/get-user (current-user-id request))
+         (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
-          (with-authorize request {:logged-in true}
-            (api/cancel-user-project-support
-             (q/get-user (current-user-id request))
-             (active-project request)))))
+      (with-authorize request {:logged-in true}
+        (api/cancel-user-project-support
+         (q/get-user (current-user-id request))
+         (active-project request)))))
 
 ;;;
 ;;; PDF files
 ;;;
 
 (dr (GET "/api/open-access/:article-id/availability" [article-id]
-         (api/open-access-available? (parse-integer article-id))))
+      (api/open-access-available? (parse-integer article-id))))
 
 ;; TODO: article-id is ignored; check value or remove
 (dr (GET "/api/open-access/:article-id/view/:key" [_article-id key]
-         (-> (response/response (s3-file/get-file-stream key :pdf))
-             (response/header "Content-Type" "application/pdf"))))
+      (-> (response/response (s3-file/get-file-stream key :pdf))
+          (response/header "Content-Type" "application/pdf"))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
-          (with-authorize request {:roles ["member"]}
-            (let [{:keys [article-id]} (:params request)
-                  file-data (get-in request [:params :file])
-                  file (:tempfile file-data)
-                  filename (:filename file-data)]
-              (api/save-article-pdf (parse-integer article-id) file filename)))))
+      (with-authorize request {:roles ["member"]}
+        (let [{:keys [article-id]} (:params request)
+              file-data (get-in request [:params :file])
+              file (:tempfile file-data)
+              filename (:filename file-data)]
+          (api/save-article-pdf (parse-integer article-id) file filename)))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/article-pdfs" request
-         (with-authorize request {:roles ["member"]}
-           (let [{:keys [article-id]} (:params request)]
-             (api/article-pdfs (parse-integer article-id))))))
+      (with-authorize request {:roles ["member"]}
+        (let [{:keys [article-id]} (:params request)]
+          (api/article-pdfs (parse-integer article-id))))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/download/:key" request
-         (with-authorize request {:roles ["member"]}
-           (let [key (-> request :params :key)
-                 article-id (parse-integer (-> request :params :article-id))
-                 {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
-                                         (filter #(= key (str (:key %))))
-                                         first)]
-             (-> (response/response (s3-file/get-file-stream key :pdf))
-                 (response/header "Content-Type" "application/pdf")
-                 (response/header "Content-Disposition"
-                                  (format "attachment; filename=\"%s\"" filename)))))))
+      (with-authorize request {:roles ["member"]}
+        (let [key (-> request :params :key)
+              article-id (parse-integer (-> request :params :article-id))
+              {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
+                                      (filter #(= key (str (:key %))))
+                                      first)]
+          (-> (response/response (s3-file/get-file-stream key :pdf))
+              (response/header "Content-Type" "application/pdf")
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename)))))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/view/:key" request
-         (with-authorize request {:roles ["member"]}
-           (let [{:keys [key]} (:params request)]
-             (-> (response/response (s3-file/get-file-stream key :pdf))
-                 (response/header "Content-Type" "application/pdf"))))))
+      (with-authorize request {:roles ["member"]}
+        (let [{:keys [key]} (:params request)]
+          (-> (response/response (s3-file/get-file-stream key :pdf))
+              (response/header "Content-Type" "application/pdf"))))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
-          (with-authorize request {:roles ["admin"]}
-            (let [key (-> request :params :key)
-                  article-id (parse-integer (-> request :params :article-id))
-                  {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
-                                          (filter #(= key (str (:key %))))
-                                          first)]
-              (if (not= (q/get-article article-id :project-id)
-                        (active-project request))
-                {:error {:status api/not-found
-                         :message (str "Article " article-id " not found in project")}}
-                (api/dissociate-article-pdf article-id key filename))))))
+      (with-authorize request {:roles ["admin"]}
+        (let [key (-> request :params :key)
+              article-id (parse-integer (-> request :params :article-id))
+              {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
+                                      (filter #(= key (str (:key %))))
+                                      first)]
+          (if (not= (q/get-article article-id :project-id)
+                    (active-project request))
+            {:error {:status api/not-found
+                     :message (str "Article " article-id " not found in project")}}
+            (api/dissociate-article-pdf article-id key filename))))))
 
 ;;;
 ;;; Article annotations
 ;;;
 
 (dr (POST "/api/annotation/create" request
-          (with-authorize request {:roles ["member"]}
-            (with-transaction
-              (let [{:keys [context annotation-map]} (-> request :body)
-                    {:keys [selection annotation semantic-class]} annotation-map
-                    {:keys [class article-id pdf-key]} context
-                    user-id (current-user-id request)
-                    project-id (active-project request)
-                    result (condp = class
-                             "abstract"
-                             (do (assert (nil? pdf-key))
-                                 (api/save-article-annotation
-                                  project-id article-id user-id selection annotation
-                                  :context (:context annotation-map)))
-                             "pdf"
-                             (do (assert pdf-key)
-                                 (api/save-article-annotation
-                                  project-id article-id user-id selection annotation
-                                  :context (:context annotation-map) :pdf-key pdf-key)))]
-                (when (and (string? semantic-class)
-                           (not-empty semantic-class)
-                           (:annotation-id result))
-                  (api/update-annotation! (:annotation-id result)
-                                          annotation semantic-class user-id))
-                result)))))
+      (with-authorize request {:roles ["member"]}
+        (with-transaction
+          (let [{:keys [context annotation-map]} (-> request :body)
+                {:keys [selection annotation semantic-class]} annotation-map
+                {:keys [class article-id pdf-key]} context
+                user-id (current-user-id request)
+                project-id (active-project request)
+                result (condp = class
+                         "abstract"
+                         (do (assert (nil? pdf-key))
+                             (api/save-article-annotation
+                              project-id article-id user-id selection annotation
+                              :context (:context annotation-map)))
+                         "pdf"
+                         (do (assert pdf-key)
+                             (api/save-article-annotation
+                              project-id article-id user-id selection annotation
+                              :context (:context annotation-map) :pdf-key pdf-key)))]
+            (when (and (string? semantic-class)
+                       (not-empty semantic-class)
+                       (:annotation-id result))
+              (api/update-annotation! (:annotation-id result)
+                                      annotation semantic-class user-id))
+            result)))))
 
 (dr (POST "/api/annotation/update/:annotation-id" request
-          (with-authorize request {:roles ["member"]}
-            (let [annotation-id (-> request :params :annotation-id parse-integer)
-                  {:keys [annotation semantic-class]} (-> request :body)
-                  user-id (current-user-id request)]
-              (api/update-annotation!
-               annotation-id annotation semantic-class user-id)))))
+      (with-authorize request {:roles ["member"]}
+        (let [annotation-id (-> request :params :annotation-id parse-integer)
+              {:keys [annotation semantic-class]} (-> request :body)
+              user-id (current-user-id request)]
+          (api/update-annotation!
+           annotation-id annotation semantic-class user-id)))))
 
 (dr (POST "/api/annotation/delete/:annotation-id" request
-          (with-authorize request {:roles ["member"]}
-            (let [annotation-id (-> request :params :annotation-id parse-integer)]
-              (api/delete-annotation! annotation-id)))))
+      (with-authorize request {:roles ["member"]}
+        (let [annotation-id (-> request :params :annotation-id parse-integer)]
+          (api/delete-annotation! annotation-id)))))
 
 (dr (GET "/api/annotation/status" request
-         (with-authorize request {:allow-public true}
-           (let [project-id (active-project request)
-                 user-id (current-user-id request)]
-             (api/project-annotation-status project-id :user-id user-id)))))
+      (with-authorize request {:allow-public true}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/project-annotation-status project-id :user-id user-id)))))
 
 (dr (GET "/api/annotations/user-defined/:article-id" request
-         (let [article-id (-> request :params :article-id parse-integer)]
-           (api/article-user-annotations article-id))))
+      (let [article-id (-> request :params :article-id parse-integer)]
+        (api/article-user-annotations article-id))))
 
 (dr (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
-         (let [article-id (-> request :params :article-id parse-integer)
-               pdf-key (-> request :params :pdf-key)]
-           (api/article-pdf-user-annotations article-id pdf-key))))
+      (let [article-id (-> request :params :article-id parse-integer)
+            pdf-key (-> request :params :pdf-key)]
+        (api/article-pdf-user-annotations article-id pdf-key))))
 
 ;;;
 ;;; Funding and compensation
 ;;;
 
 (dr (POST "/api/paypal/add-funds" request
-          (with-authorize request {:logged-in true}
-            (let [project-id (active-project request)
-                  {:keys [user-id order-id]} (:body request)]
-              (api/add-funds-paypal project-id user-id order-id)))))
+      (with-authorize request {:logged-in true}
+        (let [project-id (active-project request)
+              {:keys [user-id order-id]} (:body request)]
+          (api/add-funds-paypal project-id user-id order-id)))))
 
 (dr (POST "/api/project-compensation" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [rate]} (:body request)]
-              (api/create-project-compensation! project-id rate)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [rate]} (:body request)]
+          (api/create-project-compensation! project-id rate)))))
 
 (dr (GET "/api/project-compensations" request
-         (with-authorize request {:roles ["admin"]}
-           (let [project-id (active-project request)]
-             (api/read-project-compensations project-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)]
+          (api/read-project-compensations project-id)))))
 
 (dr (PUT "/api/toggle-compensation-enabled" request
-         (with-authorize request {:roles ["admin"]}
-           (let [project-id (active-project request)
-                 {:keys [compensation-id enabled]} (:body request)]
-             (api/toggle-compensation-enabled! project-id compensation-id enabled)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [compensation-id enabled]} (:body request)]
+          (api/toggle-compensation-enabled! project-id compensation-id enabled)))))
 
 (dr (GET "/api/get-default-compensation" request
-         (with-authorize request {:roles ["admin"]}
-           (api/get-default-compensation (active-project request)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/get-default-compensation (active-project request)))))
 
 (dr (PUT "/api/set-default-compensation" request
-         (with-authorize request {:roles ["admin"]}
-           (let [project-id (active-project request)
-                 {:keys [compensation-id]} (:body request)]
-             (api/set-default-compensation! project-id compensation-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [compensation-id]} (:body request)]
+          (api/set-default-compensation! project-id compensation-id)))))
 
 (dr (GET "/api/compensation-owed" request
-         (with-authorize request {:roles ["admin"]}
-           (api/compensation-owed (active-project request)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/compensation-owed (active-project request)))))
 
 (dr (GET "/api/project-users-current-compensation" request
-         (with-authorize request {:roles ["admin"]}
-           (api/project-users-current-compensation (active-project request)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/project-users-current-compensation (active-project request)))))
 
 (dr (PUT "/api/set-user-compensation" request
-         (with-authorize request {:roles ["admin"]}
-           (let [project-id (active-project request)
-                 {:keys [user-id compensation-id]} (:body request)]
-             (api/set-user-compensation! project-id user-id compensation-id)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [user-id compensation-id]} (:body request)]
+          (api/set-user-compensation! project-id user-id compensation-id)))))
 
 (dr (GET "/api/project-funds" request
-         (with-authorize request {:roles ["admin"]}
-           (api/project-funds (active-project request)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/project-funds (active-project request)))))
 
 (dr (PUT "/api/check-pending-transaction" request
-         (with-authorize request {:roles ["admin"]}
-           (api/check-pending-project-transactions! (active-project request)))))
+      (with-authorize request {:roles ["admin"]}
+        (api/check-pending-project-transactions! (active-project request)))))
 
 (dr (POST "/api/pay-user" request
-          (with-authorize request {:roles ["admin"]}
-            (let [project-id (active-project request)
-                  {:keys [user-id compensation admin-fee]} (-> request :body)]
-              (api/pay-user! project-id user-id compensation admin-fee)))))
+      (with-authorize request {:roles ["admin"]}
+        (let [project-id (active-project request)
+              {:keys [user-id compensation admin-fee]} (-> request :body)]
+          (api/pay-user! project-id user-id compensation admin-fee)))))
 
 ;;;
 ;;; Developer-only requests
 ;;;
 
 (dr (POST "/api/delete-member-labels" request
-          (with-authorize request {:roles ["member"]
-                                   :developer true}
-            (let [user-id (current-user-id request)
-                  project-id (active-project request)
-                  {:keys [verify-user-id]} (:body request)]
-              (assert (= user-id verify-user-id) "verify-user-id mismatch")
-              (project/delete-member-labels-notes project-id user-id)
-              {:success true}))))
+      (with-authorize request {:roles ["member"]
+                               :developer true}
+        (let [user-id (current-user-id request)
+              project-id (active-project request)
+              {:keys [verify-user-id]} (:body request)]
+          (assert (= user-id verify-user-id) "verify-user-id mismatch")
+          (project/delete-member-labels-notes project-id user-id)
+          {:success true}))))
 
 (dr (POST "/api/update-project-predictions" request
-          (with-authorize request {:developer true}
-            (let [project-id (active-project request)]
-              (future (predict-api/update-project-predictions project-id))
-              {:success true}))))
+      (with-authorize request {:developer true}
+        (let [project-id (active-project request)]
+          (future (predict-api/update-project-predictions project-id))
+          {:success true}))))
 
 (dr (POST "/api/record-ui-errors" request
       (api/record-ui-errors! request)
