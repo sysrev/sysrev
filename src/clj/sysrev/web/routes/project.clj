@@ -224,8 +224,9 @@
             (let [project-id (active-project request)
                   user-id (current-user-id request)
                   session (:session request)]
-              (assert (nil? (member/project-member project-id user-id))
-                      "join-project: User is already a member of this project")
+              (when (member/project-member project-id user-id)
+                (throw (ex-info "join-project: User is already a member of this project"
+                                {:project-id project-id :user-id user-id})))
               (member/add-project-member project-id user-id)
               (with-meta
                 {:result {:project-id project-id}}
