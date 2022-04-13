@@ -149,7 +149,8 @@
 (dr (POST "/api/auth/reset-password" request
       (let [{:keys [reset-code password]} (:body request)
             {:keys [email user-id]} (user/user-by-reset-code reset-code)]
-        (assert user-id "No user account found for reset code")
+        (when-not user-id
+          (throw (RuntimeException. "No user account found for reset code")))
         (user/set-user-password email password)
         (api/change-datasource-password! user-id)
         (user/clear-password-reset-code user-id)
