@@ -205,6 +205,12 @@
          (let [~binding (assoc sr-context# :tx tx#)]
            ~@body)))))
 
+(defn execute!
+  "Execute a HoneySQL 2 map."
+  [sr-context sqlmap]
+  (with-tx [{:keys [tx]} sr-context]
+    (pg/execute! tx sqlmap)))
+
 (defn execute-one!
   "Execute a HoneySQL 2 map."
   [sr-context sqlmap]

@@ -5,10 +5,12 @@
             [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.auth.google :as google]
+            [sysrev.auth.jwt :as jwt]
             [sysrev.config :refer [env]]
             [sysrev.db.queries :as q]
             [sysrev.mail.core :as mail]
             [sysrev.user.interface :as user :refer [user-by-email]]
+            [sysrev.web.app :as app]
             [sysrev.web.routes.core :refer [setup-local-routes]]))
 
 ;; for clj-kondo
@@ -154,5 +156,11 @@
         (user/clear-password-reset-code user-id)
         {:success true})))
 
-(finalize-routes)
+(dr (POST "/api/auth/jwt/dataset" {:keys [body sr-context] :as request}
+      (let [dataset-id (:dataset-id body)
+            user-id (app/current-user-id request)]
+        (if-let [jwt (jwt/dataset-jwt sr-context user-id dataset-id)]
+          {:success true :jwt jwt}
+          (throw (ex-info "Unauthorized" {:dataset-id dataset-id :user-id user-id}))))))
 
+(finalize-routes)
