@@ -1,6 +1,5 @@
 {:paths ["src"]
- :deps {buddy/buddy {:mvn/version "2.0.0"}
-        clj-time/clj-time {:mvn/version "0.15.2"}
+ :deps {clj-time/clj-time {:mvn/version "0.15.2"}
         crypto-random/crypto-random {:mvn/version "1.2.1"}
         honeysql/honeysql {:mvn/version "1.0.461"}
         lambdaisland/regal {:mvn/version "0.0.143"}

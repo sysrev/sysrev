@@ -59,7 +59,8 @@
         criterium/criterium {:mvn/version "0.4.6"}
 
 ;;; More libraries
-        buddy/buddy {:mvn/version "2.0.0"} ;; encryption/authentication
+        buddy/buddy-hashers {:mvn/version "1.8.158"}
+        buddy/buddy-sign {:mvn/version "3.4.333"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         com.cognitect.aws/s3 {:mvn/version "820.2.1083.0"}
         com.draines/postal {:mvn/version "2.0.5"} ;; email client

@@ -1,7 +1,7 @@
 (ns sysrev.user.core
   (:require [buddy.core.codecs :as codecs]
             [buddy.core.hash :as hash]
-            [buddy.hashers]
+            [buddy.hashers :as hashers]
             [clj-time.coerce :as tc]
             [clojure.set :refer [rename-keys]]
             [clojure.spec.alpha :as s]
@@ -88,10 +88,11 @@
        codecs/bytes->hex))
 
 (defn encrypt-password [password]
-  (buddy.hashers/encrypt
-   password {:algorithm :bcrypt+sha512
-             :iterations 6
-             :salt (crypto.random/bytes 16)}))
+  (hashers/derive
+   password
+   {:algorithm :bcrypt+sha512
+    :iterations 6
+    :salt (crypto.random/bytes 16)}))
 
 (defn-spec unique-username ::su/username
   [email ::su/email]
