@@ -7,14 +7,12 @@
             [sysrev.auth.google :as google]
             [sysrev.config :refer [env]]
             [sysrev.db.queries :as q]
-            [sysrev.mail.core :refer [send-email]]
+            [sysrev.mail.core :as mail]
             [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.web.routes.core :refer [setup-local-routes]]))
 
 ;; for clj-kondo
 (declare auth-routes dr finalize-routes)
-
-(declare send-password-reset-email)
 
 (setup-local-routes {:routes auth-routes
                      :define dr
@@ -142,7 +140,7 @@
 (dr (POST "/api/auth/request-password-reset" request
       (let [{:keys [email url-base]} (:body request)]
         (if-let [user-id (user-by-email email :user-id)]
-          (do (send-password-reset-email user-id :url-base url-base)
+          (do (mail/send-password-reset-email user-id :url-base url-base)
               {:success true, :exists true})
           {:success false, :exists false}))))
 
@@ -158,14 +156,3 @@
 
 (finalize-routes)
 
-(defn send-password-reset-email [user-id & {:keys [url-base]
-                                            :or {url-base "https://sysrev.com"}}]
-  (let [email (q/get-user user-id :email)]
-    (user/create-password-reset-code user-id)
-    (send-email
-     email "Sysrev Password Reset Requested"
-     (with-out-str
-       (printf "A password reset has been requested for email address %s on %s\n\n"
-               email url-base)
-       (printf "If you made this request, follow this link to reset your password: %s\n\n"
-               (user/user-password-reset-url user-id :url-base url-base))))))
