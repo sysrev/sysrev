@@ -5,7 +5,7 @@
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
                                    trim-v]]
             [sysrev.data.core :refer [def-data load-data reload]]
-            [sysrev.macros :refer-macros [setup-panel-state with-loader]]
+            [sysrev.macros :refer-macros [setup-panel-state with-loader def-panel]]
             [sysrev.markdown :as markdown]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content]]
@@ -87,7 +87,7 @@
   (reset! modal-ref  true)
   (reset! user-ref user-id))
 
-(defn- OrgContent [org-id child]
+(defn- OrgContent [org-id]
   (r/with-let [inviteModalOpen? (r/atom false)
                addModalOpen? (r/atom false)
                removeModalOpen? (r/atom false)
@@ -122,7 +122,7 @@
              :addMember #(reset! addModalOpen? true)
              :changeRole #(open-modal changeModalOpen? user-to-update %)
              :removeFromOrganization #(open-modal removeModalOpen? user-to-update %)})]])
-       (when (nil? child)
+       (when (nil? org-id)
          [Message {:negative true}
           [MessageHeader {:as "h4"} "Organizations Error"]
           [:p "This page does not exist."]])])))
@@ -139,7 +139,15 @@
     (reload :org/current-plan org-id)))
 
 (defmethod panel-content [:org] []
-  (fn [child]
+  (fn []
     (when-let [org-id @(subscribe [::org-id])]
       (with-loader [[::orgs]] {}
-        [OrgContent org-id child]))))
+        [OrgContent org-id]))))
+
+
+
+; this is required for routing to work properly
+(def-panel :uri "/org/:org-id/users" :params [org-id]
+  :on-route (let [org-id (util/parse-integer org-id)]
+               (on-navigate-org org-id panel)
+               (reload :org/users org-id)))

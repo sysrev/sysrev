@@ -124,7 +124,7 @@
   :on-route (let [org-id (util/parse-integer org-id)]
               (org/on-navigate-org org-id panel)
               (dispatch [:data/load [:org/projects org-id]])
-              
+
               )
   :content (when-let [org-id @(subscribe [::org/org-id])]
              [OrgProjects org-id]))

@@ -137,12 +137,14 @@ const Tab = (props: TabProps) => {
             activeTab === TabType.Members &&
             <div className={[styles.members_table, styles.active_table].join(' ')}>
               <table>
-                <tr>
-                  <th>Name</th>
-                  <th>User ID</th>
-                  <th>URL</th>
-                  <th></th>
-                </tr>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>User ID</th>
+                    <th>URL</th>
+                    <th></th>
+                  </tr>
+                </thead>
                 <tbody>
                   {
                     (props.members ?? []).map((item) => (
