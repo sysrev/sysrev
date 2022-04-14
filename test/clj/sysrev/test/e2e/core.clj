@@ -8,11 +8,10 @@
             [me.raynes.fs :as fs]
             [remvee.base64 :as base64]
             [sysrev.config :refer [env]]
-            [sysrev.etaoin-test.interface :as et]
             [sysrev.test.core :as test]
             [sysrev.util :as util])
   (:import (clojure.lang ExceptionInfo)
-           (java.net URL URLDecoder)
+           (java.net URL)
            (java.util Date)))
 
 (defn bytes->base64
@@ -91,15 +90,6 @@
                  (empty? (browser-console-warnings driver)))
     (log-console-messages driver :warn))
   nil)
-
-(defn wait-exists [driver q & [timeout interval]]
-  (ea/with-wait-timeout (or (some-> timeout (/ 1000.0)) 15)
-    (ea/with-wait-interval (or (some-> interval (/ 1000.0)) 0.020)
-      (ea/wait-exists driver q))))
-
-(defn exists? [driver q & {:keys [wait] :or {wait true}}]
-  (when wait (wait-exists driver q))
-  (ea/exists? driver q))
 
 (defn ajax-activity-duration
   "Query browser for duration in milliseconds that ajax requests have
@@ -262,27 +252,6 @@
          (let [~bindings {:driver driver# :system system#}]
            ~@body)))))
 
-(defn new-project [{:keys [driver] :as test-resources} project-name]
-  (log/info "creating project" (pr-str project-name))
-  (go test-resources "/new")
-  (doto driver
-    (et/fill-visible {:css "#create-project div.project-name input"} project-name)
-    (et/click-visible "//button[contains(text(),'Create Project')]")
-    (ea/wait-exists (str "//div[contains(@class,'project-title')]"
-                         "//a[contains(text(),'" project-name "')]"))
-    wait-until-loading-completes))
-
-(defn select-datasource [driver datasource-name]
-  (wait-exists driver :enable-import)
-  (when (exists? driver {:css (str "#enable-import:" not-disabled)} :wait false)
-    (et/click-visible driver :enable-import))
-  (let [datasource-item (str "//div[contains(@class,'datasource-item')]"
-                             "//p[contains(text(),'" datasource-name "')]")]
-    (et/click-visible driver datasource-item)
-    (wait-exists driver (str "//div[contains(@class,'datasource-item')"
-                             "      and contains(@class,'active')]"
-                             "//p[contains(text(),'" datasource-name "')]"))))
-
 ;; http://blog.fermium.io/how-to-send-files-to-a-dropzone-js-element-in-selenium/
 (defn dropzone-upload
   "Given a filename, upload it to dropzone"
@@ -292,17 +261,6 @@
                          (str "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e}); c.name='" (fs/base-name filename) "'; return c} "
                               (format "return sysrev.util.add_dropzone_file_blob(base64toBlob, '%s');" base64-file)))]
     (js-execute driver upload-blob-js)))
-
-(defn uppy-attach-files
-  "Given a coll of file names in the resources dir, attach the files to
-  uppy file element."
-  [driver coll]
-  (doto driver
-    (ea/wait-exists {:fn/has-class :uppy-Dashboard-input})
-    (ea/fill {:fn/has-class :uppy-Dashboard-input}
-             (->> (for [s (util/ensure-vector coll)]
-                    (-> s io/resource .getFile URLDecoder/decode))
-                  (str/join "\n")))))
 
 (defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))

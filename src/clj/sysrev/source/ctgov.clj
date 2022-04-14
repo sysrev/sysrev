@@ -76,12 +76,12 @@
          (map :id))))
 
 (defmethod source/re-import source-name
-  [{:keys [sr-context] :as request} project-id {:keys [source-id] :as source}]
+  [sr-context project-id {:keys [source-id] :as source}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
   (future
     (import-source-articles
-     request project-id source-id
+     sr-context project-id source-id
      {:types {:article-type "json" :article-subtype "ctgov"}
       :article-refs (get-new-articles-available
                      source :config (:config sr-context))

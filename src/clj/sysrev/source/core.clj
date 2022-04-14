@@ -40,7 +40,7 @@
     (q/create :project-source {:project-id project-id :meta metadata :import-date :%now}
               :returning :source-id)))
 
-(defmulti re-import (fn [_request _project-id source]
+(defmulti re-import (fn [_sr-context _project-id source]
                       (-> source :meta :source)))
 
 (defmethod re-import :default [_ _ _]
@@ -264,7 +264,7 @@
                                                   (where [:= :asrc.source-id source-id])
                                                   do-query first :count)}))))))))
 
-(defn-spec entity-count int?
+(defn-spec entity-count any?
   [sr-context map? {:keys [dataset-id]} map?]
   (when (seq dataset-id)
     (->> (datapub-opts sr-context)

@@ -25,7 +25,7 @@
                 [:= :external-id (pg/jsonb-pgobject entity-id)]]}
        (db/execute-one! sr-context)))
 
-(defn create-article-data! [sr-context entity-id title content]
+(defn create-article-data! [sr-context {:keys [content dataset-id entity-id title]}]
   {:pre [(map? sr-context) (string? entity-id) (string? title)
          (or (nil? content) (string? content))]}
   (->> {:insert-into :article-data
@@ -33,6 +33,7 @@
         :values [{:article-subtype "entity"
                   :article-type "datapub"
                   :content content
+                  :dataset-id dataset-id
                   :datasource-name "datapub"
                   :external-id (pg/jsonb-pgobject entity-id)
                   :title title}]}
@@ -40,10 +41,10 @@
 
 (defn goc-article-data!
   "Get or create an article-data row for an entity."
-  [sr-context entity-id title content]
+  [sr-context {:keys [entity-id] :as m}]
   (db/with-tx [sr-context sr-context]
     (or (get-article-data! sr-context entity-id)
-        (create-article-data! sr-context entity-id title content))))
+        (create-article-data! sr-context m))))
 
 (defn create-article!
   [sr-context project-id source-id article-data-id]
@@ -71,10 +72,14 @@
                             (dpc/create-dataset-entity! "id" datapub-opts)
                             :id)
               article-data-id (:article-data/article-data-id
-                               (goc-article-data! sr-context entity-id fname nil))]
+                               (goc-article-data! sr-context
+                                                  {:dataset-id dataset-id
+                                                   :entity-id entity-id
+                                                   :content nil
+                                                   :title fname}))]
           (create-article! sr-context project-id source-id article-data-id))))))
 
-(defn import! [sr-context project-id files]
+(defn import! [sr-context project-id files & {:keys [sync?]}]
   (let [dataset-id (:id (dpc/create-dataset!
                          {:description (str "Files uploaded for project " project-id)
                           :name (random-uuid)
@@ -83,7 +88,8 @@
                          (source/datapub-opts sr-context)))
         source-id (create-source! sr-context project-id dataset-id)]
     (db/clear-project-cache project-id)
-    (future
-      (create-entities! sr-context project-id source-id dataset-id files)
-      (source/alter-source-meta source-id #(assoc % :importing-articles? false)))
+    ((if sync? deref identity)
+     (future
+       (create-entities! sr-context project-id source-id dataset-id files)
+       (source/alter-source-meta source-id #(assoc % :importing-articles? false))))
     {:success true}))

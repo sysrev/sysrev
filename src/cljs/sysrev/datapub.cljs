@@ -102,6 +102,23 @@
          (fn [db [_ dataset-id grouping-id]]
            (get-in db [:data :datapub :entities-for-grouping-id dataset-id grouping-id])))
 
+(def-data :dataset-jwt
+  :loaded? (fn [db dataset-id]
+             (boolean
+              (some-> db (get-in [:data :datapub :dataset-jwt dataset-id :expires])
+                      (> (js/performance.now)))))
+  :method :post
+  :uri (constantly "/api/auth/jwt/dataset")
+  :content (fn [dataset-id] {:dataset-id dataset-id})
+  :process (fn [{:keys [db]} [dataset-id] _ {:keys [result]}]
+             (let [expires (+ 900000 (js/performance.now))]
+               {:db (assoc-in db [:data :datapub :dataset-jwt dataset-id]
+                              (assoc result :expires expires))})))
+
+(reg-sub :datapub/dataset-jwt
+         (fn [db [_ dataset-id]]
+           (get-in db [:data :datapub :dataset-jwt dataset-id :jwt])))
+
 (defn subscribe! [& {:keys [on-complete on-data payload]}]
   (if-let [ws (js/WebSocket. @websocket-endpoint #js["graphql-ws"])]
     (do

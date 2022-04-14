@@ -77,7 +77,8 @@
              (first (.-children (rdom/dom-node this))))
             (.then (event-listener viewer listeners))))
       :reagent-render
-      (fn [{:keys [annotations disabled-elements disabled-tools document-id features
+      (fn [{:keys [annotations authorization disabled-elements disabled-tools
+                   document-id features
                    on-annotation-changed read-only? theme url]}]
         (reset! listeners
                 {:on-annotation-changed on-annotation-changed})
@@ -90,11 +91,13 @@
               (reset! last-url url)
               (reset! doc-loaded? false)
               (if (seq url)
-                (do (.loadDocument ui url {:extension "pdf"})
-                    (letfn [(loaded-listener []
-                              (reset! doc-loaded? true)
-                              (.removeEventListener doc-viewer "documentLoaded" loaded-listener))]
-                      (.addEventListener doc-viewer "documentLoaded" loaded-listener)))
+                (let [opts (cond-> {:extension "pdf"}
+                             (seq authorization) (assoc :customHeaders #js{"Authorization" authorization}))]
+                  (.loadDocument ui url (clj->js opts))
+                  (letfn [(loaded-listener []
+                            (reset! doc-loaded? true)
+                            (.removeEventListener doc-viewer "documentLoaded" loaded-listener))]
+                    (.addEventListener doc-viewer "documentLoaded" loaded-listener)))
                 (.closeDocument ui)))
             (when theme (.setTheme ui theme))
             (let [features (set (or features default-features))]

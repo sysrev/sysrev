@@ -214,7 +214,7 @@
           (let [[{:keys [source-id] :as source}] (source/project-sources sr-context project-2-id)]
             (is (= 4 (living-data-sources/check-new-articles-project-filter source)))
             (is (= {:source-id source-id}
-                   (source/re-import {:sr-context sr-context} project-2-id source)))
+                   (source/re-import sr-context project-2-id source)))
             (is (test/wait-not-importing? system project-2-id 10000))
             (is (= 4 (project/project-article-count project-2-id)))
             (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
@@ -225,7 +225,7 @@
             (testing "Re-importing does not create duplicate articles"
               (is (= 0 (living-data-sources/check-new-articles-project-filter source)))
               (is (= {:source-id source-id}
-                     (source/re-import {:sr-context sr-context} project-2-id source)))
+                     (source/re-import sr-context project-2-id source)))
               (is (test/wait-not-importing? system project-2-id 10000))
               (is (= 4 (project/project-article-count project-2-id)))
               (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id

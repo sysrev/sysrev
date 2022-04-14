@@ -1,12 +1,9 @@
 (ns sysrev.test.e2e.review-test
-  (:require [clojure.java.io :as io]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
             [etaoin.api :as ea]
             [sysrev.etaoin-test.interface :as et]
-            [sysrev.label.core :as label]
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
-            [sysrev.source.files :as files]
             [sysrev.source.interface :as src]
             [sysrev.test.core :as test]
             [sysrev.test.e2e.account :as account]
@@ -14,49 +11,6 @@
             [sysrev.test.e2e.labels :as labels]
             [sysrev.test.e2e.project :as e-project]
             [sysrev.test.xpath :as xpath]))
-
-(deftest ^:e2e test-disabled-required-label
-  (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
-    (let [{:keys [sr-context]} system
-          {:keys [user-id] :as user} (test/create-test-user system)
-          project-id (:project-id (project/create-project "Disabled Required Label"))]
-      (member/add-project-member project-id user-id
-                                 :permissions ["admin" "member"])
-      (files/import!
-       sr-context project-id
-       [{:filename "sysrev-7539906377827440850.pdf"
-         :content-type "application/pdf"
-         :tempfile (io/resource "test-files/test-pdf-import/Weyers Ciprofloxacin.pdf")}])
-      (label/add-label-overall-include project-id)
-      (label/add-label-entry-boolean project-id
-                                     {:enabled false
-                                      :name "bool"
-                                      :question "bool"
-                                      :required true
-                                      :short-label "bool"})
-      (account/log-in test-resources user)
-      (testing "Disabled required label doesn't prevent saving"
-        (e/go-project test-resources project-id "/review")
-        (doto driver
-          (et/click-visible [{:fn/has-class "label-edit"}
-                             {:fn/has-text "Yes"}])
-          e/wait-until-loading-completes
-          (-> (et/has-class? {:fn/has-class "save-labels"} "disabled")
-              not is)
-          (et/click-visible [{:fn/has-class "label-edit"}
-                             {:fn/has-text "?"}])
-          e/wait-until-loading-completes
-          (-> (et/has-class? {:fn/has-class "save-labels"} "disabled")
-              is))))))
-
-;; This was commented out at https://github.com/insilica/systematic_review/blob/6c88a410e51116ee7c1826aa30215fd1994c029a/test/clj/sysrev/test/browser/review_articles.clj#L210
-(deftest ^:kaocha/pending ^:e2e test-create-project-and-review-article)
-
-;; This was commented out at https://github.com/insilica/systematic_review/blob/6c88a410e51116ee7c1826aa30215fd1994c029a/test/clj/sysrev/test/browser/review_articles.clj#L327
-(deftest ^:kaocha/pending ^:e2e test-review-label-components)
-
-;; This was commented out at https://github.com/insilica/systematic_review/blob/6c88a410e51116ee7c1826aa30215fd1994c029a/test/clj/sysrev/test/browser/review_articles.clj#L429
-(deftest ^:kaocha/pending ^:e2e test-articles-data)
 
 (deftest ^:e2e test-review-skipping
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]

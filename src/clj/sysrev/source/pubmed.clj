@@ -4,7 +4,7 @@
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.formats.pubmed :as pubmed]
-            [sysrev.source.core :as source :refer [re-import]]
+            [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source
                                              import-source-articles import-source-impl]]
             [sysrev.util :as util :refer [parse-integer]]))
@@ -70,7 +70,7 @@
     new-article-ids))
 
 
-(defmethod re-import source-name [sr-context project-id {:keys [source-id] :as source}]
+(defmethod source/re-import source-name [sr-context project-id {:keys [source-id] :as source}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
   (future

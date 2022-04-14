@@ -10,9 +10,6 @@
   (str "//div[contains(@class,'review-interface')]"
        "//a[contains(text(),'Labels')]"))
 
-(defn project-menu-item [item-class]
-  (str ".ui.menu.project-menu a.item." (name item-class)))
-
 (def save-button
   "//button[contains(text(),'Save')]")
 

@@ -71,6 +71,7 @@
   [driver q text & [opt]]
   (core/fill-visible driver q text opt))
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (defn has-class?
   "Checks whether an element has a specific class.
 

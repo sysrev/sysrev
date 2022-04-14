@@ -39,20 +39,21 @@
     (vec (concat filters (when text-search [{:text-search text-search}])))))
 
 (defn get-source-project-articles [source-id article-ids]
-  (pg/execute!
-   (db/connectable)
-   {:select [:article-data-id
-             [[:'array {:select :s3-id :from :article-pdf :where [:= :article-pdf.article-id :a.article-id]}] :pdf-ids]]
-    :from [[:article :a]]
-    :where [:and [:in :article-id article-ids]
-            [:not
-             [:exists
-              {:select :*
-               :from [:article]
-               :join [[:article-source :s] [:= :s.article-id :article.article-id]]
-               :where [:and
-                       [:= :article.article-data-id :a.article-data-id]
-                       [:= :s.source-id source-id]]}]]]}))
+  (when (and source-id (seq article-ids))
+    (pg/execute!
+     (db/connectable)
+     {:select [:article-data-id
+               [[:'array {:select :s3-id :from :article-pdf :where [:= :article-pdf.article-id :a.article-id]}] :pdf-ids]]
+      :from [[:article :a]]
+      :where [:and [:in :article-id article-ids]
+              [:not
+               [:exists
+                {:select :*
+                 :from [:article]
+                 :join [[:article-source :s] [:= :s.article-id :article.article-id]]
+                 :where [:and
+                         [:= :article.article-data-id :a.article-data-id]
+                         [:= :s.source-id source-id]]}]]]})))
 
 (defn get-new-articles-available [{:keys [source-id meta]}]
   (let [{:keys [filters source-project-id]} meta]
@@ -100,12 +101,12 @@
             :returning :source-id))
 
 (defn import
-  [request project-id {:keys [source-project-id url-filter]}]
+  [{:keys [request] :as sr-context} project-id {:keys [source-project-id url-filter]}]
   (cond
     (not (project/clone-authorized? source-project-id (app/current-user-id request)))
     {:error {:message "Source project must be public or user must have admin rights to it"}}
 
-    (seq (->> (source/project-sources project-id)
+    (seq (->> (source/project-sources sr-context project-id)
               (filter #(= (get-in % [:meta :url-filter]) url-filter))
               (filter #(= (get-in % [:meta :source-project-id]) source-project-id))))
     {:error {:message (format "%s already imported"
@@ -120,7 +121,7 @@
                                      :url-filter url-filter})]
       (db/clear-project-cache project-id)
       (future
-        (import-from-url! (:sr-context request)
+        (import-from-url! sr-context
                           :filters filters
                           :project-id project-id
                           :source-id source-id
@@ -131,17 +132,18 @@
   [context {url :url source-project-id :sourceID target-project-id :targetID} _]
   (if (= source-project-id target-project-id)
     (fail "source-id can not be the same as target-id")
-    (try (import (:request context) target-project-id
-                 {:source-project-id source-project-id :url-filter url})
+    (try (-> context :request :sr-context
+             (import target-project-id
+                     {:source-project-id source-project-id :url-filter url}))
          (resolve-as true)
          (catch Exception e
            (fail (str "There was an exception with message: " (.getMessage e)))))))
 
 (defmethod source/re-import source-name
-  [request project-id {:keys [meta source-id]}]
+  [sr-context project-id {:keys [meta source-id]}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
-  (import-from-url! (:sr-context request)
+  (import-from-url! sr-context
                     :filters (-> meta :url-filter extract-filters-from-url)
                     :project-id project-id
                     :source-id source-id

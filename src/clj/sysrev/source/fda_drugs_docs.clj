@@ -101,7 +101,7 @@
          (map :id))))
 
 (defmethod source/re-import source-name
-  [{:keys [sr-context] :as sr-context} project-id {:keys [source-id] :as source}]
+  [sr-context project-id {:keys [source-id] :as source}]
   (source/alter-source-meta source-id #(assoc % :importing-articles? true))
   (source/set-import-date source-id)
   (future

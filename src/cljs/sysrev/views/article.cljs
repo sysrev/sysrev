@@ -128,7 +128,21 @@
       :reader-error-render reader-error-render
       :field field-name]]))
 
-(defn PDFAnnotator [{:keys [article-id document-id project-id url]}]
+(defn JSONView [content cursors]
+  [:> ReactJson
+   {:display-array-key false
+    :display-data-types false
+    :name nil
+    :quotes-on-keys false
+    :src
+    (if (seq cursors)
+      (clj->js (map-from-cursors content cursors))
+      (clj->js content))
+    :theme (if @(subscribe [:self/dark-theme?])
+             "monokai"
+             "rjv-default")}])
+
+(defn PDFAnnotator [{:keys [article-id authorization document-id project-id url]}]
   (let [annotation-context {:article-id article-id
                             :class "abstract"
                             :project-id project-id}]
@@ -138,6 +152,7 @@
                            (subscribe [:annotator/label-annotations annotation-context
                                        [:annotation-id :document-id :selection :xfdf]])
                            (subscribe [::pdf-annotations article-id]))
+            :authorization authorization
             :document-id document-id
             :read-only? (not= :annotations @(subscribe [:review-interface]))
             :theme (if @(subscribe [:self/dark-theme?])
@@ -324,27 +339,51 @@
                [ui/OutLink (str "https://clinicaltrials.gov/ct2/show/" externalId)]
                [:br]
                (when content
-                 [:> ReactJson
-                  {:display-array-key false
-                   :display-data-types false
-                   :name nil
-                   :quotes-on-keys false
-                   :src
-                   (if (seq cursors)
-                     (clj->js (map-from-cursors content cursors))
-                     (clj->js content))
-                   :theme (if @(subscribe [:self/dark-theme?])
-                            "monokai"
-                            "rjv-default")}])])))))))
+                 [JSONView content cursors])])))))))
 
-(defn DatapubEntity* [entity-id]
-  (r/with-let [entity (-> (ajax/rGQL (datapub/dataset-entity "id") {:id entity-id}))]
-    [:div (pr-str @entity)]))
+(defn PDFEntity [{:keys [article-id datapub-auth entity project-id]}]
+  (let [{:keys [contentUrl id metadata]} entity
+        {:keys [title]} @(subscribe [:article/raw article-id])]
+    [:div
+     [:h2 title]
+     [:br]
+     [PDFAnnotator
+      {:article-id article-id
+       :authorization datapub-auth
+       :document-id id
+       :project-id project-id
+       :url contentUrl}]
+     [:br]
+     [JSONView (js/JSON.parse metadata)]]))
 
-(defn DatapubEntity [article-id]
-  (let [{:keys [external-id]} @(subscribe [:article/raw article-id])]
-    (when external-id
-      [DatapubEntity* external-id])))
+(def mediaType->fn
+  {"application/pdf" PDFEntity})
+
+(defn DatasetEntityLoader [{:keys [article-id dataset-jwt entity-id project-id]}]
+  (r/with-let [entity (-> (datapub/dataset-entity "contentUrl mediaType metadata id")
+                          (ajax/rGQL {:id entity-id}
+                                     {:headers {:Authorization (str "Bearer " dataset-jwt)}})
+                          (r/cursor [:data :datasetEntity]))]
+    (let [{:keys [mediaType]} @entity
+          renderer (mediaType->fn mediaType)]
+      (when mediaType
+        (if renderer
+          [renderer
+           {:article-id article-id
+            :datapub-auth (str "Bearer " dataset-jwt)
+            :entity @entity
+            :project-id project-id}]
+          (do (js/console.error "Unknown mediaType: " mediaType)
+              [:div "Unknown mediaType: " mediaType]))))))
+
+(defn DatasetEntity [project-id article-id]
+  (let [{:keys [dataset-id external-id]} @(subscribe [:article/raw article-id])
+        _ (dispatch [:require [:dataset-jwt dataset-id]])
+        dataset-jwt @(subscribe [:datapub/dataset-jwt dataset-id])]
+    (when (and dataset-jwt external-id)
+      [DatasetEntityLoader
+       {:article-id article-id :dataset-jwt dataset-jwt
+        :entity-id external-id :project-id project-id}])))
 
 (defn FDADrugsDocs []
   (let [state (r/atom {:current-version nil :versions nil})]
@@ -406,18 +445,7 @@
                  :project-id project-id
                  :url contentUrl}]
                [:br]
-               [:> ReactJson
-                {:display-array-key false
-                 :display-data-types false
-                 :name nil
-                 :quotes-on-keys false
-                 :src
-                 (if (seq cursors)
-                   (clj->js (map-from-cursors metadata cursors))
-                   (clj->js metadata))
-                 :theme (if @(subscribe [:self/dark-theme?])
-                          "monokai"
-                          "rjv-default")}]])))))))
+               [JSONView metadata cursors]])))))))
 
 (def flag-display-text {"user-duplicate"   "Duplicate article (exclude)"
                         "user-conference"  "Conference abstract (exclude)"})
@@ -529,7 +557,7 @@
               (condp = (if types
                          [(:article-type types) (:article-subtype types)]
                          (or datasource-name article-type))
-                "datapub" [DatapubEntity article-id]
+                "datapub" [DatasetEntity project-id article-id]
                 "entity" [Entity article-id]
                 ["json" "ctgov"]  [CTDocument article-id]
                 ["pdf" "fda-drugs-docs"] [FDADrugsDocs article-id]

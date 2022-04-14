@@ -130,7 +130,7 @@
   (vec (for [{:keys [content] :as x} articles]
          (merge content
                 (select-keys x [:article-id :article-subtype :article-type
-                                :external-id :project-id :title])))))
+                                :dataset-id :external-id :project-id :title])))))
 
 (defmethod enrich-articles "pubmed" [_ articles]
   (let [data (->> articles (map :external-id) (fetch-pubmed-articles))]
@@ -193,7 +193,7 @@
    `article-data` table."
   [article-ids (s/every int?)]
   (->> (q/get-article (distinct article-ids)
-                      [:a.* :ad.datasource-name :ad.external-id :ad.content :ad.title
+                      [:a.* :ad.dataset-id :ad.datasource-name :ad.external-id :ad.content :ad.title
                        :ad.article-subtype :ad.article-type]
                       :include-disabled true)
        enrich-articles-with-datasource
