@@ -5,6 +5,7 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [com.walmartlabs.lacinia.resolve :as resolve]
+   [datapub.auth :as auth]
    [datapub.file :as file]
    [hasch.core :as hasch]
    [medley.core :as medley]
@@ -81,8 +82,9 @@
   (defn resolve-dataset [context {:keys [id]} _]
     (when-let [int-id (sl/parse-int-id id)]
       (with-tx-context [context context]
-        (when-not (public-dataset? context int-id)
-          (ensure-sysrev-dev context))
+        (when-not (or (public-dataset? context int-id)
+                      (auth/can-read-dataset? context int-id))
+                  (ensure-sysrev-dev context))
         (let [ks (conj (sl/current-selection-names context) :id)
               select (keep cols ks)]
           (-> (when (seq select)
@@ -305,7 +307,8 @@
                           (str (server-url (:request context))
                                (content-url-path id (or (:content-hash $) (:hash $))))))))
              (if (or (sysrev-dev? context)
-                     (call-memo context :public-dataset? (:dataset-id $)))
+                     (call-memo context :public-dataset? (:dataset-id $))
+                     (auth/can-read-dataset? context (:dataset-id $)))
                $
                (resolve/resolve-as nil {:message "You are not authorized to access entities in that dataset."
                                         :datasetId (:dataset-id $)})))))))))
@@ -385,10 +388,12 @@
             (let [hash (or (:content-json/hash entity) (:content-file/content-hash entity))
                   etag (base64url-encode hash)
                   origin (some-> (get-in request [:headers "origin"]) str/lower-case)
-                  public? (call-memo context :public-dataset? (:entity/dataset-id entity))
+                  {:entity/keys [dataset-id]} entity
+                  public? (call-memo context :public-dataset? dataset-id)
                   response
                   #__ (cond
-                        (not (or (sysrev-dev? context) public?))
+                        (not (or (sysrev-dev? context) public?
+                                 (auth/can-read-dataset? context dataset-id)))
                         {:status 403
                          :body "Forbidden"}
 

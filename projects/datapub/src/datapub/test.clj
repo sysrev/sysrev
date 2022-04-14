@@ -8,6 +8,7 @@
    [com.walmartlabs.lacinia.constants :as constants]
    [com.walmartlabs.lacinia.parser :as parser]
    [com.walmartlabs.lacinia.selection :as selection]
+   [datapub.auth :as auth]
    [datapub.main :as main]
    [io.pedestal.test :as test]
    [medley.core :as medley]
@@ -16,6 +17,9 @@
   (:import
    (java.util Base64)
    (org.apache.commons.io IOUtils)))
+
+(defn api-url [system]
+  (str "http://localhost:" (get-in system [:pedestal :bound-port]) "/api"))
 
 (defn run-tests [opts]
   ;; https://clojureverse.org/t/why-doesnt-my-program-exit/3754/8
@@ -34,11 +38,13 @@
                     {:response graphql-response}))
     graphql-response))
 
-(defn execute! [system query & [variables]]
-  (let [sysrev-dev-key (-> system :pedestal :config :secrets :sysrev-dev-key)]
+(defn execute! [system query & [variables opts]]
+  (let [auth (if (contains? opts :token)
+                (some->> opts :token (str "Bearer "))
+                (str "Bearer " (auth/sysrev-dev-key system)))]
     (-> (response-for system
                       :post "/api"
-                      :headers {"Authorization" (str "Bearer " sysrev-dev-key)
+                      :headers {"Authorization" auth
                                 "Content-Type" "application/json"}
                       :body (json/generate-string {:query query
                                                    :variables variables}))

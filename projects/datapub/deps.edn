@@ -1,6 +1,7 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.11.0"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
+        buddy/buddy-sign {:mvn/version "3.4.333"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         com.cognitect.aws/s3 {:mvn/version "820.2.1083.0"}
         com.cognitect.aws/secretsmanager {:mvn/version "820.2.1096.0"}
