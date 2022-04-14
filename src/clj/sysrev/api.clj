@@ -56,7 +56,6 @@
             sysrev.source.endnote
             sysrev.source.fda-drugs-docs
             [sysrev.source.interface :as src]
-            sysrev.source.json
             sysrev.source.pdf-zip
             sysrev.source.pmid
             [sysrev.source.project-filter :as project-filter]
@@ -247,12 +246,6 @@
   title."
   [sr-context project-id file filename & {:keys [threads] :as options}]
   (wrap-import-api #(src/import-source sr-context :pdf-zip project-id % options)
-                   {:file file :filename filename}))
-
-(defn import-articles-from-json-file
-  "Import articles from a JSON file."
-  [sr-context project-id file filename & {:keys [] :as options}]
-  (wrap-import-api #(src/import-source sr-context :json project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-ris-file

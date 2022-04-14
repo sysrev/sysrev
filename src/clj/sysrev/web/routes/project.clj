@@ -88,24 +88,16 @@
              (keywords/process-keywords secondary-title keywords)))))
 
 (defn article-info-full [project-id article-id]
-  (let [[article user-labels user-notes article-pdfs
-         [consensus resolve resolve-labels]
-         predictions]
-        (pvalues (article/get-article article-id)
-                 (label/article-user-labels-map article-id)
-                 (article/article-user-notes-map article-id)
-                 (api/article-pdfs article-id)
-                 (list (label/article-consensus-status project-id article-id)
-                       (label/article-resolved-status project-id article-id)
-                       (label/article-resolved-labels project-id article-id))
-                 (article/article-predictions article-id))]
-    {:article (merge (prepare-article-response article)
-                     {:pdfs (:files article-pdfs)}
-                     {:predictions predictions}
-                     {:review-status consensus}
-                     {:resolve (merge resolve {:labels resolve-labels})})
-     :labels user-labels
-     :notes user-notes}))
+  (let [resolve (label/article-resolved-status project-id article-id)
+        resolve-labels (label/article-resolved-labels project-id article-id)]
+    {:article (-> (article/get-article article-id)
+                  prepare-article-response
+                  (assoc :pdfs (:files (api/article-pdfs article-id))
+                         :predictions (article/article-predictions article-id)
+                         :review-status (label/article-consensus-status project-id article-id)
+                         :resolve (merge resolve {:labels resolve-labels})))
+     :labels (label/article-user-labels-map article-id)
+     :notes (article/article-user-notes-map article-id)}))
 
 (defn parent-project-info
   [project-id]
@@ -431,17 +423,11 @@
               user-id (current-user-id request)]
           (api/import-articles-from-pdf-zip-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
-(dr (POST "/api/import-articles/json/:project-id" request
-      (with-authorize request {:roles ["admin"]}
-        (let [project-id (active-project request)
-              {:keys [tempfile filename]} (get-in request [:params :file])
-              user-id (current-user-id request)]
-          (api/import-articles-from-json-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
-
 (dr (POST "/api/import-files/:project-id"
       {:keys [multipart-params sr-context] :as request}
       (with-authorize request {:roles ["admin"]}
-        (let [files (get multipart-params "files[]")]
+        (let [files (or (get multipart-params "files[]")
+                        (get multipart-params "file"))]
           (files/import!
            sr-context
            (app/active-project request)

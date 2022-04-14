@@ -263,17 +263,13 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
 (defn ImportJSONView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div
-     [:p "Please upload a JSON file with the following schema:"
-      [:div
-       [:code "{ \"articles\": [ {\"title\": \"...\", \"description\": \"...\"}, ... ] }"]]]
      [ui/UploadButton
-      (str "/api/import-articles/json/" project-id)
+      (str "/api/import-files/" project-id)
       #(dispatch [:on-add-source project-id])
       "Upload JSON File..."
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))
-      {} :post-error-text "Try editing your file to fit the upload instructions above or
-contact us at info@insilica.co with a copy of your JSON file."]]))
+      {} :post-error-text "Contact us at info@insilica.co with a copy of your JSON file."]]))
 
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]

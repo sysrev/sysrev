@@ -60,23 +60,32 @@
            (db/execute-one! sr-context))
       nil)))
 
+(defn create-entity! [{:keys [datapub-opts dataset-id file]}]
+  (let [{:keys [content-type filename tempfile]} file
+        fname (fs/base-name filename)]
+    (-> {:contentUpload (if (= "application/json" content-type)
+                          (slurp tempfile)
+                          tempfile)
+         :datasetId dataset-id
+         :mediaType content-type
+         :metadata (when (not= "application/json" content-type)
+                     (json/write-str {:filename fname}))}
+        (dpc/create-dataset-entity! "id" datapub-opts)
+        :id)))
+
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context)]
-    (doseq [{:keys [filename tempfile]} files]
+    (doseq [{:keys [filename] :as file} files]
       (db/with-tx [sr-context sr-context]
-        (let [fname (fs/base-name filename)
-              entity-id (-> {:contentUpload tempfile
-                             :datasetId dataset-id
-                             :mediaType "application/pdf"
-                             :metadata (json/write-str {:filename fname})}
-                            (dpc/create-dataset-entity! "id" datapub-opts)
-                            :id)
+        (let [entity-id (create-entity! {:datapub-opts datapub-opts
+                                         :dataset-id dataset-id
+                                         :file file})
               article-data-id (:article-data/article-data-id
                                (goc-article-data! sr-context
                                                   {:dataset-id dataset-id
                                                    :entity-id entity-id
                                                    :content nil
-                                                   :title fname}))]
+                                                   :title (fs/base-name filename)}))]
           (create-article! sr-context project-id source-id article-data-id))))))
 
 (defn import! [sr-context project-id files & {:keys [sync?]}]

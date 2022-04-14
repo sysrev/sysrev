@@ -341,6 +341,23 @@
                (when content
                  [JSONView content cursors])])))))))
 
+(defn JSONEntity [{:keys [article-id datapub-auth entity project-id]}]
+  (r/with-let [state (r/atom {:content (delay nil)})]
+    (let [{:keys [contentUrl]} entity
+          {:keys [title]} @(subscribe [:article/raw article-id])
+          {:keys [content url]} @state]
+      (when (not= url contentUrl)
+        (swap! state assoc
+               :url contentUrl
+               :content (ajax/rGET contentUrl
+                                   {:headers {:Accept "application/json"
+                                              :Authorization datapub-auth}})))
+      [:div
+       [:h2 title]
+       [:br]
+       (when @content
+         [JSONView (js->clj @content)])])))
+
 (defn PDFEntity [{:keys [article-id datapub-auth entity project-id]}]
   (let [{:keys [contentUrl id metadata]} entity
         {:keys [title]} @(subscribe [:article/raw article-id])]
@@ -357,16 +374,22 @@
      [JSONView (js/JSON.parse metadata)]]))
 
 (def mediaType->fn
-  {"application/pdf" PDFEntity})
+  {"application/json" JSONEntity
+   "application/pdf" PDFEntity})
 
 (defn DatasetEntityLoader [{:keys [article-id dataset-jwt entity-id project-id]}]
-  (r/with-let [entity (-> (datapub/dataset-entity "contentUrl mediaType metadata id")
-                          (ajax/rGQL {:id entity-id}
-                                     {:headers {:Authorization (str "Bearer " dataset-jwt)}})
-                          (r/cursor [:data :datasetEntity]))]
-    (let [{:keys [mediaType]} @entity
+  (r/with-let [state (r/atom {:entity (delay nil)})]
+    (let [{:keys [entity]} @state
+          {:keys [mediaType]} @entity
           renderer (mediaType->fn mediaType)]
-      (when mediaType
+      (when (not= entity-id (:entity-id @state))
+        (swap! state assoc
+               :entity-id entity-id
+               :entity (-> (datapub/dataset-entity "contentUrl mediaType metadata id")
+                           (ajax/rGQL {:id entity-id}
+                                      {:headers {:Authorization (str "Bearer " dataset-jwt)}})
+                           (r/cursor [:data :datasetEntity]))))
+      (when @entity
         (if renderer
           [renderer
            {:article-id article-id
