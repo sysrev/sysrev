@@ -648,7 +648,11 @@
         (make-args :multi?
                    {:checked? @multi?
                     :disabled (not is-owned?)
-                    :on-change #(reset! multi? (-> % .-target .-checked boolean))}
+                    :on-change #(let [value (-> % .-target .-checked boolean)]
+                                  (reset! multi? value)
+                                  (if value ; force an update on string default when multi changes
+                                    (reset! default-value (str/split (first @default-value) #"," -1))
+                                    (reset! default-value [(apply str @default-value)])))}
                    errors)])
      ;; inclusion checkbox
      (when (in? ["boolean" "categorical"] @value-type)
@@ -768,13 +772,15 @@
        [ui/TextInputField
         (make-args :default-value
                    {:label "Default value"
-                    :value (str/join "," @default-value)
+                    :value (if @multi? (str/join "," @default-value) @default-value)
                     :tooltip ["Default value"]
                     :disabled (not is-owned?)
                     :on-change #(let [value (-> % .-target .-value)]
                                   (if (empty? value)
                                     (reset! default-value nil)
-                                    (reset! default-value (str/split value #"," -1))))}
+                                    (if @multi? ; if not multi we treat it as a single string value
+                                      (reset! default-value (str/split value #"," -1))
+                                      (reset! default-value [value]))))}
                    errors)]
 
        [:span])
