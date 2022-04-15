@@ -1,4 +1,4 @@
-.wrapper {
+  .wrapper {
   max-width: 1200px;
   margin: auto;
   padding-left: 15px;
@@ -313,3 +313,30 @@
     table-layout: fixed; }
   .table .topsection .infos .tit {
     font-size: 26px; } }
+
+.darkmode {
+  color: #fff;
+}
+
+.darkmode .tabs a {
+  color: #000 !important;
+}
+
+.darkmode p, .darkmode a {
+  color: #4b96dc !important;
+}
+
+.darkmode h1, .darkmode .button a {
+  color: #fff !important;
+}
+
+ .darkmode .table, .darkmode .row_t, .darkmode th, .darkmode td {
+     background: #222526;
+}
+
+ .darkmode {
+     background: #1b1d1e;
+}
+ .darkmode .rightside p:hover, .darkmode .row_t .date a:hover, .darkmode .table p:hover {
+     background: rgba(42, 44, 45, 0.997);
+}

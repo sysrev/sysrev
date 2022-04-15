@@ -111,7 +111,8 @@
          [:div
           [:f> (.-Tab OrgPage)
            (clj->js
-            {:projects (->>
+            {:darkMode (boolean @(subscribe [:self/dark-theme?]))
+             :projects (->>
                         (map #(assoc % :markdown-description @%2) projects project-descriptions)
                         (mapv project->js))
              :members (mapv member->js users)

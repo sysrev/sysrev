@@ -28,6 +28,7 @@ export interface MemberProps {
 }
 
 export interface TabProps {
+  darkMode?: boolean
   title: string
   url?: string
   logoImgUrl?: string
@@ -66,7 +67,7 @@ const Tab = (props: TabProps) => {
   }
 
   return (
-    <div className={styles.body}>
+    <div className={[styles.body, (props.darkMode ?? false) ? styles.darkmode : {}].join(' ')}>
       <div className={styles.table}>
         <div className={styles.topsection}>
           {logoImgUrl
