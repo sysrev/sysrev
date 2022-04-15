@@ -431,7 +431,8 @@
     {:AccessControl "Private"
      :CorsConfiguration
      {:CorsRules
-      [{:AllowedMethods ["GET" "HEAD"]
+      [{:AllowedHeaders ["authorization"]
+        :AllowedMethods ["GET" "HEAD"]
         :AllowedOrigins ["https://staging.sysrev.com"
                          "https://sysrev.com"
                          "https://www.sysrev.com"]
