@@ -95,9 +95,7 @@
                    (assoc config
                           :datapub-api (str "http://localhost:" port "/api")
                           :datapub-ws (str "ws://localhost:" port "/ws")))
-                 (assoc config
-                        :datapub-api "https://www.datapub.dev/api"
-                        :datapub-ws "wss://www.datapub.dev/ws"))
+                 config)
         system (-> ((or system-map-f system-map)
                     :config config
                     :postgres-overrides postgres-overrides)

@@ -1,4 +1,6 @@
-{:nrepl {:port 7888}
+{:datapub-api "https://www.datapub.dev/api"
+ :datapub-ws "wss://www.datapub.dev/ws"
+ :nrepl {:port 7888}
  :postgres
  {:dbname "sysrev"
   :user "postgres"
