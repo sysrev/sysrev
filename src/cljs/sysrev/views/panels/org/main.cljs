@@ -1,15 +1,17 @@
 (ns sysrev.views.panels.org.main
   (:require ["@insilica/org-page" :as OrgPage]
-            [reagent.core :as r]
+            [cljs-time.coerce :as tc]
             [medley.core :refer [find-first]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
                                    trim-v]]
+            [reagent.core :as r]
             [sysrev.data.core :refer [def-data load-data reload]]
             [sysrev.macros :refer-macros [setup-panel-state with-loader def-panel]]
             [sysrev.markdown :as markdown]
             [sysrev.util :as util]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.org.users :refer [AddModal OrgInviteUrlModal RemoveModal ChangeRoleModal]]
+            [sysrev.views.panels.org.users :refer [AddModal ChangeRoleModal
+                                                   OrgInviteUrlModal RemoveModal]]
             [sysrev.views.semantic :refer
              [Message MessageHeader]]))
 
@@ -77,7 +79,7 @@
 (defn project->js [{:keys [last-active markdown-description member-count project-id name settings]}]
   #js{:descriptionHtml (markdown/create-markdown-html markdown-description)
       :isPublic (boolean (:public-access settings))
-      :lastActive last-active
+      :lastActive (some-> last-active tc/from-date util/time-elapsed-string)
       :link (str js/window.location.origin "/p/" project-id)
       :members member-count
       :projectId project-id
