@@ -347,11 +347,13 @@
           {:keys [title]} @(subscribe [:article/raw article-id])
           {:keys [content url]} @state]
       (when (not= url contentUrl)
-        (swap! state assoc
-               :url contentUrl
-               :content (ajax/rGET contentUrl
-                                   {:headers {:Accept "application/json"
-                                              :Authorization datapub-auth}})))
+        (js/setTimeout
+         #(swap! state assoc
+                 :url contentUrl
+                 :content (ajax/rGET contentUrl
+                                     {:headers {:Accept "application/json"
+                                                :Authorization datapub-auth}}))
+         0))
       [:div
        [:h2 title]
        [:br]
@@ -383,12 +385,14 @@
           {:keys [mediaType]} @entity
           renderer (mediaType->fn mediaType)]
       (when (not= entity-id (:entity-id @state))
-        (swap! state assoc
-               :entity-id entity-id
-               :entity (-> (datapub/dataset-entity "contentUrl mediaType metadata id")
-                           (ajax/rGQL {:id entity-id}
-                                      {:headers {:Authorization (str "Bearer " dataset-jwt)}})
-                           (r/cursor [:data :datasetEntity]))))
+        (js/setTimeout
+         #(swap! state assoc
+                 :entity-id entity-id
+                 :entity (-> (datapub/dataset-entity "contentUrl mediaType metadata id")
+                             (ajax/rGQL {:id entity-id}
+                                        {:headers {:Authorization (str "Bearer " dataset-jwt)}})
+                             (r/cursor [:data :datasetEntity])))
+         0))
       (when @entity
         (if renderer
           [renderer
