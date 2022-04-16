@@ -6,5 +6,6 @@ output_path="resources/public/out-production/sysrev.js"
 if [ ! -f "$output_path" ] ; then
   echo "! $output_path"
 else
-  find -L $input_paths -cnewer "$output_path"
+  find -L $input_paths -cnewer "$output_path" -type f
+  find -L $input_paths -cnewer "$output_path" -type l
 fi
