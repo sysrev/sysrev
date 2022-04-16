@@ -3,6 +3,7 @@
             [clojure.data.json :as json]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [medley.core :as medley]
             [sysrev.biosource.core :refer [api-host]]
             [sysrev.config :as config :refer [env]]
             [sysrev.datasource.api :as ds-api]
@@ -13,24 +14,24 @@
             [sysrev.predict.report :as report]
             [sysrev.project.core :as project]
             [sysrev.shared.labels :refer [predictable-label-types]]
-            [sysrev.util :as util :refer [in? map-kv map-values uuid-from-string]]))
+            [sysrev.util :as util :refer [in? uuid-from-string]]))
 
 (defonce predict-api (agent nil))
 
 (defn- get-training-label-values [project-id label-id]
   (db/with-transaction
     (->> (label/query-public-article-labels project-id)
-         (map-kv (fn [article-id {:keys [labels]}]
-                   (let [consensus (label/article-consensus-status project-id article-id)
-                         labels (get labels label-id)
-                         answer (cond (in? [:single :consistent] consensus)
-                                      (->> labels (map :answer) (remove nil?) first)
-                                      (= :resolved consensus)
-                                      (-> (label/article-resolved-labels
-                                           project-id article-id)
-                                          (get label-id)))]
-                     (when-not (nil? answer)
-                       [article-id answer])))))))
+         (medley/map-kv (fn [article-id {:keys [labels]}]
+                          (let [consensus (label/article-consensus-status project-id article-id)
+                                labels (get labels label-id)
+                                answer (cond (in? [:single :consistent] consensus)
+                                             (->> labels (map :answer) (remove nil?) first)
+                                             (= :resolved consensus)
+                                             (-> (label/article-resolved-labels
+                                                  project-id article-id)
+                                                 (get label-id)))]
+                            (when-not (nil? answer)
+                              [article-id answer])))))))
 
 (defn- get-training-article-ids [project-id label-id]
   (q/find-article {:project-id project-id} :article-id, :with []
@@ -40,10 +41,10 @@
 
 (defn- prediction-text-for-articles [article-ids]
   (->> (ds-api/get-articles-content article-ids)
-       (map-values (fn [{:keys [primary-title secondary-title abstract keywords]}]
-                     (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
-                          (remove empty?)
-                          (str/join " \n "))))))
+       (medley/map-vals (fn [{:keys [primary-title secondary-title abstract keywords]}]
+                          (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
+                               (remove empty?)
+                               (str/join " \n "))))))
 
 (defn- predict-model-request-body [project-id]
   (db/with-transaction

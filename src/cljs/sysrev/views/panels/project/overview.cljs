@@ -2,6 +2,7 @@
   (:require [cljs-time.core :as time]
             [cljs-time.format :as time-format]
             [clojure.string :as str]
+            [medley.core :as medley]
             [re-frame.core :refer [dispatch reg-sub subscribe]]
             [reagent.core :as r]
             [sysrev.chartjs :as chartjs]
@@ -467,7 +468,7 @@
       [chartjs/bar
        {:data {:labels labels :datasets datasets}
         :options (charts/wrap-default-options
-                  {:scales (util/map-values
+                  {:scales (medley/map-vals
                             #(merge % {:ticks font
                                        :scaleLabel font
                                        :gridLines {:color (charts/graph-border-color)}})

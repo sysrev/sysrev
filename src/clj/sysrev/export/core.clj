@@ -10,7 +10,7 @@
    [sysrev.db.queries :as q]
    [sysrev.label.core :as label]
    [sysrev.project.core :as project]
-   [sysrev.util :as util :refer [in? index-by map-values]]
+   [sysrev.util :as util :refer [in? index-by]]
    [venia.core :as venia]))
 
 (def default-csv-separator "|||")
@@ -65,7 +65,7 @@
                                      [:= :anote.article-id :a.article-id])
                          (->> do-query
                               (group-by #(vector (:article-id %) (:user-id %)))
-                              (map-values first)))]
+                              (medley/map-vals first)))]
       (concat
        [(concat ["Article ID" "Article Title" "User Name" "Resolve?"]
                 (map :short-label all-labels)
@@ -188,9 +188,10 @@
                           (merge-where [:in :lp.label-id predict-label-ids])
                           (->> do-query
                                (group-by :article-id)
-                               (map-values (partial map #(dissoc % :article-id)))
-                               (map-values #(->> (group-by :label-id %)
-                                                 ((partial map-values (comp :score first))))))))]
+                               (medley/map-vals (partial map #(dissoc % :article-id)))
+                               (medley/map-vals
+                                #(->> (group-by :label-id %)
+                                      ((partial medley/map-vals (comp :score first))))))))]
       (concat
        [(concat ["Article ID" "Article URL" "Title" "Journal" "Authors" "Abstract"]
                 (for [label-id predict-label-ids]

@@ -4,6 +4,7 @@
             [clojure.java.io :as io]
             [clojure.test :refer [deftest is]]
             [clojure.tools.logging :as log]
+            [medley.core :as medley]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -131,10 +132,10 @@
                                  :ad.*, :join [[:article-data :ad] :a.article-data-id])
                    db-titles (->> adata
                                   (util/index-by #(-> % :external-id util/parse-integer))
-                                  (util/map-values :title))
+                                  (medley/map-vals :title))
                    ds-titles (->> (ds-api/fetch-pubmed-articles
                                    (keys db-titles) :fields [:primary-title])
-                                  (util/map-values :primary-title))]
+                                  (medley/map-vals :primary-title))]
                (log/infof "loaded %d pubmed titles" (count db-titles))
                (is (= (count db-titles) (count ds-titles)))
                (is (= db-titles ds-titles)))

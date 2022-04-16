@@ -2,6 +2,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as str]
             ["jquery" :as $]
+            [medley.core :as medley]
             [re-frame.core :refer
              [dispatch dispatch-sync reg-event-db
               reg-event-fx reg-sub subscribe trim-v]]
@@ -12,7 +13,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util :refer
-             [css in? map-values parse-integer parse-number
+             [css in? parse-integer parse-number
               space-join to-uuid when-test wrap-parens]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.components.core :as ui :refer [UiHelpIcon]]
@@ -143,7 +144,7 @@
                             (when-let [score (parse-number score)]
                               {filter-type (assoc value :score score)})))
            nil)
-         (map-values #(dissoc % :editing?)))))
+         (medley/map-vals #(dissoc % :editing?)))))
 
 (defn- process-all-filters-input [ifilters]
   (->> ifilters

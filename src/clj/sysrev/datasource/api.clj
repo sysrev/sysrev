@@ -4,6 +4,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [orchestra.core :refer [defn-spec]]
+            [medley.core :as medley]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
@@ -11,7 +12,7 @@
              :as
              util
              :refer
-             [assert-pred gquery index-by map-keys opt-keys
+             [assert-pred gquery index-by opt-keys
               parse-integer req-un url-join]]
             [venia.core :as venia])
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
@@ -67,7 +68,7 @@
             (catch Throwable e
               (throw (ex-info (str "exception in extract-result: " (.getMessage e))
                               {:type ::response-parse} e))))
-       (mapv #(map-keys field-from-graphql %))))
+       (mapv #(medley/map-keys field-from-graphql %))))
 
 (s/def ::pmids (s/nilable (s/every #(int? (parse-integer %)))))
 (s/def ::nctids (s/nilable (s/every string?)))

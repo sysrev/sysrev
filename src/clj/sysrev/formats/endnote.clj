@@ -2,8 +2,9 @@
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure.data.xml :as dxml]
+            [medley.core :as medley]
             [sysrev.util :as util :refer [xml-find xml-find-vector xml-find-vector
-                                          map-values parse-integer]]))
+                                          parse-integer]]))
 
 (defn- document-id-from-url [url]
   (and (string? url)
@@ -25,7 +26,7 @@
                :custom4 [:custom4]
                :custom5 [:custom5]
                :pubdate [:dates :pub-dates :date]}
-              (map-values
+              (medley/map-vals
                (fn [path]
                  (try
                    (let [style-elt (xml-find [e] (concat path [:style]))
@@ -42,18 +43,18 @@
              (->> {:rec-number [:rec-number]
                    :custom4 [:custom4]
                    :custom5 [:custom5]}
-                  (map-values (fn [path]
-                                (or (-> (xml-find [e] (concat path [:style]))
-                                        first :content first)
-                                    (-> (xml-find [e] path)
-                                        first :content first)))))
+                  (medley/map-vals (fn [path]
+                                     (or (-> (xml-find [e] (concat path [:style]))
+                                             first :content first)
+                                         (-> (xml-find [e] path)
+                                             first :content first)))))
              (->>
               {:urls [:urls :related-urls :url]
                :authors [:contributors :authors :author]
                :keywords [:keywords :keyword]
                :web-urls [:urls :web-urls :url]
                :electronic-resource-num [:electronic-resource-num]}
-              (map-values
+              (medley/map-vals
                (fn [path]
                  (try
                    (let [elts (xml-find-vector [e] path)
@@ -65,7 +66,7 @@
                      [])))))
              (->>
               {:document-ids [:urls :pdf-urls :url]}
-              (map-values
+              (medley/map-vals
                (fn [path]
                  (->> (xml-find-vector [e] path)
                       (map document-id-from-url)

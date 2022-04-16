@@ -12,13 +12,14 @@
              :as sqlh
              :refer [from join merge-join order-by select
                      where]]
+            [medley.core :as medley]
             [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db :refer [do-query with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.payment.stripe :as stripe]
             [sysrev.project.core :as project]
             [sysrev.user.interface.spec :as su]
-            [sysrev.util :as util :refer [in? map-values]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (def user-public-cols
   [:date-created :introduction :user-id :user-uuid :username])
@@ -217,7 +218,7 @@
                             (order-by [:purl.date-created :desc])
                             (->> do-query
                                  (group-by :project-id)
-                                 (map-values #(mapv :url-id %))))
+                                 (medley/map-vals #(mapv :url-id %))))
         projects (-> (select :p.project-id :p.name :p.date-created
                              :m.join-date :m.access-date
                              [:p.enabled :project-enabled]

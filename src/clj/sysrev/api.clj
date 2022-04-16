@@ -313,7 +313,6 @@
              :message (str "source-id " source-id " does not exist")}}))
 
 (defn-spec update-source (-> (req-un ::success) or-error)
-  "Toggle a source as being enabled or disabled."
   [source-id int?, check-new-results? boolean?, import-new-results? boolean?, notes string?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)]
@@ -324,7 +323,6 @@
              :message (str "source-id " source-id " does not exist")}}))
 
 (defn-spec re-import-source (-> (req-un ::success) or-error)
-  "Toggle a source as being enabled or disabled."
   [sr-context map? source-id int?]
   (if (source/source-exists? source-id)
     (let [project-id (source/source-id->project-id source-id)

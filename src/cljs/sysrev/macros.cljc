@@ -75,7 +75,7 @@
 
 #_[project-id @(subscribe [:active-project-id])
    article-values (->> @(subscribe [:article/labels article-id user-id])
-                       (map-values :answer))
+                       (medley/map-vals :answer))
    active-values @(subscribe [:review/active-labels article-id])
    user-status @(subscribe [:article/user-status article-id user-id])
    unconfirmed? (or (= user-status :unconfirmed)

@@ -1,5 +1,6 @@
 (ns sysrev.annotations
   (:require [clj-time.coerce :as tc]
+            [medley.core :as medley]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
@@ -7,7 +8,7 @@
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [clojure.tools.logging :as log]
-            [sysrev.util :as util :refer [map-values]]))
+            [sysrev.util :as util]))
 
 (defn create-annotation! [selection annotation context article-id]
   (q/create :annotation {:selection selection
@@ -177,10 +178,10 @@
                           user-id (merge {:ann-u.user-id user-id}))
                         [:ann.created :a.article-id :ann-sc.definition])
        (group-by :definition)
-       (map-values (fn [anns]
-                     {:last-used (->> (map (comp tc/to-epoch :created) anns)
-                                      (apply max 0) tc/from-epoch tc/to-sql-time)
-                      :count (count anns)}))))
+       (medley/map-vals (fn [anns]
+                          {:last-used (->> (map (comp tc/to-epoch :created) anns)
+                                           (apply max 0) tc/from-epoch tc/to-sql-time)
+                           :count (count anns)}))))
 
 (defn project-article-annotations [project-id & {:keys [include-disabled?]}]
   (db/with-project-cache project-id [:annotations :articles include-disabled?]
@@ -188,12 +189,12 @@
                             (not include-disabled?) (merge {:a.enabled true}))
                           [:ann.article-id :ann.created :ann-sc.definition :ann-u.user-id])
          (group-by :article-id)
-         (map-values (fn [anns]
-                       {:updated-time (->> (map (comp tc/to-epoch :created) anns)
-                                           (apply max 0) tc/from-epoch tc/to-sql-time)
-                        :users (distinct (map :user-id anns))
-                        :count (count anns)
-                        :classes (distinct (->> (map :definition anns) (remove nil?)))})))))
+         (medley/map-vals (fn [anns]
+                            {:updated-time (->> (map (comp tc/to-epoch :created) anns)
+                                                (apply max 0) tc/from-epoch tc/to-sql-time)
+                             :users (distinct (map :user-id anns))
+                             :count (count anns)
+                             :classes (distinct (->> (map :definition anns) (remove nil?)))})))))
 
 (defn text-context-article-field-match
   "Determine which field of an article text-context matches in article-id."

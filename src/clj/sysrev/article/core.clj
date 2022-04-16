@@ -9,7 +9,7 @@
    [sysrev.project.core :refer [project-overall-label-id]]
    [sysrev.shared.spec.article :as sa]
    [sysrev.shared.spec.core :as sc]
-   [sysrev.util :as util :refer [in? index-by map-values]]
+   [sysrev.util :as util :refer [in? index-by]]
    [medley.core :as medley]))
 
 (defn-spec article-to-sql map?
@@ -76,7 +76,7 @@
   (->> (q/find [:article :a] {:a.article-id article-id}
                :an.*, :join [[:article-note :an] :a.article-id])
        (index-by :user-id)
-       (map-values :content)))
+       (medley/map-vals :content)))
 
 (defn-spec remove-article-flag nil?
   [article-id ::sa/article-id

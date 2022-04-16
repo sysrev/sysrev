@@ -11,7 +11,7 @@
             [sysrev.macros :refer-macros [setup-panel-state with-loader]]))
 
 ;; for clj-kondo
-(declare panel state)
+(declare panel state panel-get panel-set)
 
 (setup-panel-state panel [:stripe]
                    :state state :get [panel-get ::get] :set [panel-set ::set])

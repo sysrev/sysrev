@@ -24,7 +24,6 @@
     :refer
     [in?
      index-by
-     map-values
      or-default
      sanitize-uuids
      sum
@@ -216,9 +215,9 @@
       (->> do-query
            (filter :enabled)
            (group-by :user-id)
-           (map-values
+           (medley/map-vals
             #(->> (index-by :label-id %)
-                  (map-values
+                  (medley/map-vals
                    (fn [{:keys [confirm-time updated-time] :as entry}]
                      (merge (select-keys entry [:answer :resolve])
                             {:confirmed (not (nil? confirm-time))
@@ -247,20 +246,20 @@
                     (map #(-> (assoc % :confirm-epoch (tc/to-epoch (:confirm-time %)))
                               (dissoc :confirm-time)))
                     (group-by :article-id)
-                    (map-values (fn [xs] (map #(dissoc % :article-id) xs)))
-                    (map-values (fn [xs] {:labels xs
-                                          :updated-time (apply max 0 (map :confirm-epoch xs))}))))
+                    (medley/map-vals (fn [xs] (map #(dissoc % :article-id) xs)))
+                    (medley/map-vals (fn [xs] {:labels xs
+                                               :updated-time (apply max 0 (map :confirm-epoch xs))}))))
            (->> (q/find [:article-resolve :ar] {:a.project-id project-id, :a.enabled true}
                         :ar.*, :join [[:article :a] :ar.article-id])
                 (group-by :article-id)
-                (map-values (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
-                (map-values (fn [x] (some-> x (update :label-ids #(mapv parse-uuid %)))))))]
+                (medley/map-vals (fn [xs] (first (->> xs (sort-by #(-> % :resolve-time tc/to-epoch) >)))))
+                (medley/map-vals (fn [x] (some-> x (update :label-ids #(mapv parse-uuid %)))))))]
       (apply merge (for [article-id (keys all-labels)]
                      {article-id
                       {:updated-time (get-in all-labels [article-id :updated-time])
                        :labels (->> (get-in all-labels [article-id :labels])
                                     (group-by :label-id)
-                                    (map-values (fn [xs] (map #(dissoc % :label-id :confirm-epoch) xs))))
+                                    (medley/map-vals (fn [xs] (map #(dissoc % :label-id :confirm-epoch) xs))))
                        :resolve (get all-resolve article-id)}})))))
 
 (defn query-progress-over-time [project-id n-days]
@@ -408,7 +407,7 @@
     (when (user-article-confirmed? (:user-id resolve) article-id)
       (->> (-> (article-user-labels-map article-id)
                (get (:user-id resolve)))
-           (map-values :answer)))))
+           (medley/map-vals :answer)))))
 
 (defn project-user-inclusions [project-id]
   (with-project-cache project-id [:label-values :confirmed :user-inclusions]
@@ -421,8 +420,8 @@
           (q/filter-valid-article-label true)
           (->> do-query
                (group-by :user-id)
-               (map-values (fn [xs] {:includes (->> xs (filter include?) (mapv :article-id))
-                                     :excludes (->> xs (filter exclude?) (mapv :article-id))})))))))
+               (medley/map-vals (fn [xs] {:includes (->> xs (filter include?) (mapv :article-id))
+                                          :excludes (->> xs (filter exclude?) (mapv :article-id))})))))))
 
 (defn project-article-status-entries [project-id]
   (with-project-cache project-id [:public-labels :status-entries]
@@ -485,13 +484,13 @@
                                   (assoc :gengroups gengroups)))))
                      (index-by :user-id))
           inclusions (project-user-inclusions project-id)]
-      (map-values (fn [{:keys [user-id membership-id project-permissions gengroups email]}]
-                    {:email email
-                     :membership-id membership-id
-                     :permissions project-permissions
-                     :gengroups gengroups
-                     :articles (get inclusions user-id)})
-                  users))))
+      (medley/map-vals (fn [{:keys [user-id membership-id project-permissions gengroups email]}]
+                         {:email email
+                          :membership-id membership-id
+                          :permissions project-permissions
+                          :gengroups gengroups
+                          :articles (get inclusions user-id)})
+                       users))))
 
 (defn sync-group-label
   "Given a group label, m, sync it with its core label. It does not have to exist on the server"

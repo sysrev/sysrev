@@ -1,6 +1,7 @@
 (ns sysrev.state.review
   (:require [clojure.walk :as walk]
             [clojure.string :as str]
+            [medley.core :as medley]
             [re-frame.core :refer
              [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
@@ -8,7 +9,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.article :as article]
-            [sysrev.util :as util :refer [in? map-values]]))
+            [sysrev.util :as util :refer [in?]]))
 
 (reg-event-fx :review/record-reviewer-event
               (fn [_ [_ data]]
@@ -173,7 +174,7 @@
               [_ article-id root-label-id label-id ith]]
            (let [ui-vals (get-in ui-labels [article-id] {})
                  article-vals (->> (get-in article-labels [user-id] {})
-                                   (map-values :answer))
+                                   (medley/map-vals :answer))
                  merged-vals (deep-merge article-vals ui-vals)]
              (cond
                ;; give all article labels

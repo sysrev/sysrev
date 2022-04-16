@@ -3,6 +3,7 @@
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :refer [merge-where]]
+            [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-query with-project-cache]]
             [sysrev.project.core :as project]
             [sysrev.label.core :as label]
@@ -10,7 +11,7 @@
             [sysrev.db.queries :as q]
             [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
-            [sysrev.util :as util :refer [in? map-values index-by]]))
+            [sysrev.util :as util :refer [in? index-by]]))
 
 ;;;
 ;;; Article data lookup functions
@@ -28,7 +29,7 @@
                 (merge-where [:= :lp.label-value label-value]))
             (->> do-query
                  (group-by :article-id)
-                 (map-values
+                 (medley/map-vals
                   #(->> % (map (fn [{:keys [label-id score label-value]}] {label-id score}))
                         (apply merge)))))))))
 
@@ -38,7 +39,7 @@
         (q/join-article-source)
         (->> do-query
              (group-by :article-id)
-             (map-values #(mapv :source-id %))))))
+             (medley/map-vals #(mapv :source-id %))))))
 
 (defn project-article-labels [project-id]
   (with-project-cache project-id [:article-list :article-labels]
@@ -130,7 +131,7 @@
     (let [pmid->id (->> (q/find-article {:a.project-id project-id :ad.datasource-name "pubmed"}
                                         :article-id, :index-by :external-id
                                         :where [:!= :ad.external-id nil])
-                        (util/map-keys util/parse-integer))]
+                        (medley/map-keys util/parse-integer))]
       (mapv (partial get pmid->id)
             (ds-api/search-text-by-pmid text (sort (keys pmid->id)))))))
 

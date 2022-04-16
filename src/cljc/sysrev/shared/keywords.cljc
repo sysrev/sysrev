@@ -1,13 +1,14 @@
 (ns sysrev.shared.keywords
   (:require [clojure.string :as str]
-            [sysrev.util :refer [map-values re-pos]]))
+            [medley.core :as medley]
+            [sysrev.util :refer [re-pos]]))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
   (let [group-header #"(^|\s)([A-Za-z][A-Za-z /]+):"
         groups (re-pos group-header text)
         ;; remove the colon:
-        headers (map-values #(subs % 0 (- (count %) 1)) (sorted-map) groups)
+        headers (medley/map-vals #(subs % 0 (- (count %) 1)) (sorted-map) groups)
         windows (partition 2 1 headers)
         start-stop-names (map (fn [[[start name] [end _]]]
                                 [(+ (count name) start 1) end name])

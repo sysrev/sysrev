@@ -7,9 +7,10 @@
                                                merge-left-join merge-where select sset values
                                                where]]
             [orchestra.core :refer [defn-spec]]
+            [medley.core :as medley]
             [sysrev.db.core :as db :refer [do-execute do-query sql-field]]
             [sysrev.util :as util :refer [apply-keyargs assert-pred ensure-vector in?
-                                          map-values opt-keys when-test]]))
+                                          opt-keys when-test]]))
 
 ;; for clj-kondo
 (declare merge-join-args filter-user-permission filter-admin-user
@@ -251,11 +252,11 @@
          select-fields (as-> (concat fields
                                      (some->> index-by (when-test keyword?) (list))
                                      (some->> group-by (when-test keyword?) (list)))
-                             select-fields
+                           select-fields
                          (if (in? select-fields :*) [:*] select-fields)
                          (distinct select-fields))
-         map-fields (cond index-by  map-values
-                          group-by  (fn [f coll] (map-values (partial map f) coll))
+         map-fields (cond index-by  medley/map-vals
+                          group-by  (fn [f coll] (medley/map-vals (partial map f) coll))
                           :else     map)
          make-query (fn [match-by-1]
                       (-> (apply select select-fields)

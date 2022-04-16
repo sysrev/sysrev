@@ -3,6 +3,7 @@
             ["@material-ui/core" :as mui]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [medley.core :as medley]
             [re-frame.core :refer [dispatch dispatch-sync reg-sub subscribe]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
@@ -11,7 +12,7 @@
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.shared.plans-info :as plans-info]
             [sysrev.state.nav :refer [active-project-id]]
-            [sysrev.util :as util :refer [css in? map-values parse-integer]]
+            [sysrev.util :as util :refer [css in? parse-integer]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
@@ -75,7 +76,7 @@
         set-inclusion #(cond-> %
                          (not (contains? % :inclusion))
                          (assoc :inclusion (pos? (-> % :definition :inclusion-values count))))]
-    (map-values (comp insert-answer add-local-keys set-inclusion) labels)))
+    (medley/map-vals (comp insert-answer add-local-keys set-inclusion) labels)))
 
 (defn to-local-labels
   "Convert labels map to format used by local namespace state."

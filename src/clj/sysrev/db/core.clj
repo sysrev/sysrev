@@ -13,6 +13,7 @@
             [honeysql.core :as sql]
             [honeysql.format :as sqlf]
             [honeysql.helpers :as sqlh :refer [where]]
+            [medley.core :as medley]
             [next.jdbc :as jdbc]
             [next.jdbc.prepare :as prepare]
             [next.jdbc.result-set :as result-set]
@@ -20,7 +21,7 @@
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.postgres.interface :as pg]
-            [sysrev.util :as util :refer [in? map-values]])
+            [sysrev.util :as util :refer [in?]])
   (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
            (org.postgresql.jdbc PgArray)
@@ -158,7 +159,7 @@
 (defn prepare-honeysql-map
   "Converts map values to jsonb strings as needed."
   [m]
-  (let [mapvals-to-json (partial map-values #(if (map? %) (to-jsonb %) %))]
+  (let [mapvals-to-json (partial medley/map-vals #(if (map? %) (to-jsonb %) %))]
     (cond-> m
       (contains? m :set)     (update :set mapvals-to-json)
       (contains? m :values)  (update :values (partial mapv mapvals-to-json)))))

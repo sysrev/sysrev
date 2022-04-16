@@ -4,6 +4,7 @@
             [clojure.walk :as walk]
             [com.walmartlabs.lacinia.resolve :refer [resolve-as ResolverResult]]
             [com.walmartlabs.lacinia.executor :as executor]
+            [medley.core :as medley]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
             [sysrev.project.core :refer [project-labels project-user-ids]]
@@ -93,7 +94,7 @@
                                                 project-id :return :query)}
                            [[:user-id :id] :email]
                            :index-by :user-id)
-                   (util/map-values #(assoc % :name (-> % :email util/email->name))))]
+                   (medley/map-vals #(assoc % :name (-> % :email util/email->name))))]
     (assoc m :articles
            (let [f (fn [[k v]] (if (= :user-id k)
                                  [:reviewer (get users v)]

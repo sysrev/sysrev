@@ -4,6 +4,7 @@
             [honeysql.helpers :as sqlh :refer [delete-from from group having
                                                insert-into join left-join merge-where select
                                                values where]]
+            [medley.core :as medley]
             [orchestra.core :refer [defn-spec]]
             [sysrev.article.core :as article]
             [sysrev.db.core :as db :refer
@@ -12,7 +13,7 @@
             [sysrev.db.queries :as q]
             [sysrev.file.s3 :as s3-file]
             [sysrev.project.core :as project]
-            [sysrev.util :as util :refer [index-by map-values]]))
+            [sysrev.util :as util :refer [index-by]]))
 
 (defn datapub-opts [{:keys [config]} & {:keys [upload?]}]
   {:auth-token (:sysrev-dev-key config)
@@ -99,7 +100,7 @@
                     :else             true)])
       (->> do-query
            (group-by :article-id)
-           (map-values #(mapv :source-id %)))))
+           (medley/map-vals #(mapv :source-id %)))))
 
 (defn- project-articles-disable-flagged
   "Returns set of ids for project articles disabled by flag."
@@ -120,7 +121,7 @@
   (-> (select :article-id :enabled)
       (from :article)
       (where [:= :project-id project-id])
-      (->> do-query (index-by :article-id) (map-values :enabled))))
+      (->> do-query (index-by :article-id) (medley/map-vals :enabled))))
 
 (defn-spec update-project-articles-enabled nil?
   "Update the enabled fields of articles associated with project-id."

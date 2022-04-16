@@ -20,7 +20,7 @@
              :as
              util
              :refer
-             [index-by map-values opt-keys]]))
+             [index-by opt-keys]]))
 
 ;; for clj-kondo
 (declare delete-project)
@@ -103,7 +103,7 @@
   (db/with-clear-project-cache project-id
     (q/delete :article {:project-id project-id})))
 
-(defn-spec project-labels (s/map-of ::sc/label-id ::sl/label)
+(defn-spec project-labels (s/nilable (s/map-of ::sc/label-id ::sl/label))
   [project-id int? & [include-disabled] (s/? any?)]
   (with-project-cache project-id [:labels :all include-disabled]
     (let [check-enabled #(if include-disabled % (merge % {:enabled true}))
@@ -113,7 +113,7 @@
           group-labels (->> (q/find :label (check-enabled {:project-id project-id
                                                            :value-type "group"})
                                     :*, :index-by :label-id)
-                            (map-values
+                            (medley/map-vals
                              (fn [{:keys [label-id-local] :as g-label}]
                                (assoc g-label :labels
                                       (q/find :label (check-enabled
@@ -262,8 +262,8 @@
     (merge (->> (q/find [:project-member :pm] {"owner" :%any.pm.permissions}
                         [:u.user-id :u.email]
                         :join [[:web-user :u] :pm.user-id], :index-by :project-id :limit 1)
-                (map-values #(-> (assoc % :name (-> (:email %) (str/split #"@") first))
-                                 (dissoc :email))))
+                (medley/map-vals #(-> (assoc % :name (-> (:email %) (str/split #"@") first))
+                                      (dissoc :email))))
            (q/find [:project-group :pg] {}
                    [:g.group-id [:g.group-name :name]]
                    :join [[:groups :g] :pg.group-id], :index-by :project-id))))

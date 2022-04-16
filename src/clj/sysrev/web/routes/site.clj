@@ -5,6 +5,7 @@
             [compojure.core :refer [defroutes GET POST]]
             [clj-time.core :as time]
             [honeysql.helpers :as sqlh :refer [select from where merge-where join merge-join]]
+            [medley.core :as medley]
             [sysrev.api :as api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
@@ -13,7 +14,7 @@
             [sysrev.user.interface :as user]
             [sysrev.user.core :refer [verified-primary-email? get-user-email]]
             [sysrev.web.app :as app :refer [with-authorize current-user-id]]
-            [sysrev.util :refer [in? map-values should-never-happen-exception]]))
+            [sysrev.util :refer [in? should-never-happen-exception]]))
 
 ;; for clj-kondo
 (declare site-routes)
@@ -59,7 +60,7 @@
             (join [:web-user :u] [:= :u.user-id :pm.user-id])
             (->> do-query
                  (group-by :project-id)
-                 (map-values
+                 (medley/map-vals
                   (fn [entries]
                     (filter #(and (not (in? (:permissions %) "admin"))
                                   (not (re-matches #".*insilica.*" (:email %)))
