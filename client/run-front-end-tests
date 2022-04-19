@@ -8,3 +8,9 @@ scripts/rebuild-changed-files
 cd client
 
 npx -y shadow-cljs compile karma-test && npx -y karma start --single-run --reporters junit,dots
+
+
+# run tests on our react components
+# we build above so this command forgoes the final build since we already do it
+cd ../components/react-components
+npm run test-no-build

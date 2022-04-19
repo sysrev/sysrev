@@ -21,5 +21,5 @@ echo "wrote $rel_out_path/style.dark.css"
 
 cd ../../components
 
-cp -f "org-page/dist/index.css" "$abs_out_path/js-components.css"
+cp -f "react-components/dist/index.css" "$abs_out_path/js-components.css"
 echo "Made js-components.css"

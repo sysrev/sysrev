@@ -22,7 +22,7 @@ rebuild_js () {
 
 sync_package_json;
 
-cd components/org-page
+cd components/react-components
 
 sync_package_json;
 rebuild_js;

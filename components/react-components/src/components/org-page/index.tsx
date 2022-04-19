@@ -178,7 +178,4 @@ const Tab = (props: TabProps) => {
   )
 }
 
-export default {
-  styles: styles,
-  Tab: Tab
-}
+export default Tab

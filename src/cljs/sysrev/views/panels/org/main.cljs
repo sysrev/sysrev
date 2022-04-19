@@ -1,5 +1,5 @@
 (ns sysrev.views.panels.org.main
-  (:require ["@insilica/org-page" :as OrgPage]
+  (:require ["@insilica/react-components" :refer (Tab)]
             [cljs-time.coerce :as tc]
             [medley.core :refer [find-first]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
@@ -109,7 +109,7 @@
        [ChangeRoleModal changeModalOpen? org-id user-to-update]
        (when-not (some active? #{:plans :payment})
          [:div
-          [:f> (.-Tab OrgPage)
+          [:f> Tab
            (clj->js
             {:darkMode (boolean @(subscribe [:self/dark-theme?]))
              :projects (->>
