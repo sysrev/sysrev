@@ -119,7 +119,6 @@ const Tab = (props: TabProps) => {
                 <div className={styles.row_t} key={item.projectId}>
                   <h1>{item.title}{item.isPublic && <span>Public</span>}</h1>
                   {item.pinned && <img src={pinnedImg} className={[styles.pinned, styles.pinned_active].join(' ')} alt="" />}
-                  <div dangerouslySetInnerHTML={{ __html: item.descriptionHtml || "" }} />
                   <div className={styles.datas}>
                     <p><img src={userImg} alt="" /> {item.members}</p>
                     <p className={styles.withoutimg}><span>Project ID: </span> {item.projectId}</p>
