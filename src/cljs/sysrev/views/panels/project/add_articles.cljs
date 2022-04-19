@@ -239,11 +239,12 @@
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
 
-(defn ImportPDFsView []
+(defn ImportFilesView [allowed-file-types]
   (let [project-id @(subscribe [:active-project-id])]
     [:div {:style {:margin-left "auto" :margin-right "auto"
                    :margin-top "1em"}}
-     [uppy/Dashboard {:endpoint (str "/api/import-files/" project-id)
+     [uppy/Dashboard {:allowed-file-types allowed-file-types
+                      :endpoint (str "/api/import-files/" project-id)
                       :on-complete #(dispatch [:on-add-source project-id])
                       :project-id project-id}]]))
 
@@ -259,17 +260,6 @@
       {}
       :post-error-text "Try editing your file to fit the upload instructions above
 or contact us at info@insilica.co with a copy of your zip file."]]))
-
-(defn ImportJSONView []
-  (let [project-id @(subscribe [:active-project-id])]
-    [:div
-     [ui/UploadButton
-      (str "/api/import-files/" project-id)
-      #(dispatch [:on-add-source project-id])
-      "Upload JSON File..."
-      (cond-> "fluid"
-        (any-source-processing?) (str " disabled"))
-      {} :post-error-text "Contact us at info@insilica.co with a copy of your JSON file."]]))
 
 (defn ImportRISView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -673,8 +663,8 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
           :pubmed    [:div [:h3 "2. Search pubmed to review medical abstracts"] [pubmed/SearchBar]]
           :pmid      [:div [:h3 "2. Upload a file with pubmed ids (one per line)"] [ImportPMIDsView]]
           :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
-          :pdfs      [:div [:h3 "2. Import PDF files"] [ImportPDFsView]]
-          :json      [:div [:h3 "2. JSON file"] [ImportJSONView]]
+          :pdfs      [:div [:h3 "2. Import PDF files"] [ImportFilesView ["application/pdf"]]]
+          :json      [:div [:h3 "2. JSON file"] [ImportFilesView ["application/json"]]]
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
           :ris-file  [ImportRISView]

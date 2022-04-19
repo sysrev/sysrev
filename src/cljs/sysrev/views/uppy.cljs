@@ -28,9 +28,6 @@
   (doto @uppy-atom
     (.setOptions (clj->js uppy-options))
     (.use XHRUpload (clj->js xhr-options))
-    #_(.on "upload-success"
-           (fn [_result]
-             (.log js/console "upload was successful")))
     (.on "upload-error"
          (fn [_result]
            (.log js/console "upload was a failure")))
@@ -54,12 +51,13 @@
                                                   [:headers "uppy-grouping-uuid"] (uuidv4))}))
             50)))))
 
-(defn Dashboard [{:keys [endpoint on-complete allowed-file-types] :or {allowed-file-types ["application/pdf"]}}]
+(defn Dashboard [{:keys [endpoint on-complete allowed-file-types]}]
+  {:pre [(seq allowed-file-types)]}
   (let [uppy (r/atom nil)
         csrf-token (subscribe [:csrf-token])]
     (r/create-class
      {:component-did-mount
-      (fn [_this]
+      (fn []
         (reset! uppy (Uppy.))
         (uppy-setup {:uppy-atom uppy
                      :uppy-options {:restrictions
@@ -71,12 +69,14 @@
                                 "uppy-grouping-uuid" (uuidv4)}}
                      :on-complete on-complete}))
       :component-will-unmount
-      (fn [_this]
-        (some-> @uppy (.close))
+      (fn []
+        (some-> @uppy .close)
         (reset! uppy nil))
-      :render
-      (fn [_this]
+      :reagent-render
+      (fn [{:keys [allowed-file-types]}]
         (when @uppy
+          (.setOptions @uppy (clj->js {:restrictions
+                                       {:allowedFileTypes allowed-file-types}}))
           [ReagentDashboard {:uppy @uppy
                              :proudlyDisplayPoweredByUppy false
                              :height 350}]))})))
