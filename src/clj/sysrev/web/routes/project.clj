@@ -211,7 +211,7 @@
             (do (record-user-project-interaction request)
                 (project-info (:sr-context request) project-id)))))))
 
-(dr (POST "/api/join-project" request
+#_(dr (POST "/api/join-project" request
       (with-authorize request {:logged-in true}
         (let [project-id (active-project request)
               user-id (current-user-id request)

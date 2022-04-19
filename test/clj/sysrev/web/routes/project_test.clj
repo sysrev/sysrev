@@ -4,8 +4,8 @@
             [medley.core :as medley :refer [find-first]]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.project.core :as project]
-            [sysrev.project.member :refer [add-project-member
-                                           set-member-permissions]]
+            [sysrev.project.member :as member :refer [add-project-member
+                                                      set-member-permissions]]
             [sysrev.source.core :as source]
             [sysrev.source.interface :as src]
             [sysrev.test.core :as test :refer [route-response-fn sysrev-handler]]
@@ -160,9 +160,7 @@
                                      :password (:password new-user)})
                     [:result :valid]))
         ;; add member to project
-        (is (= project-id (get-in (route-response :post "/api/join-project"
-                                                  {:project-id project-id})
-                                  [:result :project-id])))
+        (member/add-project-member project-id (:user-id new-user))
         ;; that member can't add articles to a project
         (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/import-articles/pubmed"
