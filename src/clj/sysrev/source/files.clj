@@ -76,17 +76,18 @@
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context)]
     (doseq [{:keys [filename] :as file} files]
-      (db/with-tx [sr-context sr-context]
-        (let [entity-id (create-entity! {:datapub-opts datapub-opts
-                                         :dataset-id dataset-id
-                                         :file file})
-              article-data-id (:article-data/article-data-id
-                               (goc-article-data! sr-context
-                                                  {:dataset-id dataset-id
-                                                   :entity-id entity-id
-                                                   :content nil
-                                                   :title (fs/base-name filename)}))]
-          (create-article! sr-context project-id source-id article-data-id))))))
+      (let [entity-id (create-entity! {:datapub-opts datapub-opts
+                                       :dataset-id dataset-id
+                                       :file file})]
+        (db/with-tx [sr-context sr-context]
+          (let [article-data-id (-> sr-context
+                                    (goc-article-data!
+                                     {:dataset-id dataset-id
+                                      :entity-id entity-id
+                                      :content nil
+                                      :title (fs/base-name filename)})
+                                    :article-data/article-data-id)]
+            (create-article! sr-context project-id source-id article-data-id)))))))
 
 (defn import! [sr-context project-id files & {:keys [sync?]}]
   (let [dataset-id (:id (dpc/create-dataset!
