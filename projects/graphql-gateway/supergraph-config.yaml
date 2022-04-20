@@ -1,5 +1,6 @@
 # https://www.apollographql.com/docs/rover/supergraphs/#configuration
 
+federation_version: 2
 subgraphs:
   datapub:
     routing_url: https://www.datapub.dev/api

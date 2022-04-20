@@ -90,9 +90,12 @@ jobs:
           echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
           nix-build -A inputDerivation -o gcroots
 
+      - name: Set APOLLO_ELV2_LICENSE to avoid license prompt
+        run: echo "APOLLO_ELV2_LICENSE=accept" >> $GITHUB_ENV
+  
       - name: Install rover
         run: |
-          curl -sSL https://rover.apollo.dev/nix/v0.4.3 | sh
+          curl -sSL https://rover.apollo.dev/nix/v0.5.1 | sh
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
       - name: Upload subgraph schemas to Apollo Studio
