@@ -1,6 +1,9 @@
 (ns sysrev.cloudformation-templates.graphql-gateway
   (:refer-clojure :exclude [ref])
-  (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
+  (:require [donut.system :as ds]
+            [io.staticweb.cloudformation-templating :refer :all :exclude [template]]
+            [salmon.cloudformation.interface :as cfn]
+            [salmon.signal.interface :as sig]))
 
 (defn import-regional [export-name]
   (import-value (str "Sysrev-Regional-Resources-" (full-name export-name))))
@@ -64,7 +67,19 @@
      ; timeout of at least 10 seconds.
      :Timeout 10}}})
 
+(defn system []
+  {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
+   ::ds/defs
+   {:services {:stack
+               (cfn/stack {:lint? true
+                           :name "stack"
+                           :template template})}}
+   ::ds/signals
+   {:salmon/pre-validate {:order :reverse-topsort}
+    :validate {:order :reverse-topsort}}})
+
 (comment
-  (write-template "components/cloudformation-templates/out/graphql-gateway.template"
-                  template))
+  (do (sig/pre-validate! (system))
+      (write-template "components/cloudformation-templates/out/graphql-gateway.template"
+                      template)))
 
