@@ -1,12 +1,13 @@
 (ns sysrev.state.nav
-  (:require [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer
-             [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
+  (:require [re-frame.core :refer
+             [reg-event-db reg-event-fx reg-sub
+                                   reg-sub-raw subscribe trim-v]]
+            [reagent.ratom :refer [reaction]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.util :as util :refer
-             [in? parse-integer when-test filter-values]]))
+             [filter-values in? parse-integer when-test]]))
 
 (defn active-panel [db]
   (get-in db [:state :active-panel]))
@@ -76,9 +77,6 @@
 
 (reg-sub :active-project-id active-project-id)
 
-#_
-(reg-sub :recent-active-project #(get-in % [:state :recent-active-project]))
-
 (reg-event-db :set-project-url-error
               (fn [db [_ error?]]
                 (assoc-in db [:state :active-project-url-error] (boolean error?))))
@@ -86,7 +84,7 @@
 (reg-event-fx
  :set-active-project-url
  (fn [{:keys [db]} [_ [project-url-id {:keys [user-url-id org-url-id] :as owner}]]]
-   (let [ ;; url-id - vector used to look up project id from url strings
+   (let [;; url-id - vector used to look up project id from url strings
          ;; (will be nil when this is called for a non-project url)
          url-id (when project-url-id [project-url-id owner])
          ;; get any integer values from url id strings
@@ -94,8 +92,6 @@
                            :user (parse-integer user-url-id)
                            :org-url-id (parse-integer org-url-id)}
                           (filter-values integer?))
-         ;; most recent non-nil value for url-id
-         _recent-url-id (get-in db [:state :recent-project-url])
          ;; active project id before updating for url
          cur-active (active-project-id db)
          cur-active-url (get-in db [:state :active-project-url])
@@ -106,19 +102,12 @@
                   ;; store project/owner id strings from url to state
                   (assoc-in new-db [:state :active-project-url] url-id)
                   ;; update value of most recent non-nil url id
-                  (cond-> new-db url-id (assoc-in [:state :recent-project-url] url-id))
-                  ;; update value of most recent non-nil project id
-                  #_
-                  (if-let [_new-active (active-project-id new-db)]
-                    (assoc-in new-db [:state :recent-active-project] (active-project-id new-db))
-                    new-db))
+                  (cond-> new-db url-id (assoc-in [:state :recent-project-url] url-id)))
          ;; active project id after updating for url
          new-active (active-project-id new-db)]
      (cond-> {:db new-db
               ;; update browser page title based on project name
               :set-page-title (some->> new-active (get-project-raw new-db) :name)}
-       ;; reset data if this changes to a new active project
-       #_ (and (not= cur-active new-active) recent-url-id url-id (not= recent-url-id url-id))
        (and url-id (not= url-id cur-active-url) (not= cur-active new-active))
        (merge {:reset-project-ui true, :reset-needed true})
        ;; look up project id from server
@@ -133,11 +122,7 @@
                       active-url-id @(subscribe [:active-project-url])
                       active-full-id (when (and active-url-id (= project-id active-id))
                                        @(subscribe [:lookup-project-url active-url-id]))
-                      {:keys [user-id org-id]} active-full-id
-                      #_ project-url-id
-                      #_ (or (->> @(subscribe [:project/active-url-id project-id])
-                                  (when-test string?))
-                             project-id)]
+                      {:keys [user-id org-id]} active-full-id]
                   (str (cond user-id  (str "/u/" user-id)
                              org-id   (str "/o/" org-id)
                              :else    "")
@@ -150,7 +135,7 @@
   (str "/user/" user-id "/profile"))
 
 (defn group-uri [group-id]
-  (str "/org/" group-id "/users" ))
+  (str "/org/" group-id "/users"))
 
 (reg-event-fx :project/navigate
               (fn [_ [_ project-id & [suburi & {:as opts}]]]
