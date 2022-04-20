@@ -29,4 +29,16 @@ const server = new ApolloServer({
   plugins: [ApolloServerPluginLandingPageGraphQLPlayground()],
 });
 
-exports.handler = server.createHandler();
+const cors = {
+  allowedHeaders: ["Authorization", "Content-Type"],
+  credentials: true,
+  maxAge: 900,
+  methods: ["GET", "HEAD", "POST"],
+  origin: ["https://sysrev.com",
+    "https://www.sysrev.com",
+    "https://staging.sysrev.com"]
+};
+
+const opts = { expressGetMiddlewareOptions: { cors } };
+
+exports.handler = server.createHandler(opts);
