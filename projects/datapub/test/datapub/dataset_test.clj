@@ -827,4 +827,12 @@
           (is (string? (:id armstrong)))
           (is (string? (:contentUrl armstrong)))
           (is (= (sha3-256 (upload-stream "armstrong-thesis-2003-abstract.pdf"))
-                 (some-> armstrong :contentUrl URL. .openStream sha3-256))))))))
+                 (some-> armstrong :contentUrl URL. .openStream sha3-256)))))
+      (testing "PDF uploads with \\u0000 chars in the text work"
+        ;; See https://stackoverflow.com/a/31672314
+        (let [phi (upload-entity! (upload-stream "portland-heat-island.pdf")
+                                  "application/pdf")]
+          (is (string? (:id phi)))
+          (is (string? (:contentUrl phi)))
+          (is (= (sha3-256 (upload-stream "portland-heat-island.pdf"))
+                 (some-> phi :contentUrl URL. .openStream sha3-256))))))))

@@ -1,9 +1,13 @@
 (ns sysrev.tesseract.interface
-  (:import (net.sourceforge.tess4j Tesseract)))
+  (:require [sysrev.tesseract.core :as core])
+  (:import (java.nio.file Path)))
 
-(defn ^Tesseract tesseract [{:keys [data-path]}]
-  (doto (Tesseract.)
-    (.setDatapath data-path)
-    (.setOcrEngineMode 1) ; LSTM_ONLY https://github.com/nguyenq/tess4j/blob/67180ebae7618bbfe569db86b4729aafef25b1ee/src/main/java/net/sourceforge/tess4j/ITessAPI.java#L42-L65
-    (.setPageSegMode 1) ;Automatic page segmentation with orientation and script detection.
-    ))
+(defn read-text
+  "Returns a map of either {:text parsed-text} or {:ocr-text ocr-results}.
+   Returns invalid-pdf-value if the file can't be parsed as a PDF.
+   
+   Attempts to parse the PDF's text with
+   `sysrev.pdf-read.interface/parse-text`. If no text is found, runs
+   Tesseract OCR."
+  [^Path path & [invalid-pdf-value]]
+  (core/read-text path invalid-pdf-value))

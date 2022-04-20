@@ -1,8 +1,10 @@
 (ns sysrev.pdf-read.core
-  (:import (java.io File)
+  (:require [clojure.string :as str])
+  (:import (java.io File IOException)
+           (java.nio.file Path)
            (org.apache.pdfbox.io RandomAccessFile)
-           (org.apache.pdfbox.pdmodel PDDocument)
            (org.apache.pdfbox.pdfparser PDFParser)
+           (org.apache.pdfbox.pdmodel PDDocument)
            (org.apache.pdfbox.rendering ImageType PDFRenderer)
            (org.apache.pdfbox.text PDFTextStripper)))
 
@@ -14,11 +16,30 @@
          (.parse parser#)
          ~@body))))
 
-(defn get-text [^PDDocument doc {:keys [sort-by-position]}]
-  (let [stripper (PDFTextStripper.)]
-    (doto stripper
-      (.setSortByPosition (boolean sort-by-position)))
-    (.getText stripper doc)))
+(defn condense-text [s]
+  (-> (str/replace s "\u0000" "")
+      (str/replace #"\-\n\s*" "")
+      (str/replace #"\s+" " ")
+      str/trim))
+
+(defn raw-text ^String [^PDDocument doc & {:keys [sort-by-position]}]
+  (-> (doto (PDFTextStripper.)
+        (.setSortByPosition (boolean sort-by-position)))
+      (.getText doc)))
+
+(defn parse-text [^PDDocument doc]
+  (condense-text
+   (raw-text doc :sort-by-position true)))
+
+(defn read-text [^Path path invalid-pdf-value]
+  (try
+    (with-PDDocument [doc (.toFile path)]
+      (condense-text (parse-text doc)))
+    (catch IOException e
+      (if (= "Error: Header doesn't contain versioninfo"
+             (.getMessage e))
+        invalid-pdf-value
+        (throw e)))))
 
 (defn ->image-seq [^PDDocument doc]
   (let [renderer (PDFRenderer. doc)]

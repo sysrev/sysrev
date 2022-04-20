@@ -1,30 +1,27 @@
 (ns datapub.dataset
-  (:require
-   [cheshire.core :as json]
-   [clojure.edn :as edn]
-   [clojure.java.io :as io]
-   [clojure.string :as str]
-   [com.walmartlabs.lacinia.resolve :as resolve]
-   [datapub.auth :as auth]
-   [datapub.file :as file]
-   [hasch.core :as hasch]
-   [medley.core :as medley]
-   [next.jdbc :as jdbc]
-   [sysrev.file-util.interface :as file-util]
-   [sysrev.lacinia.interface :as sl]
-   [sysrev.pdf-read.interface :as pdf-read]
-   [sysrev.postgres.interface :as pg]
-   [sysrev.tesseract.interface :as tesseract])
-  (:import
-   (java.awt.image BufferedImage)
-   (java.io InputStream IOException)
-   (java.nio.file Path)
-   (java.sql Timestamp)
-   (java.time Instant ZoneId)
-   (java.time.format DateTimeFormatter)
-   (java.util Base64)
-   (org.apache.commons.io IOUtils)
-   (org.postgresql.jdbc PgArray)))
+  (:require [cheshire.core :as json]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [com.walmartlabs.lacinia.resolve :as resolve]
+            [datapub.auth :as auth]
+            [datapub.file :as file]
+            [hasch.core :as hasch]
+            [medley.core :as medley]
+            [next.jdbc :as jdbc]
+            [sysrev.file-util.interface :as file-util]
+            [sysrev.lacinia.interface :as sl]
+            [sysrev.pdf-read.interface :as pdf-read]
+            [sysrev.postgres.interface :as pg]
+            [sysrev.tesseract.interface :as tesseract])
+  (:import (java.io InputStream)
+           (java.nio.file Path)
+           (java.sql Timestamp)
+           (java.time Instant ZoneId)
+           (java.time.format DateTimeFormatter)
+           (java.util Base64)
+           (org.apache.commons.io IOUtils)
+           (org.postgresql.jdbc PgArray)))
 
 (defn sysrev-dev? [context]
   (let [auth (-> context :request :headers (get "authorization")
@@ -559,34 +556,31 @@
              :content-hash (byte-array (hasch/edn-hash json))
              :content-table :content-json})))))))
 
-(defn condense-whitespace [s]
-  (as-> (str/split s #"\-\n") $
-    (str/join "" $)
-    (str/split $ #"\s+")
-    (str/join " " $)))
-
-(defn pdf-text [^Path path tesseract]
-  (try
-    (pdf-read/with-PDDocument [doc (.toFile path)]
-      (let [text (condense-whitespace
-                  (pdf-read/get-text doc {:sort-by-position true}))]
-        (if-not (str/blank? text)
-          {:text text}
-          (when (:enabled? tesseract)
-            {:ocr-text
-             (let [tess (tesseract/tesseract
-                         {:data-path (System/getenv "TESSDATA_PREFIX")})]
-               (->> doc pdf-read/->image-seq
-                    (map
-                     (fn [^BufferedImage image]
-                       (.doOCR tess image)))
-                    (apply str)
-                    condense-whitespace))}))))
-    (catch IOException e
-      (if (= "Error: Header doesn't contain versioninfo"
-             (.getMessage e))
-        :invalid-pdf
-        (throw e)))))
+(defn create-entity-pdf! [context input path metadata]
+  (let [text (if (get-in context [:pedestal :config :tesseract :enabled?])
+               (tesseract/read-text path :invalid-pdf)
+               (as-> (pdf-read/read-text path :invalid-pdf) $
+                 (if (= :invalid-pdf $) $ {:text $})))]
+    (if (= :invalid-pdf text)
+      (resolve/resolve-as nil {:message (str "Invalid content or contentUpload: Not a valid PDF file.")})
+      (let [file-hash (file/file-sha3-256 path)
+            data (->> (assoc text :metadata metadata)
+                      (medley/remove-vals nil?))
+            content-hash (-> {:data data
+                              :file-hash
+                              (.encode (Base64/getEncoder) file-hash)}
+                             hasch/edn-hash
+                             byte-array)]
+        (file/put-entity-content! (get-in context [:pedestal :s3])
+                                  {:content (-> ^Path path .toUri .toURL .openStream)
+                                   :file-hash file-hash})
+        (with-tx-context [context context]
+          (create-entity-helper!
+           context input
+           {:content-hash content-hash
+            :content-table :content-file
+            :data data
+            :file-hash file-hash}))))))
 
 (defmethod create-dataset-entity! "application/pdf"
   [context {{:keys [content contentUpload metadata] :as input} :input :as args} value]
@@ -621,27 +615,7 @@
                                 :metadata metadata})
 
        :else
-       (let [text (pdf-text path (get-in context [:pedestal :config :tesseract]))]
-         (if (= :invalid-pdf text)
-           (resolve/resolve-as nil {:message (str "Invalid content or contentUpload: Not a valid PDF file.")})
-           (let [file-hash (file/file-sha3-256 path)
-                 data (->> (assoc text :metadata json)
-                           (medley/remove-vals nil?))
-                 content-hash (-> {:data data
-                                   :file-hash
-                                   (.encode (Base64/getEncoder) file-hash)}
-                                  hasch/edn-hash
-                                  byte-array)]
-             (file/put-entity-content! (get-in context [:pedestal :s3])
-                                       {:content (-> ^Path path .toUri .toURL .openStream)
-                                        :file-hash file-hash})
-             (with-tx-context [context context]
-               (create-entity-helper!
-                context input
-                {:content-hash content-hash
-                 :content-table :content-file
-                 :data data
-                 :file-hash file-hash})))))))))
+       (create-entity-pdf! context input path json)))))
 
 (defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds]} :input} source-stream]
   (ensure-sysrev-dev

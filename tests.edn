@@ -12,5 +12,6 @@
           :test-paths ["test/clj"
                        "components/datapub-client/test"
                        "components/json/test"
+                       "components/pdf-read/test"
                        "components/reviewer-time/test"
                        "components/user/test"]}]}

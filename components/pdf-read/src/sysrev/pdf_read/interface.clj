@@ -1,7 +1,16 @@
 (ns sysrev.pdf-read.interface
   (:require [sysrev.pdf-read.core :as core])
   (:import (java.io File)
+           (java.nio.file Path)
            (org.apache.pdfbox.pdmodel PDDocument)))
+
+(defn condense-text
+  "Combines consecutive whitespace characters into single spaces.
+   Removes leading and trailing whitespace.
+   Removes \\-\\n\\s* sequences.
+   Removes \\u0000 bytes."
+  ^String [^String s]
+  (core/condense-text s))
 
 (defn ->image-seq
   "Returns a lazy seq of java.awt.image.BufferedImage objects.
@@ -11,16 +20,16 @@
   [^PDDocument doc]
   (core/->image-seq doc))
 
-#_:clj-kondo/ignore
-(defn get-text
-  "Returns the text of a PDDocument as a string.
+(defn parse-text
+  "Returns the text of a PDDocument as a string."
+  ^String [^PDDocument doc]
+  (core/parse-text doc))
 
-  The default is to return the text in the order that it is listed in the PDF
-  file, which may not correspond to the order that it is displayed in the
-  document. Passing {:sort-by-position true} changes this at the cost of
-  efficiency."
-  [^PDDocument doc opts]
-  (core/get-text doc opts))
+(defn read-text
+  "Returns the text of the PDF file at path as a string.
+   Returns invalid-pdf-value if the file can't be parsed as a PDF."
+  [^Path path invalid-pdf-value]
+  (core/read-text path invalid-pdf-value))
 
 (defmacro with-PDDocument
   "Open (and close) a PDDocument, binding it to name-sym."
