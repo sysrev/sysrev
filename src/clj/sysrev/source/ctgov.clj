@@ -56,7 +56,7 @@
                             :article-subtype "ctgov"}
                     :get-article-refs (constantly entity-ids)
                     :get-articles
-                    (partial get-entities (get-in sr-context [:config :datapub-api]))}
+                    (partial get-entities (get-in sr-context [:config :graphql-endpoint]))}
                    options)))))
 
 (defn get-new-articles-available [{:keys [source-id meta]} & {:keys [config]}]
@@ -85,6 +85,6 @@
      {:types {:article-type "json" :article-subtype "ctgov"}
       :article-refs (get-new-articles-available
                      source :config (:config sr-context))
-      :get-articles (partial get-entities (get-in sr-context [:config :datapub-api]))}
+      :get-articles (partial get-entities (get-in sr-context [:config :graphql-endpoint]))}
      {:threads 1}))
   {:source-id source-id})

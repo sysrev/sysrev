@@ -93,8 +93,8 @@
         config (if datapub
                  (let [port (get-in datapub [:system :pedestal :bound-port])]
                    (assoc config
-                          :datapub-api (str "http://localhost:" port "/api")
-                          :datapub-ws (str "ws://localhost:" port "/ws")))
+                          :datapub-ws (str "ws://localhost:" port "/ws")
+                          :graphql-endpoint (str "http://localhost:" port "/api")))
                  config)
         system (-> ((or system-map-f system-map)
                     :config config

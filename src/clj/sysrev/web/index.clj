@@ -76,9 +76,9 @@
                    :type "text/javascript"}])]))
    [:body
     [:div {:style "display: none;"
-           :id "datapub-api"
-           :data-datapub-api
-           (get-in request [:sr-context :config :datapub-api])}]
+           :id "graphql-endpoint"
+           :data-graphql-endpoint
+           (get-in request [:sr-context :config :graphql-endpoint])}]
     [:div {:style "display: none;"
            :id "datapub-ws"
            :data-datapub-ws

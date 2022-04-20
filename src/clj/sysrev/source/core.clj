@@ -17,7 +17,7 @@
 
 (defn datapub-opts [{:keys [config]}]
   {:auth-token (:sysrev-dev-key config)
-   :endpoint (:datapub-api config)})
+   :endpoint (:graphql-endpoint config)})
 
 (defn get-source
   "Get fields for project-source entry matching source-id."

@@ -12,8 +12,8 @@
 
 (def graphql-endpoint
   (delay
-   (some-> (.getElementById js/document "datapub-api")
-           (.getAttribute "data-datapub-api"))))
+   (some-> (.getElementById js/document "graphql-endpoint")
+           (.getAttribute "data-graphql-endpoint"))))
 
 (s/def ::method (and keyword? (in? [:get :post :put :delete])))
 (s/def ::uri string?)

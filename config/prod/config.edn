@@ -1,5 +1,5 @@
-{:datapub-api "https://www.datapub.dev/api"
- :datapub-ws "wss://www.datapub.dev/ws"
+{:datapub-ws "wss://www.datapub.dev/ws"
+ :graphql-endpoint "https://api.sysrev.com/graphql"
  :nrepl {:port 7888}
  :postgres
  {:dbname "sysrev"
