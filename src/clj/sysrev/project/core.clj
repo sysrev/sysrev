@@ -329,8 +329,3 @@
              (get-project-owner project-id))
        (medley/find-first #(= (:user-id %) user-id))
        boolean))
-
-(defn clone-authorized? [project-id user-id]
-  (boolean
-   (or (:public-access (project-settings project-id))
-       (and user-id (project-admin-or-owner? user-id project-id)))))

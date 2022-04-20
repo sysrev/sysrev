@@ -1376,7 +1376,7 @@
       dest-project-id)))
 
 (defn clone-project-for-user! [{:keys [src-project-id user-id]}]
-  (if (project/clone-authorized? src-project-id user-id)
+  (if (member/clone-authorized? src-project-id user-id)
     (with-transaction
       (let [dest-project-id (clone-project src-project-id)]
         ;; set the user-id as owner
@@ -1387,7 +1387,7 @@
              :message "You don't have permission to clone that project"}}))
 
 (defn clone-project-for-org! [{:keys [src-project-id user-id org-id]}]
-  (if (project/clone-authorized? src-project-id user-id)
+  (if (member/clone-authorized? src-project-id user-id)
     (with-transaction
       (let [dest-project-id (clone-project src-project-id)]
         ;; add the project to the group

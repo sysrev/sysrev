@@ -11,7 +11,7 @@
             [sysrev.graphql.core :refer [fail]]
             [sysrev.postgres.interface :as pg]
             [sysrev.project.article-list :refer [query-project-article-ids]]
-            [sysrev.project.core :as project]
+            [sysrev.project.member :as member]
             [sysrev.source.core :as source]
             [sysrev.util :as util]
             [sysrev.web.app :as app]))
@@ -103,7 +103,7 @@
 (defn import
   [{:keys [request] :as sr-context} project-id {:keys [source-project-id url-filter]}]
   (cond
-    (not (project/clone-authorized? source-project-id (app/current-user-id request)))
+    (not (member/clone-authorized? source-project-id (app/current-user-id request)))
     {:error {:message "Source project must be public or user must have admin rights to it"}}
 
     (seq (->> (source/project-sources sr-context project-id)

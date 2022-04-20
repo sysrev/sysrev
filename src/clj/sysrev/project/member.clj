@@ -7,6 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :as notification]
             [sysrev.project.compensation :as compensation]
+            [sysrev.project.core :as project]
             [sysrev.shared.spec.project :as sp]
             [sysrev.user.interface :as user]
             [sysrev.util :as util :refer [in? opt-keys]]))
@@ -98,3 +99,9 @@
          (map :user-id)
          user/get-users-public-info
          (util/index-by :user-id))))
+
+(defn clone-authorized? [project-id user-id]
+  (boolean
+   (or (:public-access (project/project-settings project-id))
+       (and user-id (project/project-admin-or-owner? user-id project-id))
+       (user/dev-user? user-id))))
