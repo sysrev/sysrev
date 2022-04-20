@@ -4,4 +4,11 @@
                             :user-uuid "f05fb191-0a28-4d37-a324-db4566128d12"}}]
   :skey #uuid "ea944675-6772-4acb-aa8c-687cf1ff92b5"
   :update-time [:now]
-  :user-id 1000001}]
+  :user-id 1000001}
+ {:sdata [:lift {:anti-forgery-token "LiIbgNy3ENyOwY5ETPpvcCOKSdhvRpEOrmKMgwJwwK7LCLvoyVN1KtNjXa6m5WmutYXPDl6TMHumBhtN"
+                 :identity {:email "test_user_2@insilica.co"
+                            :user-id 1000002
+                            :user-uuid "8845a64c-836f-46fd-8a0d-61fd50952a85"}}]
+  :skey #uuid "8c12c2dc-f311-4e96-b2c1-0e192aec3294"
+  :update-time [:now]
+  :user-id 1000002}]

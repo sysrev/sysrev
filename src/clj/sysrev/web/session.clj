@@ -1,11 +1,16 @@
 (ns sysrev.web.session
-  (:require
-   [ring.middleware.session.store :refer [SessionStore]]
-   [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]))
+  (:require [ring.middleware.session.store :refer [SessionStore]]
+            [sysrev.config :refer [env]]
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]))
 
 (defn get-session [skey]
   (first (q/find :session {:skey skey})))
+
+(defn dev-session-key [{{:keys [user-id]} :identity}]
+  (when (and user-id (= :dev (:profile env)))
+    (some-> (q/find-one :session {:user-id user-id} :skey)
+            str)))
 
 (deftype SysrevSessionStore []
   SessionStore
@@ -18,7 +23,7 @@
           (dissoc :anti-forgery-token))))
   (write-session [_ key data]
     (db/with-transaction
-      (let [key (or key (str (random-uuid)))
+      (let [key (or (dev-session-key data) key (str (random-uuid)))
             data (or data {})
             ss (get-session key)]
         (if (nil? ss)
