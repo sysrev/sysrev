@@ -652,6 +652,13 @@
              (log/logf ~level "%s: %s\n%s"
                        (current-function-name) (.getMessage e#) (print-cause-trace-custom e#)))))
 
+#?(:clj (defmacro log-errors [& body]
+          `(try
+             (do ~@body)
+             (catch Throwable e#
+               (log-exception e#)
+               (throw e#)))))
+
 #?(:clj (defn gquery [query-form]
           (if (string? query-form)
             query-form ; return input value when already formatted as a query string

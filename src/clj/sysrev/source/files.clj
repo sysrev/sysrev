@@ -100,6 +100,7 @@
     (db/clear-project-cache project-id)
     ((if sync? deref identity)
      (future
-       (create-entities! sr-context project-id source-id dataset-id files)
-       (source/alter-source-meta source-id #(assoc % :importing-articles? false))))
+       (util/log-errors
+         (create-entities! sr-context project-id source-id dataset-id files)
+         (source/alter-source-meta source-id #(assoc % :importing-articles? false)))))
     {:success true}))

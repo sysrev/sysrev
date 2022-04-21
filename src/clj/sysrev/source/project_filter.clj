@@ -121,11 +121,12 @@
                                      :url-filter url-filter})]
       (db/clear-project-cache project-id)
       (future
-        (import-from-url! sr-context
-                          :filters filters
-                          :project-id project-id
-                          :source-id source-id
-                          :source-project-id source-project-id))
+        (util/log-errors
+         (import-from-url! sr-context
+                           :filters filters
+                           :project-id project-id
+                           :source-id source-id
+                           :source-project-id source-project-id)))
       {:result true})))
 
 (defn import-article-filter-url!
