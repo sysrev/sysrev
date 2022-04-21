@@ -104,7 +104,13 @@ jobs:
         env:
           APOLLO_KEY: ${{ secrets.APOLLO_KEY }}
 
-      - name: Compose the supergraph schema
+      - name: Compose the staging supergraph schema
+        if: github.ref_name != 'production'
+        run: rover supergraph compose --config ./supergraph-config-staging.yaml > ./supergraph.graphql
+        working-directory: projects/graphql-gateway
+
+      - name: Compose the production supergraph schema
+        if: github.ref_name != 'staging'
         run: rover supergraph compose --config ./supergraph-config.yaml > ./supergraph.graphql
         working-directory: projects/graphql-gateway
 
