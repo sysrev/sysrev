@@ -74,7 +74,7 @@
         :id)))
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
-  (let [datapub-opts (source/datapub-opts sr-context)]
+  (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
     (doseq [{:keys [filename] :as file} files]
       (let [entity-id (create-entity! {:datapub-opts datapub-opts
                                        :dataset-id dataset-id

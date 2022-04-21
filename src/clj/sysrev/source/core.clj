@@ -14,9 +14,11 @@
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [index-by map-values]]))
 
-(defn datapub-opts [{:keys [config]}]
+(defn datapub-opts [{:keys [config]} & {:keys [upload?]}]
   {:auth-token (:sysrev-dev-key config)
-   :endpoint (:graphql-endpoint config)})
+   :endpoint (if upload?
+               (:datapub-endpoint config)
+               (:graphql-endpoint config))})
 
 (defn get-source
   "Get fields for project-source entry matching source-id."
