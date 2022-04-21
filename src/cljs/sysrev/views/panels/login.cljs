@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.login
   (:require ["jquery" :as $]
+            [reagent.core :as r]
             [goog.uri.utils :as uri-utils]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
@@ -365,13 +366,15 @@
    (doall children)])
 
 (defn join-object-panel []
-  (let [redirecting? (atom nil)]
+  (let [redirecting? (atom nil)
+        error (r/atom nil)]
     (fn []
       (let [register-hash @(subscribe [:register/register-hash])
             project-id @(subscribe [:register/project-id])
             project-name @(subscribe [:register/project-name])
             org-id @(subscribe [:register/org-id])
             org-name @(subscribe [:register/org-name])
+            user-id @(subscribe [:self/user-id])
             _object-id (or project-id org-id)
             object-name (or project-name org-name)
             member? @(subscribe [:self/member? project-id])]
@@ -417,10 +420,16 @@
               [:h4.ui.header
                [:i.grey.list.alternate.outline.icon]
                [:div.content object-name]]]
+             (when @error
+               [:div.ui.center.segment
+                {:key [3] :style {:color "red"}}
+                [:p @error]])
              [:div.ui.center.aligned.segment
-              {:key [3]}
+              {:key [4]}
               [:button.ui.fluid.primary.button
-               {:on-click #(dispatch [:action [:join-project project-id]])}
+               {:on-click #(if project-id
+                             (dispatch [:action [:join-project project-id]])
+                             (dispatch [:action [:org/join org-id user-id register-hash error]]))}
                (if project-id
                  "Join Project"
                  "Join Organization")]]]))))))

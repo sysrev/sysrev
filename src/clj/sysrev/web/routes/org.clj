@@ -1,8 +1,9 @@
 (ns sysrev.web.routes.org
   (:require [compojure.coercions :refer [as-int]]
-            [compojure.core :refer [POST GET PUT DELETE defroutes context]]
+            [compojure.core :refer [context defroutes DELETE GET POST PUT]]
             [sysrev.api :as api]
             [sysrev.db.queries :as q]
+            [sysrev.encryption :as enc]
             [sysrev.group.core :as group]
             [sysrev.web.app :refer [current-user-id with-authorize]]))
 
@@ -56,6 +57,17 @@
                   (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                     (let [user-id (get-in request [:body :user-id])]
                       (api/set-user-group! user-id (group/group-id->name org-id) true))))
+            (POST "/join" request
+                  (with-authorize request {:logged-in true}
+                    (try
+                      (if (= org-id (:org-id (enc/decrypt-wrapped64 (get-in request [:body :register-hash]))))
+                       (let [user-id (get-in request [:body :user-id])]
+                         (api/set-user-group! user-id (group/group-id->name org-id) true))
+                       {:error {:status 403 :type :project
+                                :message "Not authorized (project member)"}})
+                     (catch Exception _
+                       {:error {:status 403 :type :project
+                                :message "Not authorized (project member)"}}))))
             (PUT "/user" request
                  (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                    (let [user-id (get-in request [:body :user-id])
@@ -104,4 +116,3 @@
                      (GET "/available-plans" request
                           (with-authorize request {:authorize-fn (org-role? org-id ["owner" "admin" "member"])}
                             (api/org-available-plans)))))))
-
