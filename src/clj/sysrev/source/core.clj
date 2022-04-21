@@ -6,7 +6,6 @@
                                                values where]]
             [orchestra.core :refer [defn-spec]]
             [sysrev.article.core :as article]
-            [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db :refer
              [do-execute do-query with-project-cache
               with-transaction]]
@@ -264,13 +263,6 @@
                                                   (where [:= :asrc.source-id source-id])
                                                   do-query first :count)}))))))))
 
-(defn-spec entity-count any?
-  [sr-context map? {:keys [dataset-id]} map?]
-  (when (seq dataset-id)
-    (->> (datapub-opts sr-context)
-         (dpc/get-dataset dataset-id "entities{totalCount}")
-         :entities :totalCount)))
-
 (defn-spec project-sources vector?
   "Returns vector of source information maps for project-id."
   [sr-context map? project-id int?]
@@ -285,11 +277,10 @@
           (->> do-query
                (mapv (fn [{:keys [source-id] :as psource}]
                        (merge psource
-                              {:article-count (or (entity-count sr-context psource)
-                                                  (-> (select :%count.*)
-                                                      (from [:article-source :asrc])
-                                                      (where [:= :asrc.source-id source-id])
-                                                      do-query first :count))
+                              {:article-count (-> (select :%count.*)
+                                                  (from [:article-source :asrc])
+                                                  (where [:= :asrc.source-id source-id])
+                                                  do-query first :count)
                                :labeled-article-count (source-articles-with-labels source-id)
                                :overlap (->> overlap-coll
                                              (filter #(= (:source-id %) source-id))
