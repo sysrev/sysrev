@@ -138,25 +138,24 @@
                     (source/project-sources sr-context project-id)]
                    (parent-project-info project-id)
                    (gengroup/read-project-member-gengroups project-id))]
-      {:project {:project-id project-id
-                 :name (:name fields)
-                 :project-uuid (:project-uuid fields)
-                 :members members
-                 :stats {:articles articles
-                         #_:status-counts #_status-counts
-                         :predict predict
-                         :progress progress}
-                 :labels labels
-                 :keywords keywords
-                 :settings (:settings fields)
-                 :files files
-                 :sources sources
-                 :url-ids url-ids
-                 :owner owner
-                 :plan plan
-                 :subscription-lapsed? subscription-lapsed?
-                 :parent-project parent-project-info
-                 :gengroups gengroups}
+      {:project
+       (-> (select-keys fields [:invite-code :name :project-uuid])
+           (assoc :files files
+                  :gengroups gengroups
+                  :keywords keywords
+                  :labels labels
+                  :members members
+                  :owner owner
+                  :parent-project parent-project-info
+                  :plan plan
+                  :project-id project-id
+                  :settings (:settings fields)
+                  :sources sources
+                  :stats {:articles articles
+                          :predict predict
+                          :progress progress}
+                  :subscription-lapsed? subscription-lapsed?
+                  :url-ids url-ids))
        :users users})))
 
 ;;;
@@ -184,6 +183,11 @@
       (.write w content))
     tempfile))
 
+(defn project-not-found [project-id]
+  {:error {:status 404
+           :type :not-found
+           :message (format "Project (%s) not found" project-id)}})
+
 ;;;
 ;;; Route definitions
 ;;;
@@ -205,23 +209,29 @@
                    (project/project-exists? project-id :include-disabled? false))]
           (assert (integer? project-id))
           (if (not valid-project)
-            {:error {:status 404
-                     :type :not-found
-                     :message (format "Project (%s) not found" project-id)}}
+            (project-not-found project-id)
             (do (record-user-project-interaction request)
                 (project-info (:sr-context request) project-id)))))))
 
-#_(dr (POST "/api/join-project" request
+(dr (POST "/api/join-project" {:keys [body sr-context] :as request}
       (with-authorize request {:logged-in true}
-        (let [project-id (active-project request)
+        (let [{:project/keys [project-id]} (->> body :invite-code
+                                                (project/project-from-invite-code sr-context))
               user-id (current-user-id request)
               session (:session request)]
-          (assert (nil? (member/project-member project-id user-id))
-                  "join-project: User is already a member of this project")
-          (member/add-project-member project-id user-id)
-          (with-meta
-            {:result {:project-id project-id}}
-            {:session session})))))
+          (cond
+            (not project-id)
+            (project-not-found project-id)
+
+            (member/project-member project-id user-id)
+            {:error {:status 403
+                     :message "User is already a member of this project"}}
+
+            :else
+            (do (member/add-project-member project-id user-id)
+                (with-meta
+                  {:result {:project-id project-id}}
+                  {:session session})))))))
 
 (dr (POST "/api/remove-user-from-project" request
       (with-authorize request {:roles ["admin"]}
@@ -318,18 +328,20 @@
                      project-id      {:project-id project-id}
                      :else        nil))})))
 
-(dr (GET "/api/consume-register-hash" request
+(dr (GET "/api/consume-register-hash" {:keys [params sr-context] :as request}
       (with-authorize request {}
-        (let [register-hash (-> request :params :register-hash)]
-          (if-let [data (enc/try-decrypt-wrapped64 register-hash)]
-            (case (:type data)
+        (let [{:keys [register-hash]} params
+              {:keys [org-id type] :as data}
+              #__ (enc/try-decrypt-wrapped64 register-hash)]
+          (if data
+            (case type
               "org-invite-hash"
-              {:org {:org-id (:org-id data)
-                     :name (group/group-id->name (:org-id data))}})
-            (let [project-id (project/project-id-from-register-hash register-hash)]
-              {:project (when project-id
-                          (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                            {:project-id project-id :name name}))}))))))
+              {:org {:name (group/group-id->name org-id)
+                     :org-id org-id}})
+            (let [{:project/keys [name project-id]}
+                  #__ (project/project-from-invite-code sr-context register-hash)]
+              (when project-id
+                {:project {:name name :project-id project-id}})))))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request

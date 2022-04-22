@@ -394,7 +394,7 @@
       :name @(subscribe [:register/org-name])
       :on-click #(dispatch [:action [:org/join org-id register-hash error]])}]))
 
-(defn join-project-panel [project-id]
+(defn join-project-panel [project-id invite-code]
   (r/with-let [redirecting? (atom nil)
                error (r/atom nil)]
     (if @(subscribe [:self/member? project-id])
@@ -411,7 +411,7 @@
        {:button-content "Join Project"
         :error error
         :name @(subscribe [:register/project-name])
-        :on-click #(dispatch [:action [:join-project project-id]])}])))
+        :on-click #(dispatch [:action [:join-project invite-code]])}])))
 
 (defn- redirect-root-content []
   (nav/nav "/")
@@ -424,7 +424,7 @@
     (with-loader [[:consume-register-hash register-hash]] {}
       (cond
         org-id [join-org-panel org-id register-hash]
-        project-id [join-project-panel project-id]
+        project-id [join-project-panel project-id register-hash]
         register-hash [invite-not-found]
         :else [redirect-root-content]))))
 

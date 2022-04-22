@@ -2,8 +2,7 @@
   (:require [medley.core :as medley :refer [find-first]]
             [re-frame.core :refer [reg-sub subscribe]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.nav :as nav]
-            [sysrev.util :refer [short-uuid]]))
+            [sysrev.nav :as nav]))
 
 (reg-sub :project/name
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
@@ -17,14 +16,10 @@
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(:project-uuid %))
 
-(reg-sub :project/hash
-         (fn [[_ project-id]] (subscribe [:project/uuid project-id]))
-         #(some-> % (short-uuid)))
-
 (reg-sub :project/invite-url
-         (fn [[_ project-id]] (subscribe [:project/hash project-id]))
-         (fn [project-hash]
-           (str (nav/current-url-base) "/register/" project-hash)))
+         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
+         (fn [{:keys [invite-code]}]
+           (str (nav/current-url-base) "/register/" invite-code)))
 
 (defn- project-active-url-id-impl [project-id project self-projects]
   (let [project-url (-> project :url-ids first :url-id)
@@ -74,11 +69,11 @@
 
 (def-action :join-project
   :uri (fn [_] "/api/join-project")
-  :content (fn [id] {:project-id id})
-  :process (fn [_ [id] _]
+  :content (fn [invite-code] {:invite-code invite-code})
+  :process (fn [_ _ {:keys [project-id]}]
              {:dispatch-n (list [:fetch [:identity]]
-                                [:fetch [:project id]]
-                                [:project/navigate id])}))
+                                [:fetch [:project project-id]]
+                                [:project/navigate project-id])}))
 
 (def-action :project/delete-file
   :uri (fn [project-id file-key] (str "/api/files/" project-id "/delete/" file-key))

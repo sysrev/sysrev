@@ -13,7 +13,8 @@
   (let [owner-id (:user-id project-owner)
         owner-name (if owner-id
                      @(subscribe [:user/username owner-id])
-                     (:name project-owner))]
+                     (:name project-owner))
+        {:keys [invite-code]} @(subscribe [:project/raw project-id])]
     (if member?
       [:a.ui.middle.aligned.grid.segment.project-list-project
        {:href (project-uri project-id "")}
@@ -40,7 +41,7 @@
         [:div.ui.tiny.button
          {:class (css [(util/mobile?) "fluid"]
                       [(not (util/mobile?)) "blue"])
-          :on-click #(dispatch [:action [:join-project project-id]])}
+          :on-click #(dispatch [:action [:join-project invite-code]])}
          "Join"]]])))
 
 (reg-sub ::projects-list-page-num

@@ -25,7 +25,7 @@
 ;; action item vector
 (s/def ::item-name keyword?) ; keyword name for item
 (s/def ::item-arg (constantly true)) ; any value
-;; ex: [:join-project 100]
+;; ex: [:join-project "JZl_s2akOwcsn4CxhDAKGvY1qHjHJFdR"]
 (s/def ::item (s/and vector? (s/cat :name ::item-name :args (s/* ::item-arg))))
 
 ;; item value formats

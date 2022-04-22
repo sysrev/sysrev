@@ -101,7 +101,8 @@
          child]))))
 
 (defn ProjectErrorNotice [message]
-  (let [project-id @(subscribe [:active-project-id])]
+  (let [project-id @(subscribe [:active-project-id])
+        {:keys [invite-code]} @(subscribe [:project/raw project-id])]
     [:div
      [:div.ui.large.icon.message
       [:i.warning.icon]
@@ -110,7 +111,7 @@
                  project-id
                  (not @(subscribe [:project/not-found?])))
         [:button.ui.purple.button
-         {:on-click #(dispatch [:action [:join-project project-id]])}
+         {:on-click #(dispatch [:action [:join-project invite-code]])}
          "Join [admin]"])]
      (when (not @(subscribe [:self/logged-in?]))
        [LoginRegisterPanel])]))

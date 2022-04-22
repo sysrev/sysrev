@@ -186,10 +186,12 @@
    {:keys [return] :or {return :execute}} (opt-keys ::q/return)]
   (q/find :project-member {:project-id project-id} :user-id :return return))
 
-(defn project-id-from-register-hash [register-hash]
-  (->> (q/find :project {} [:project-id :project-uuid])
-       (filter #(= register-hash (-> % :project-uuid util/short-uuid)))
-       first :project-id))
+(defn project-from-invite-code [sr-context ^String invite-code]
+  (when (seq invite-code)
+    (->> {:select [:name :project-id]
+          :from :project
+          :where [:= :invite-code invite-code]}
+         (db/execute-one! sr-context))))
 
 (defn-spec project-exists? boolean?
   "Does a project with project-id exist?"
