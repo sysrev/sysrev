@@ -1,6 +1,7 @@
 (ns sysrev.ajax
   (:require [ajax.core :as ajax]
             [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             cognitect.transit
             day8.re-frame.http-fx
             [orchestra.core :refer-macros [defn-spec]]
@@ -165,7 +166,8 @@
    (assoc opts
           :error-handler (ajax-error-handler opts)
           :headers (cond-> headers
-                     (nil? (get headers "x-csrf-token")) (assoc "x-csrf-token" (get-csrf-token @app-db)))
+                     (and (nil? (get headers "x-csrf-token")) (str/starts-with? url "/"))
+                     (assoc "x-csrf-token" (get-csrf-token @app-db)))
           :timeout (or timeout 30000))))
 
 (defn GET [url & [opts]]
