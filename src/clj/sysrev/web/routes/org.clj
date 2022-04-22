@@ -59,15 +59,11 @@
                       (api/set-user-group! user-id (group/group-id->name org-id) true))))
             (POST "/join" request
                   (with-authorize request {:logged-in true}
-                    (try
+                    (let [user-id (current-user-id request)]
                       (if (= org-id (:org-id (enc/decrypt-wrapped64 (get-in request [:body :register-hash]))))
-                       (let [user-id (get-in request [:body :user-id])]
-                         (api/set-user-group! user-id (group/group-id->name org-id) true))
-                       {:error {:status 403 :type :project
-                                :message "Not authorized (project member)"}})
-                     (catch Exception _
-                       {:error {:status 403 :type :project
-                                :message "Not authorized (project member)"}}))))
+                        (api/set-user-group! user-id (group/group-id->name org-id) true)
+                        {:error {:status 403 :type :project
+                                 :message "Not authorized (project member)"}}))))
             (PUT "/user" request
                  (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
                    (let [user-id (get-in request [:body :user-id])

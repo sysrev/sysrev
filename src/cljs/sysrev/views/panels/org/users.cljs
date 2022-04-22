@@ -78,9 +78,9 @@
 
 (def-action :org/join
   :uri      (fn [org-id _ _ _] (str "/api/org/" org-id "/join"))
-  :content  (fn [_ user-id register-hash error-ref]
+  :content  (fn [_ register-hash error-ref]
               (reset! error-ref nil)
-              {:user-id user-id :register-hash register-hash})
+              {:register-hash register-hash})
   :process  (fn [{:keys [db]} [_ _ _ _] _result]
               {:dispatch [:load-url "/"]})
   :on-error (fn [{:keys [db error]} [_ _ _ error-ref]]

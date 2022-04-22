@@ -387,13 +387,12 @@
      button-content]]])
 
 (defn join-org-panel [org-id register-hash]
-  (r/with-let [error (r/atom nil)
-               user-id (subscribe [:self/user-id])]
+  (r/with-let [error (r/atom nil)]
     [join-segment
      {:button-content "Join Organization"
       :error error
       :name @(subscribe [:register/org-name])
-      :on-click #(dispatch [:action [:org/join org-id @user-id register-hash error]])}]))
+      :on-click #(dispatch [:action [:org/join org-id register-hash error]])}]))
 
 (defn join-project-panel [project-id]
   (r/with-let [redirecting? (atom nil)
