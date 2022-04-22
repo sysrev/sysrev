@@ -1,6 +1,7 @@
 (ns sysrev.auth.jwt
   (:require [buddy.sign.jwt :as jwt]
             [sysrev.db.core :as db]
+            [sysrev.user.interface :as user]
             [sysrev.util :as util]))
 
 (defn default-jwt []
@@ -33,8 +34,9 @@
           seq))))
 
 (defn user-can-access-dataset? [sr-context user-id dataset-id]
-  (->> (projects-with-dataset sr-context dataset-id)
-       (user-project-member? sr-context user-id)))
+  (or (->> (projects-with-dataset sr-context dataset-id)
+           (user-project-member? sr-context user-id))
+      (user/dev-user? user-id)))
 
 (defn dataset-jwt [sr-context user-id dataset-id]
   (when (and user-id dataset-id
