@@ -328,18 +328,18 @@
                      project-id      {:project-id project-id}
                      :else        nil))})))
 
-(dr (GET "/api/consume-register-hash" {:keys [params sr-context] :as request}
+(dr (GET "/api/invite-code-info" {:keys [params sr-context] :as request}
       (with-authorize request {}
-        (let [{:keys [register-hash]} params
+        (let [{:keys [invite-code]} params
               {:keys [org-id type] :as data}
-              #__ (enc/try-decrypt-wrapped64 register-hash)]
+              #__ (enc/try-decrypt-wrapped64 invite-code)]
           (if data
             (case type
               "org-invite-hash"
               {:org {:name (group/group-id->name org-id)
                      :org-id org-id}})
             (let [{:project/keys [name project-id]}
-                  #__ (project/project-from-invite-code sr-context register-hash)]
+                  #__ (project/project-from-invite-code sr-context invite-code)]
               (when project-id
                 {:project {:name name :project-id project-id}})))))))
 

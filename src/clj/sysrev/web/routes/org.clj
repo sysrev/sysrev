@@ -57,10 +57,11 @@
         (with-authorize request {:authorize-fn (org-role? org-id ["owner"])}
           (let [user-id (get-in request [:body :user-id])]
             (api/set-user-group! user-id (group/group-id->name org-id) true))))
-      (POST "/join" request
+      (POST "/join" {:keys [body] :as request}
         (with-authorize request {:logged-in true}
           (let [user-id (current-user-id request)]
-            (if (= org-id (:org-id (enc/decrypt-wrapped64 (get-in request [:body :register-hash]))))
+            (if (-> body :invite-code enc/decrypt-wrapped64 :org-id
+                    (= org-id))
               (api/set-user-group! user-id (group/group-id->name org-id) true)
               {:error {:status 403 :type :project
                        :message "Not authorized (project member)"}}))))

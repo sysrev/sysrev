@@ -17,22 +17,22 @@
 
 (def register-panel [:register])
 
-(def-data :consume-register-hash
-  :loaded? (fn [db register-hash]
-             (not (and (nil? (get-panel-field db [:project register-hash] register-panel))
-                       (nil? (get-panel-field db [:org register-hash] register-panel)))))
-  :uri (fn [_] "/api/consume-register-hash")
+(def-data :invite-code-info
+  :loaded? (fn [db invite-code]
+             (not (and (nil? (get-panel-field db [:project invite-code] register-panel))
+                       (nil? (get-panel-field db [:org invite-code] register-panel)))))
+  :uri (fn [_] "/api/invite-code-info")
   :prereqs (fn [_] nil)
-  :content (fn [register-hash] {:register-hash register-hash})
+  :content (fn [invite-code] {:invite-code invite-code})
   :process
-  (fn [_ [register-hash] {:keys [project org]}]
+  (fn [_ [invite-code] {:keys [project org]}]
     (if project
       {:dispatch-n
-       (list [:register/project-id register-hash (:project-id project)]
-             [:register/project-name register-hash (:name project)])}
+       (list [:register/project-id invite-code (:project-id project)]
+             [:register/project-name invite-code (:name project)])}
       {:dispatch-n
-       (list [:register/org-id register-hash (:org-id org)]
-             [:register/org-name register-hash (:name org)])})))
+       (list [:register/org-id invite-code (:org-id org)]
+             [:register/org-name invite-code (:name org)])})))
 
 ;; TODO: change this to def-action, doesn't using loaded concept
 (def-data :nav-google-login
@@ -53,58 +53,58 @@
    :password [#(>= (count %) 6)
               "Password must be at least six characters"]})
 
-(reg-event-fx :register/register-hash [trim-v]
-              (fn [_ [register-hash]]
-                {:dispatch [:set-panel-field [:transient :register-hash] register-hash register-panel]}))
+(reg-event-fx :register/invite-code [trim-v]
+              (fn [_ [invite-code]]
+                {:dispatch [:set-panel-field [:transient :invite-code] invite-code register-panel]}))
 
-(reg-sub :register/register-hash
-         :<- [:panel-field [:transient :register-hash] register-panel]
+(reg-sub :register/invite-code
+         :<- [:panel-field [:transient :invite-code] register-panel]
          identity)
 
 (reg-event-fx :register/project-id [trim-v]
-              (fn [_ [register-hash project-id]]
-                {:dispatch [:set-panel-field [:project register-hash :project-id]
+              (fn [_ [invite-code project-id]]
+                {:dispatch [:set-panel-field [:project invite-code :project-id]
                             project-id register-panel]}))
 
 (reg-sub-raw :register/project-id
-             (fn [_ [_ register-hash]]
+             (fn [_ [_ invite-code]]
                (reaction
-                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                (when-let [hash (or invite-code @(subscribe [:register/invite-code]))]
                   @(subscribe [:panel-field [:project hash :project-id]
                                register-panel])))))
 
 (reg-event-fx :register/project-name [trim-v]
-              (fn [_ [register-hash project-name]]
-                {:dispatch [:set-panel-field [:project register-hash :name]
+              (fn [_ [invite-code project-name]]
+                {:dispatch [:set-panel-field [:project invite-code :name]
                             project-name register-panel]}))
 
 (reg-sub-raw :register/project-name
-             (fn [_ [_ register-hash]]
+             (fn [_ [_ invite-code]]
                (reaction
-                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                (when-let [hash (or invite-code @(subscribe [:register/invite-code]))]
                   @(subscribe [:panel-field [:project hash :name] register-panel])))))
 
 (reg-event-fx :register/org-id [trim-v]
-              (fn [_ [register-hash org-id]]
-                {:dispatch [:set-panel-field [:org register-hash :org-id]
+              (fn [_ [invite-code org-id]]
+                {:dispatch [:set-panel-field [:org invite-code :org-id]
                             org-id register-panel]}))
 
 (reg-sub-raw :register/org-id
-             (fn [_ [_ register-hash]]
+             (fn [_ [_ invite-code]]
                (reaction
-                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                (when-let [hash (or invite-code @(subscribe [:register/invite-code]))]
                   @(subscribe [:panel-field [:org hash :org-id]
                                register-panel])))))
 
 (reg-event-fx :register/org-name [trim-v]
-              (fn [_ [register-hash org-name]]
-                {:dispatch [:set-panel-field [:org register-hash :name]
+              (fn [_ [invite-code org-name]]
+                {:dispatch [:set-panel-field [:org invite-code :name]
                             org-name register-panel]}))
 
 (reg-sub-raw :register/org-name
-             (fn [_ [_ register-hash]]
+             (fn [_ [_ invite-code]]
                (reaction
-                (when-let [hash (or register-hash @(subscribe [:register/register-hash]))]
+                (when-let [hash (or invite-code @(subscribe [:register/invite-code]))]
                   @(subscribe [:panel-field [:org hash :name] register-panel])))))
 
 
@@ -200,10 +200,10 @@
                 {:dispatch [:set-view-field :login [:err] error-msg]}))
 
 (reg-sub ::header-title
-         :<- [:register/register-hash]
+         :<- [:register/invite-code]
          :<- [::register?]
-         (fn [[register-hash register?]]
-           (let [project? (and register? register-hash)]
+         (fn [[invite-code register?]]
+           (let [project? (and register? invite-code)]
              (cond project?   "Register for project"
                    register?  "Register"
                    :else      "Login"))))
@@ -261,7 +261,7 @@
         org-id @(subscribe [:register/org-id])
         org-name @(subscribe [:register/org-name])
         object-name (or project-name org-name)
-        register-hash @(subscribe [:register/register-hash])
+        invite-code @(subscribe [:register/invite-code])
         form-errors @(subscribe [::form-errors])
         field-class #(if (get form-errors %) "error" "")
         field-error #(when-let [msg (get form-errors %)]
@@ -270,15 +270,15 @@
         redirect (uri-utils/getParamValue @active-route "redirect")
         redirect-message (uri-utils/getParamValue @active-route "redirect_message")
         _dark? @(subscribe [:self/dark-theme?])]
-    (with-loader (if register-hash
-                   [[:consume-register-hash register-hash]]
+    (with-loader (if invite-code
+                   [[:invite-code-info invite-code]]
                    []) {}
       [:div
        [:h3 {:style {:text-align "center"}}
         redirect-message]
        [:div.ui.center.aligned.segment.auto-margin.auth-segment
         {:id "login-register-panel"}
-        (when register-hash
+        (when invite-code
           [:h4.ui.header
            [:i.grey.list.alternate.outline.icon]
            [:div.content
@@ -346,7 +346,7 @@
         (cond landing?   nil
               register?  [:div.ui.center.aligned.grid
                           [:div.column
-                           [:a.medium-weight {:href (if register-hash
+                           [:a.medium-weight {:href (if invite-code
                                                       (str @active-route "/login")
                                                       "/login")}
                             "Already have an account?"]]]
@@ -386,13 +386,13 @@
      {:on-click on-click}
      button-content]]])
 
-(defn join-org-panel [org-id register-hash]
+(defn join-org-panel [org-id invite-code]
   (r/with-let [error (r/atom nil)]
     [join-segment
      {:button-content "Join Organization"
       :error error
       :name @(subscribe [:register/org-name])
-      :on-click #(dispatch [:action [:org/join org-id register-hash error]])}]))
+      :on-click #(dispatch [:action [:org/join org-id invite-code error]])}]))
 
 (defn join-project-panel [project-id invite-code]
   (r/with-let [redirecting? (atom nil)
@@ -420,12 +420,12 @@
 (defn- register-logged-in-content []
   (let [org-id @(subscribe [:register/org-id])
         project-id @(subscribe [:register/project-id])
-        register-hash @(subscribe [:register/register-hash])]
-    (with-loader [[:consume-register-hash register-hash]] {}
+        invite-code @(subscribe [:register/invite-code])]
+    (with-loader [[:invite-code-info invite-code]] {}
       (cond
-        org-id [join-org-panel org-id register-hash]
-        project-id [join-project-panel project-id register-hash]
-        register-hash [invite-not-found]
+        org-id [join-org-panel org-id invite-code]
+        project-id [join-project-panel project-id invite-code]
+        invite-code [invite-not-found]
         :else [redirect-root-content]))))
 
 (def-panel :uri "/login" :panel [:login]
@@ -438,13 +438,13 @@
   :content [register-logged-in-content]
   :logged-out-content [LoginRegisterPanel])
 
-(def-panel :uri "/register/:register-hash" :params [register-hash]
+(def-panel :uri "/register/:invite-code" :params [invite-code]
   :on-route (do (dispatch [:set-active-panel [:register]])
-                (dispatch [:register/register-hash register-hash])))
+                (dispatch [:register/invite-code invite-code])))
 
-(def-panel :uri "/register/:register-hash/login" :params [register-hash]
+(def-panel :uri "/register/:invite-code/login" :params [invite-code]
   :on-route (do (dispatch [:set-active-panel [:register]])
-                (dispatch [:register/register-hash register-hash])
+                (dispatch [:register/invite-code invite-code])
                 (dispatch [:register/login? true])
                 (dispatch [:set-login-redirect-url
-                           (str "/register/" register-hash)])))
+                           (str "/register/" invite-code)])))
