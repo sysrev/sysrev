@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.org.main
   (:require ["@insilica/react-components" :refer (Tab)]
+            [clojure.string :as str]
             [cljs-time.coerce :as tc]
             [medley.core :refer [find-first]]
             [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
@@ -114,6 +115,7 @@
             {:darkMode (boolean @(subscribe [:self/dark-theme?]))
              :projects (->>
                         (map #(assoc % :markdown-description @%2) projects project-descriptions)
+                        (sort-by (comp str/lower-case :name))
                         (mapv project->js))
              :members (mapv member->js users)
              :title @(subscribe [:org/name org-id])
