@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.login
   (:require ["jquery" :as $]
+            [reagent.core :as r]
             [goog.uri.utils :as uri-utils]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
@@ -18,11 +19,8 @@
 
 (def-data :consume-register-hash
   :loaded? (fn [db register-hash]
-             (or
-               ((comp not nil?)
-                (get-panel-field db [:project register-hash] register-panel))
-               ((comp not nil?)
-                (get-panel-field db [:org register-hash] register-panel))))
+             (not (and (nil? (get-panel-field db [:project register-hash] register-panel))
+                       (nil? (get-panel-field db [:org register-hash] register-panel)))))
   :uri (fn [_] "/api/consume-register-hash")
   :prereqs (fn [_] nil)
   :content (fn [register-hash] {:register-hash register-hash})
@@ -279,7 +277,7 @@
        [:h3 {:style {:text-align "center"}}
         redirect-message]
        [:div.ui.center.aligned.segment.auto-margin.auth-segment
-        {:id "login-register-panel" :class (css #_ [_dark? "secondary"])}
+        {:id "login-register-panel"}
         (when register-hash
           [:h4.ui.header
            [:i.grey.list.alternate.outline.icon]
@@ -361,80 +359,74 @@
                             "Forgot Password?"]]])]])))
 
 (defn- wrap-join-project [& children]
-  [:div.ui.padded.segments.auto-margin.join-project-panel
-   (doall children)])
+  (into [:div.ui.padded.segments.auto-margin.join-project-panel]
+        children))
 
-(defn join-object-panel []
-  (let [redirecting? (atom nil)]
-    (fn []
-      (let [register-hash @(subscribe [:register/register-hash])
-            project-id @(subscribe [:register/project-id])
-            project-name @(subscribe [:register/project-name])
-            org-id @(subscribe [:register/org-id])
-            org-name @(subscribe [:register/org-name])
-            _object-id (or project-id org-id)
-            object-name (or project-name org-name)
-            member? @(subscribe [:self/member? project-id])]
-        (with-loader [[:consume-register-hash register-hash]] {}
-          (cond
-            (and (nil? project-id)
-                 (nil? org-id))
-            [wrap-join-project
-             [:h3.ui.center.aligned.header.segment
-              {:key [1]}
-              "You have been invited to join:"]
-             [:div.ui.center.aligned.segment
-              {:key [2]}
-              [:h4.ui.header
-               [:i.grey.list.alternate.outline.icon]
-               [:div.content "< Project not found >"]]]]
+(defn invite-not-found []
+  [wrap-join-project
+   [:div.ui.center.aligned.segment
+    [:h4.ui.header
+     [:i.grey.list.alternate.outline.icon]
+     [:div.content "Invite not found"]]]])
 
-            member?
-            [wrap-join-project
-             [:div.ui.segment
-              {:key [1]}
-              [:h4.ui.header
-               [:i.grey.list.alternate.outline.icon]
-               [:div.content object-name]]]
-             [:div.ui.center.aligned.segment
-              {:key [2]}
-              (when-not @redirecting?
-                (-> #(nav/nav (project-uri project-id ""))
-                    (js/setTimeout 1000))
-                (reset! redirecting? true))
-              [:h4 "You are already a member of this project."]
-              [:h5 {:style {:margin-top "1em"}}
-               "Redirecting... " nbsp nbsp nbsp
-               [:div.ui.small.active.inline.loader]]]]
+(defn join-segment [{:keys [button-content error name on-click]}]
+  [wrap-join-project
+   [:h3.ui.center.aligned.header.segment
+    "You have been invited to join:"]
+   [:div.ui.segment
+    [:h4.ui.header
+     [:i.grey.list.alternate.outline.icon]
+     [:div.content name]]]
+   (when @error
+     [:div.ui.center.segment
+      {:style {:color "red"}}
+      [:p @error]])
+   [:div.ui.center.aligned.segment
+    [:button.ui.fluid.primary.button
+     {:on-click on-click}
+     button-content]]])
 
-            :else
-            [wrap-join-project
-             [:h3.ui.center.aligned.header.segment
-              {:key [1]}
-              "You have been invited to join:"]
-             [:div.ui.segment
-              {:key [2]}
-              [:h4.ui.header
-               [:i.grey.list.alternate.outline.icon]
-               [:div.content object-name]]]
-             [:div.ui.center.aligned.segment
-              {:key [3]}
-              [:button.ui.fluid.primary.button
-               {:on-click #(dispatch [:action [:join-project project-id]])}
-               (if project-id
-                 "Join Project"
-                 "Join Organization")]]]))))))
+(defn join-org-panel [org-id register-hash]
+  (r/with-let [error (r/atom nil)]
+    [join-segment
+     {:button-content "Join Organization"
+      :error error
+      :name @(subscribe [:register/org-name])
+      :on-click #(dispatch [:action [:org/join org-id register-hash error]])}]))
+
+(defn join-project-panel [project-id]
+  (r/with-let [redirecting? (atom nil)
+               error (r/atom nil)]
+    (if @(subscribe [:self/member? project-id])
+      [wrap-join-project
+       [:div.ui.center.aligned.segment
+        (when-not @redirecting?
+          (js/setTimeout #(nav/nav (project-uri project-id "") 1000))
+          (js/setTimeout #(reset! redirecting? true) 0))
+        [:h4 "You are already a member of this project."]
+        [:h5 {:style {:margin-top "1em"}}
+         "Redirecting... " nbsp nbsp nbsp
+         [:div.ui.small.active.inline.loader]]]]
+      [join-segment
+       {:button-content "Join Project"
+        :error error
+        :name @(subscribe [:register/project-name])
+        :on-click #(dispatch [:action [:join-project project-id]])}])))
 
 (defn- redirect-root-content []
   (nav/nav "/")
   [:div])
 
 (defn- register-logged-in-content []
-  (if (and (nil? @(subscribe [:register/project-id]))
-           (nil? @(subscribe [:register/org-id]))
-           (nil? @(subscribe [:register/register-hash])))
-    [redirect-root-content]
-    [join-object-panel]))
+  (let [org-id @(subscribe [:register/org-id])
+        project-id @(subscribe [:register/project-id])
+        register-hash @(subscribe [:register/register-hash])]
+    (with-loader [[:consume-register-hash register-hash]] {}
+      (cond
+        org-id [join-org-panel org-id register-hash]
+        project-id [join-project-panel project-id]
+        register-hash [invite-not-found]
+        :else [redirect-root-content]))))
 
 (def-panel :uri "/login" :panel [:login]
   :on-route (dispatch [:set-active-panel [:login]])

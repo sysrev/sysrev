@@ -76,6 +76,16 @@
   :on-error (fn [{:keys [db error]} _ _]
               {:db (panel-set db [:add-user :error] (:message error))}))
 
+(def-action :org/join
+  :uri      (fn [org-id _ _ _] (str "/api/org/" org-id "/join"))
+  :content  (fn [_ register-hash error-ref]
+              (reset! error-ref nil)
+              {:register-hash register-hash})
+  :process  (fn [{:keys [db]} [_ _ _ _] _result]
+              {:dispatch [:load-url "/"]})
+  :on-error (fn [{:keys [db error]} [_ _ _ error-ref]]
+              (reset! error-ref "There was a problem with your signup code.")))
+
 (def-action :org/remove-user
   :method   :delete
   :uri      (fn [org-id _ _] (str "/api/org/" org-id "/user"))
