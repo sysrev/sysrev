@@ -7,7 +7,8 @@
             [sysrev.views.panels.create-project :refer [NewProjectButton]]
             [sysrev.views.project :refer [ProjectName]]
             [sysrev.util :as util :refer [css]]
-            [sysrev.macros :refer-macros [with-loader]]))
+            [sysrev.macros :refer-macros [with-loader]]
+            [sysrev.views.dummy :refer [dummmyDoc dummydoc2]]))
 
 (defn- ProjectListItem [{:keys [project-id name member? description public-access project-owner]}]
   (let [owner-id (:user-id project-owner)
@@ -137,13 +138,21 @@
         ^{:key (:project-id x)}
         [ProjectListItem (make-item x)])))])
 
+(defn send-message []
+  (print (.stringify js/JSON (clj->js {:document dummydoc2})))
+  (let [elem (.getElementById js/document "brat")]
+    (.postMessage (.-contentWindow elem) (.stringify js/JSON (clj->js {:document dummydoc2})))))
+    ; (.postMessage (.-contentWindow elem) (.stringify js/JSON (clj->js {:document {:value "test"}})))))
+
 (defn UserProjectListFull []
   (with-loader [[:identity] [:public-projects]] {}
     (when @(subscribe [:self/logged-in?])
       (let [all-projects @(subscribe [:self/projects true])
             member-projects (->> all-projects (filter :member?))]
         [:div.ui.stackable.grid
+         [:button {:on-click #(send-message)} "Tst"]
          [:div.row
+          [:iframe {:id "brat" :width 800 :height 600 :src "http://localhost:4061/brat/index.xhtml#/"}]
           [:div.eight.wide.column.user-projects
            [ProjectsListSegment "Your Projects" member-projects true]]
           [:div.eight.wide.column.public-projects
