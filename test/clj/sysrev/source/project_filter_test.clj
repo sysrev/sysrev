@@ -233,3 +233,79 @@
                                                :join [[:article-data :ad] :a.article-data-id])]
                 (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
                 (is (= 1 (title-count "Plosker Troglitazone.pdf")))))))))))
+
+(deftest ^:integration test-import-duplicates
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
+    (let [{:keys [api-token user-id]} (test/create-test-user system)]
+      (user/change-user-setting user-id :dev-account-enabled? true)
+      (testing "Articles can be re-imported from a project with one type of article"
+        (let [project-1-id (-> (api/create-project-for-user!
+                                sr-context
+                                "Project Filter Import Source 1"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              project-1-url (str "https://sysrev.com/p/" project-1-id)
+              project-2-id (-> (api/create-project-for-user!
+                                sr-context
+                                "Project Filter Import Source 2"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              project-2-url (str "https://sysrev.com/p/" project-2-id)
+              project-3-id (-> (api/create-project-for-user!
+                                sr-context
+                                "Project Filter Import Target"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              filename "test-pdf-import.zip"
+              pdf-zip (-> (str "test-files/" filename) io/resource io/file)]
+          (db/with-transaction
+            (src/import-source
+             sr-context :pdf-zip project-1-id {:file pdf-zip :filename filename}
+             {:use-future? false}))
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-1-id
+                                           :targetID project-2-id
+                                           :url (str project-1-url "/articles")}]]})
+                       :api-key api-token))))
+          (is (test/wait-not-importing? system project-2-id 10000))
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-1-id
+                                           :targetID project-3-id
+                                           :url (str project-1-url "/articles")}]]})
+                       :api-key api-token))))
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-2-id
+                                           :targetID project-3-id
+                                           :url (str project-2-url "/articles")}]]})
+                       :api-key api-token))))
+          (is (test/wait-not-importing? system project-3-id 10000))
+          (is (= 4 (project/project-article-count project-3-id)))
+          (let [title-count #(q/find-count [:article :a] {:a.project-id project-3-id
+                                                          :ad.title %}
+                                           :join [[:article-data :ad] :a.article-data-id])]
+            (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
+            (is (= 1 (title-count "Plosker Troglitazone.pdf")))))))))

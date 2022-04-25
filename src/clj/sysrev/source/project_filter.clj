@@ -62,16 +62,27 @@
   (db/with-long-transaction
     [_ (:postgres sr-context)]
     (let [old-articles (get-source-project-articles source-id article-ids)
-          new-ids (when (seq old-articles)
+          article-data-ids (map :article/article-data-id old-articles)
+          dupe-data-ids (set
+                         (when (seq article-data-ids)
+                           (->> {:select :article-data-id
+                                 :from :article
+                                 :where [:and
+                                         [:= :project-id project-id]
+                                         [:in :article-data-id article-data-ids]]}
+                                (db/execute! sr-context)
+                                (keep :article/article-data-id))))
+          articles-to-import (remove dupe-data-ids article-data-ids)
+          new-ids (when (seq article-data-ids)
                     (q/create :article
-                              (map #(do {:article-data-id (:article/article-data-id %)
+                              (map #(do {:article-data-id %
                                          :project-id project-id})
-                                   old-articles)
+                                   articles-to-import)
                               :returning :article-id))
           new-pdfs (mapcat
                     (fn [{:keys [pdf-ids]} article-id]
                       (map #(do {:article-id article-id :s3-id %}) (db/seq-array pdf-ids)))
-                    old-articles
+                    articles-to-import
                     new-ids)]
       (when (seq new-pdfs)
         (q/create :article-pdf new-pdfs))
