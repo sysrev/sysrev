@@ -244,11 +244,11 @@
 (defn article-prediction-filter
   [{:keys [project-id] :as _context} {:keys [label-id label-value direction score]}]
   (let [all-predicts (project-article-predicts project-id label-value)
-        compare-score (case direction  :above >, :below <)]
+        score (* 0.01 score)
+        pred (case direction :above > :below <)]
     (fn [{:keys [article-id]}]
       (some-> (get-in all-predicts [article-id label-id])
-              (#(if (false? label-value) (- 1.0 %) %))
-              (compare-score (/ score 100.0))))))
+              (pred score)))))
 
 (defn get-filter-fn [context]
   (fn [fmap]
