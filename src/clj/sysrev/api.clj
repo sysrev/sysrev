@@ -281,12 +281,10 @@
      (let [source-project-id (url-project-id url-filter)]
        (if-not (some-> source-project-id project/project-exists?)
          {:error {:message "Project not found"}}
-         {:import
-          (future
-            (project-filter/import
-             sr-context project-id
-             {:source-project-id source-project-id
-              :url-filter url-filter}))})))
+         (project-filter/import
+          sr-context project-id
+          {:source-project-id source-project-id
+           :url-filter url-filter}))))
    {:url-filter url}))
 
 (s/def ::sources vector?)
