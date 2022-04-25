@@ -4,6 +4,7 @@
             [com.stuartsierra.component :as component]
             [sysrev.reviewer-time.interface :as reviewer-time]
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.util-lite.interface :as ul]
             [sysrev.web.app :refer [current-user-id]]
             [taoensso.sente :refer [make-channel-socket!]]
             [taoensso.sente.server-adapters.aleph :refer [get-sch-adapter]]))
@@ -36,14 +37,6 @@
 (defn sente [& {:keys [receive-f]}]
   (map->Sente {:receive-f receive-f}))
 
-(defn- full-name [x]
-  (when x
-    (if (string? x)
-      x
-      (if (simple-ident? x)
-        (name x)
-        (str (namespace x) "/" (name x))))))
-
 (defn- handle-message! [sente item]
   (let [{:keys [event]} item
         [kind data] event]
@@ -53,7 +46,7 @@
         (reviewer-time/create-events!
          (get-in sente [:postgres :datasource])
          [{:article-id article-id
-           :event-type (full-name reframe-event)
+           :event-type (ul/full-name reframe-event)
            :project-id project-id
            :user-id (:uid item)}]))
 
