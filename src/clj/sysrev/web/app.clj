@@ -235,7 +235,13 @@
   [handler sr-context]
   {:pre [(fn? handler) (map? sr-context)]}
   (fn [request]
-    (handler (assoc request :sr-context (assoc sr-context :request request)))))
+    (handler (assoc request :sr-context sr-context))))
+
+(defn wrap-sr-context-request
+  "Add the request to the Sysrev context map."
+  [handler]
+  (fn [request]
+    (handler (assoc-in request [:sr-context :request] request))))
 
 (defn authorization-error
   "Checks if user is authorized to perform the

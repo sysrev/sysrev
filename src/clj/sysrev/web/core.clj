@@ -82,6 +82,7 @@
   "Ring handler wrapper for web HTML responses"
   [handler & {:keys [sr-context]}]
   (-> handler
+      app/wrap-sr-context-request
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session true :anti-forgery false}))
       (app/wrap-dynamic-vars sr-context)
@@ -92,6 +93,7 @@
   "Ring handler wrapper for web app routes"
   [handler & {:keys [sr-context]}]
   (-> handler
+      app/wrap-sr-context-request
       app/wrap-sysrev-response
       app/wrap-add-anti-forgery-token
       (wrap-transit-response {:encoding :json, :opts {}})
@@ -115,6 +117,7 @@
   "Ring handler wrapper for JSON API (non-browser) routes"
   [handler & {:keys [sr-context]}]
   (-> handler
+      app/wrap-sr-context-request
       wrap-web-api
       app/wrap-sysrev-response
       (wrap-json-response {:pretty true})
@@ -130,6 +133,7 @@
   "Ring handler wrapper for GraphQL routes"
   [handler & {:keys [sr-context]}]
   (-> handler
+      app/wrap-sr-context-request
       (app/wrap-dynamic-vars sr-context)
       (app/wrap-sr-context sr-context)
       wrap-exit-on-full-connection-pool))
