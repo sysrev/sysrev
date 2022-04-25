@@ -1,3 +1,5 @@
+(require 'hashp.core)
+
 (ns sysrev.main
   (:gen-class)
   (:require

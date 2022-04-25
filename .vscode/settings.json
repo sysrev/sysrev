@@ -24,7 +24,7 @@
           "test"
         ]
       },
-      "afterCLJReplJackInCode": "(do (require 'hashp.core) ((requiring-resolve 'sysrev.main/reload-with-fixtures!)))",
+      "afterCLJReplJackInCode": "((requiring-resolve 'sysrev.main/reload-with-fixtures!))",
       "cljsType": "none"
     }
   ]
