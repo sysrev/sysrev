@@ -31,11 +31,7 @@
                 (walk/keywordize-keys)
                 (select-keys [:filters :text-search])
                 (update :filters #(when (seq %) (util/read-json %)))
-                (util/sanitize-uuids))
-        ;; keywords are used as values, but converted to strings in url
-        filters (walk/postwalk (fn [x] (if (string? x)
-                                         (keyword x)
-                                         x)) filters)]
+                (util/sanitize-uuids))]
     (vec (concat filters (when text-search [{:text-search text-search}])))))
 
 (defn get-source-project-articles [source-id article-ids]
