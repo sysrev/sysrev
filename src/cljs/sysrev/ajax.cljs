@@ -142,7 +142,8 @@
         "application/json" (ajax/json-response-format {:keywords? true})
         "text/plain" (ajax/text-response-format))
       :headers (cond-> {}
-                 csrf-token (merge {"x-csrf-token" csrf-token}))
+                 (and csrf-token (str/starts-with? uri "/"))
+                 (assoc "x-csrf-token" csrf-token))
       :on-success (cond-> on-success
                     action-params (conj action-params))
       :on-failure (cond-> on-failure
