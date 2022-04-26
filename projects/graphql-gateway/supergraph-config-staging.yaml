@@ -6,3 +6,7 @@ subgraphs:
     routing_url: https://www.datapubdev.net/api
     schema:
       file: ../datapub/resources/datapub/schema.graphql
+  sysrev_api:
+    routing_url: https://sysrev.com/api
+    schema:
+      file: ../../bases/sysrev-api/resources/sysrev-api/schema.graphql
