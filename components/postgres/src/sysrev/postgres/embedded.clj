@@ -1,7 +1,8 @@
 (ns sysrev.postgres.embedded
   (:require [clojure.tools.logging :as log]
             [next.jdbc :as jdbc]
-            [sysrev.contajners.interface :as con]))
+            [sysrev.contajners.interface :as con]
+            [sysrev.shutdown.interface :as shut]))
 
 (defn container-config [image port]
   {:keys [(seq image) port]}
@@ -38,6 +39,7 @@
 (defn start! [{:keys [image port timeout-ms]}]
   (let [cfg (container-config image (or port 0))
         name (str "sysrev-pg-" (random-uuid))
+        shutdown (shut/add-hook! #(con/stop-container! name))
         _ (con/up! name cfg)
         bound-port (get-port name)]
     (wait-pg-ready!
@@ -47,7 +49,8 @@
                            :user "postgres"})
      30000)
     {:name name
-     :port bound-port}))
+     :port bound-port
+     :stop! (fn [] @shutdown)}))
 
-(defn stop! [{:keys [name]}]
-  (con/stop-container! name))
+(defn stop! [{:keys [stop!]}]
+  (stop!))

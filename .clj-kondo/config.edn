@@ -93,6 +93,7 @@
                                         sysrev.postgres.interface      pg
                                         sysrev.project.core            project
                                         sysrev.sendgrid                sendgrid
+                                        sysrev.shutdown.interface      shut
                                         sysrev.slack                   slack
                                         sysrev.source.core             source
                                         sysrev.source.interface        src

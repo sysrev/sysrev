@@ -87,6 +87,7 @@
         poly/nrepl {:local/root "components/nrepl"}
         poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
+        poly/shutdown {:local/root "components/shutdown"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
         poly/user {:local/root "components/user"}
