@@ -1,17 +1,31 @@
 (ns sysrev.postgres.embedded
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [next.jdbc :as jdbc]
             [sysrev.contajners.interface :as con]
             [sysrev.shutdown.interface :as shut]))
 
+(defn linux? []
+  (-> (System/getProperty "os.name")
+      str/lower-case
+      (str/includes? "linux")))
+
+(defn add-tmpfs [config path]
+  (-> config
+      (update :HostConfig assoc
+              :Mounts [{:Target path :Type "tmpfs"}]
+              :Tmpfs {path "rw"})
+      (assoc :Volumes {path {}})))
+
 (defn container-config [image port]
   {:pre [(seq image) port]}
-  {:Env ["POSTGRES_HOST_AUTH_METHOD=trust"]
-   :ExposedPorts {"5432/tcp" {}}
-   :HostConfig {:AutoRemove true
-                :PortBindings {"5432/tcp"
-                               [{:HostPort (str port)}]}}
-   :Image image})
+  (cond-> {:Env ["POSTGRES_HOST_AUTH_METHOD=trust"]
+           :ExposedPorts {"5432/tcp" {}}
+           :HostConfig {:AutoRemove true
+                        :PortBindings {"5432/tcp"
+                                       [{:HostPort (str port)}]}}
+           :Image image}
+    (linux?) (add-tmpfs "/var/lib/postgresql/data")))
 
 (defn get-port [name]
   (-> (con/container-ipv4-ports name)
