@@ -1,10 +1,10 @@
 (ns sysrev.contajners.interface
   (:require [sysrev.contajners.core :as core]))
 
-(defn container-ports
+(defn container-ipv4-ports
   "Returns a map of {container-port host-ports}. E.g., {5432 #{49154}}."
   [name & {:as op-map}]
-  (core/container-ports name op-map))
+  (core/container-ipv4-ports name op-map))
 
 (defn stop-container!
   "Stops the container."

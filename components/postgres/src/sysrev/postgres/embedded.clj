@@ -14,7 +14,7 @@
    :Image image})
 
 (defn get-port [name]
-  (-> (con/container-ports name)
+  (-> (con/container-ipv4-ports name)
       (get 5432)
       first))
 

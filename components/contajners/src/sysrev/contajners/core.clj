@@ -90,21 +90,24 @@
     :op :ContainerInspect
     :params {:id name})))
 
-(defn simplify-ports
+(def re-ipv4 #"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+
+(defn simplify-ipv4-ports
   "Turns #:5432{:tcp [{:HostIp \"0.0.0.0\", :HostPort \"49154\"}
-                      {:HostIp \"::\", :HostPort \"49154\"}]}
+                      {:HostIp \"::\", :HostPort \"49155\"}]}
    into {5432 #{49154}}."
   [ports]
   (reduce-kv
    (fn [m k v]
      (let [container-port (-> k namespace parse-long)]
-       (->> (map (comp parse-long :HostPort) v)
+       (->> (filter (fn [{:keys [HostIp]}] (re-matches re-ipv4 HostIp)) v)
+            (map (comp parse-long :HostPort))
             ;; Combine ports from different protocols with the same port number
             (update m container-port (fnil into #{})))))
    {}
    ports))
  
-(defn container-ports [name & {:as op-map}]
+(defn container-ipv4-ports [name & {:as op-map}]
   (->> (inspect-container name op-map)
        :NetworkSettings :Ports
-       simplify-ports))
+       simplify-ipv4-ports))
