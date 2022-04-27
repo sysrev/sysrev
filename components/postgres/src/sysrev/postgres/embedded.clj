@@ -51,6 +51,3 @@
     {:name name
      :port bound-port
      :stop! (fn [] @shutdown)}))
-
-(defn stop! [{:keys [stop!]}]
-  (stop!))

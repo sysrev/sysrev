@@ -89,7 +89,7 @@
                                              (catch java.io.FileNotFoundException _))))
           (catch Exception e
             (when embedded-pg
-              ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
+              ((:stop! embedded-pg)))
             (throw e))))))
   (stop [this]
     (if-not datasource
@@ -100,7 +100,7 @@
         (when (:delete-on-stop? opts)
           (drop-db! opts))
         (when embedded-pg
-          ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
+          ((:stop! embedded-pg)))
         (assoc this
                :bound-port nil :datasource nil :datasource-long-running nil
                :embedded-pg nil :query-cache nil :query-cache-enabled nil)))))
