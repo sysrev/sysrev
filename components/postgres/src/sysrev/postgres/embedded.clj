@@ -18,6 +18,17 @@
       (get 5432)
       first))
 
+(defn wait-timeout [pred & {:keys [timeout-f timeout-ms]}]
+  {:pre [(fn? pred) (fn? timeout-f) (number? timeout-ms)]}
+  (let [start (System/nanoTime)
+        timeout-ns (* timeout-ms 1000000)]
+    (loop []
+      (let [result (pred)]
+        (cond
+          result result
+          (< timeout-ns (- (System/nanoTime) start)) (timeout-f)
+          :else (recur))))))
+
 (defn wait-pg-ready!
   "Attempt running a query until postgres is ready."
   [datasource timeout-ms]
@@ -41,7 +52,10 @@
         name (str "tmp-sysrev-pg-" (random-uuid))
         shutdown (shut/add-hook! #(con/stop-container! name))
         _ (con/up! name cfg)
-        bound-port (get-port name)]
+        bound-port (wait-timeout #(get-port name)
+                                 :timeout-f #(throw (ex-info "Could not find port for container"
+                                                             {:name name}))
+                                 :timeout-ms 30000)]
     (wait-pg-ready!
      (jdbc/get-datasource {:dbtype "postgres"
                            :host "localhost"
