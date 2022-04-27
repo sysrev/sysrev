@@ -25,8 +25,6 @@
             [sysrev.util :as util]
             [sysrev.web.core :as web]))
 
-(def test-dbname "sysrev_auto_test")
-
 (defonce test-systems (atom [nil []]))
 
 (defn stop-test-systems! []
@@ -68,8 +66,7 @@
                :sysrev-api-config {:env :dev :pedestal {:port 0}}})
              :postgres-overrides
              {:create-if-not-exists? true
-              :dbname (str test-dbname (rand-int Integer/MAX_VALUE))
-              :embedded? true
+              :embedded {:image "docker.io/library/postgres:13.4"}
               :host "localhost"
               :port 0
               :template-dbname "template_sysrev_test"

@@ -7,7 +7,7 @@
  :env :test
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
-            :embedded? true
+            :embedded {:image "docker.io/library/postgres:13.4"}
             :dbname "datapub"
             :dbtype "postgres"
             :host "localhost"

@@ -51,7 +51,7 @@ mkShell {
     nodePackages.npm # should come before nodejs for latest version
     nodejs
     polylith
-    postgresql_13
+    postgresql
     python39Packages.cfn-lint
     rlwrap
     time
@@ -60,7 +60,6 @@ mkShell {
   ] ++ (if target.isDarwin then [ ] else [ chromium ]);
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
-    export POSTGRES_DIRECTORY="${postgresql_13}"
     echo "source vars.sh && ${vscode-with-extensions}/bin/code -a ." > bin/code
     chmod +x bin/code
     rm -f scripts/clj-kondo

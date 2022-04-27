@@ -120,15 +120,13 @@
   :test {:extra-paths ["config/test" "test/clj" "resources/test"]
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
-                      com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
-                      io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
-                      io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
                                            :sha "af703e18d12418018339c78e11c43909fa681fe1"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
 
+                      poly/contajners {:local/root "components/contajners"}
                       poly/datapub {:local/root "projects/datapub"}
                       poly/datapub-test {:local/root "projects/datapub/datapub-test"}
                       poly/etaoin-test {:local/root "components/etaoin-test"}

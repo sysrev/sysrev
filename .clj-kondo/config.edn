@@ -61,6 +61,7 @@
                                         clojure-csv.core               csv
                                         cognitect.aws.client.api       aws
                                         cognitect.transit              transit
+                                        contajners.core                cj
                                         honeysql.core                  sql
                                         honeysql.helpers               sqlh
                                         medley.core                    medley
@@ -77,6 +78,7 @@
                                         sysrev.annotation              ann
                                         sysrev.article.core            article
                                         sysrev.config                  config
+                                        sysrev.contajners.interface    con
                                         sysrev.datasource.api          ds-api
                                         sysrev.db.core                 db
                                         sysrev.db.queries              q

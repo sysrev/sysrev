@@ -28,7 +28,8 @@
            :staging {:extra-paths ["config/staging"]
                      :extra-deps {poly/datapub-test {:local/root "datapub-test"}}}
            :test {:extra-paths ["test" "config/test"]
-                  :extra-deps {poly/datapub-test {:local/root "datapub-test"}
+                  :extra-deps {poly/contajners {:local/root "../../components/contajners"}
+                               poly/datapub-test {:local/root "datapub-test"}
                                poly/datapub-client {:local/root "../../components/datapub-client"}}
                   :exec-fn datapub.test/run-tests}
            :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}

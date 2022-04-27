@@ -9,6 +9,13 @@
  {:bucket-name "test.sysrev.us"
   :create? true
   :endpoint "us-east-1"}
+ :postgres
+ {:create-if-not-exists? true
+  :dbname "sysrev"
+  :embedded {:image "docker.io/library/postgres:13.4"}
+  :host "localhost"
+  :port 0
+  :user "postgres"}
  :server {:port 0}
  :sysrev-dev-key "***REMOVED***"
  :profile :test
