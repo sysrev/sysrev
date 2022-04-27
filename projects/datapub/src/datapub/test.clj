@@ -87,8 +87,12 @@
   `(let [options# ~options
          system# (-> (main/get-config)
                      (update :pedestal dissoc :port)
-                     (update :postgres assoc :embedded? true :host "localhost"
-                             :port 0 :user "postgres" :password nil)
+                     (update :postgres assoc
+                             :embedded {:image "docker.io/library/postgres:13.4"}
+                             :host "localhost"
+                             :password nil
+                             :port 0
+                             :user "postgres")
                      (medley/deep-merge (-> (:config options#)
                                             (update :env #(or % :test))))
                      ((:get-system-map options# main/system-map))
