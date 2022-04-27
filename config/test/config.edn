@@ -12,7 +12,7 @@
  :postgres
  {:create-if-not-exists? true
   :dbname "sysrev"
-  :embedded {:image "docker.io/library/postgres:13.4"}
+  :embedded {:image "docker.io/library/postgres:11.15"}
   :host "localhost"
   :port 0
   :user "postgres"}

@@ -66,7 +66,7 @@
                :sysrev-api-config {:env :dev :pedestal {:port 0}}})
              :postgres-overrides
              {:create-if-not-exists? true
-              :embedded {:image "docker.io/library/postgres:13.4"}
+              :embedded {:image "docker.io/library/postgres:11.15"}
               :host "localhost"
               :port 0
               :template-dbname "template_sysrev_test"
