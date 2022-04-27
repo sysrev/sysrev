@@ -5,7 +5,7 @@
             [sysrev.shutdown.interface :as shut]))
 
 (defn container-config [image port]
-  {:keys [(seq image) port]}
+  {:pre [(seq image) port]}
   {:Env ["POSTGRES_HOST_AUTH_METHOD=trust"]
    :ExposedPorts {"5432/tcp" {}}
    :HostConfig {:AutoRemove true
