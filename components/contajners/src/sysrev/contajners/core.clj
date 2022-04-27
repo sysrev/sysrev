@@ -68,12 +68,17 @@
 
 (defn stop-container! [name & {:as op-map}]
   (log/info "Stopping" name)
-  (invoke!
-   (assoc
-    op-map
-    :category :containers
-    :op :ContainerStop
-    :params {:id name})))
+  (try
+    (invoke!
+     (assoc
+      op-map
+      :category :containers
+      :op :ContainerStop
+      :params {:id name}))
+    (catch ExceptionInfo e
+      (if (= 404 (:status (ex-data e)))
+        false
+        (throw e)))))
 
 (defn up! [name {:keys [Image] :as config} & {:as op-map}]
   (pull-image! Image op-map)
