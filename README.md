@@ -23,7 +23,10 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 - Install Nix: `sh <(curl -L https://nixos.org/nix/install)`
   - See [macOS Installation](https://nixos.org/manual/nix/stable/installation/installing-binary.html?highlight=macos#macos-installation-a-namesect-macos-installation-change-store-prefixaa-namesect-macos-installation-encrypted-volumeaa-namesect-macos-installation-symlinkaa-namesect-macos-installation-recommended-notesa) in case of issues
    - Configure Nix with `mkdir -p ~/.config/nixpkgs && echo "{allowUnfree=true;}" > ~/.config/nixpkgs/config.nix`
-- Install Docker or podman
+- Install Docker
+  - The Clojure server needs to be able to start Docker containers. One way to allow this is to add its user to the `docker` group:
+    - `sudo groupadd docker`
+    - `sudo usermod −aG docker $USER`
 - Get a copy of `vars.sh` from a developer and place it in the root of the repository
 - Optionally install [direnv](https://direnv.net/) and [nix-direnv](https://github.com/nix-community/nix-direnv) (or [lorri](https://github.com/nix-community/lorri) for macOS). This allows you to leave out the `nix-shell --run` portion of commands.
 
