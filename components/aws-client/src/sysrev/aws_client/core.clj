@@ -4,7 +4,7 @@
             [cognitect.aws.credentials :as credentials]
             [com.stuartsierra.component :as component]))
 
-(defrecord AwsClient [after-start client client-opts]
+(defrecord AwsClient [after-start client client-opts localstack]
   component/Lifecycle
   (start [this]
     (if client
@@ -16,7 +16,9 @@
                             (assoc client-opts :credentials-provider
                                    (credentials/basic-credentials-provider creds))
                             client-opts)
-              client-opts (select-keys client-opts [:api :credentials-provider :endpoint-override :region])
+              localstack-port (some-> localstack :ports first val first)
+              client-opts (cond-> (select-keys client-opts [:api :credentials-provider :endpoint-override :region])
+                            localstack-port (assoc-in [:endpoint-override :port] localstack-port))
               this (assoc this :client (aws/client client-opts))]
           (if after-start
             (after-start this)

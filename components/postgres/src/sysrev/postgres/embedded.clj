@@ -1,35 +1,59 @@
 (ns sysrev.postgres.embedded
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str])
-  (:import (com.opentable.db.postgres.embedded EmbeddedPostgres EmbeddedPostgres$Builder PgBinaryResolver PgDirectoryResolver)))
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [next.jdbc :as jdbc]
+            [sysrev.contajners.interface :as con]
+            [sysrev.contajners.interface.config :as conc]
+            [sysrev.shutdown.interface :as shut]
+            [sysrev.util-lite.interface :as ul]))
 
-(def binary-resolver
-  (reify PgBinaryResolver
-    (^java.io.InputStream getPgBinary [_this ^String system ^String machine-hardware]
-     (-> (format "postgres-%s-%s.txz" system machine-hardware)
-         str/lower-case
-         io/resource
-         .openStream))))
+(defn container-config [image port]
+  {:pre [(seq image) port]}
+  (cond-> {:Env ["POSTGRES_HOST_AUTH_METHOD=trust"]
+           :HostConfig {:AutoRemove true}
+           :Image image}
+    (conc/linux?) (conc/add-tmpfs "/var/lib/postgresql/data")
+    true (conc/add-port 0 5432)))
 
-(def directory-resolver
-  (reify PgDirectoryResolver
-    (getDirectory [_this _override-working-directory]
-      (io/file (System/getenv "POSTGRES_DIRECTORY")))))
+(defn get-port [name]
+  (-> (con/container-ipv4-ports name)
+      (get 5432)
+      first))
 
-(defn ^EmbeddedPostgres$Builder embedded-pg-builder [port]
-  (if (System/getenv "POSTGRES_DIRECTORY")
-    (-> (EmbeddedPostgres/builder)
-        (.setPgDirectoryResolver directory-resolver)
-        (.setPort port))
-    (-> (EmbeddedPostgres/builder)
-        (.setPgBinaryResolver binary-resolver)
-        (.setPort port))))
+(defn wait-pg-ready!
+  "Attempt running a query until postgres is ready."
+  [datasource timeout-ms]
+  (log/info "Waiting until postgres is ready")
+  (let [start (System/nanoTime)
+        timeout-ns (* timeout-ms 1000000)]
+    (while
+     (not
+      (try
+        (jdbc/execute! datasource ["SHOW work_mem"])
+        (catch org.postgresql.util.PSQLException e
+          (when (< timeout-ns (- (System/nanoTime) start))
+            (throw (ex-info "Failed to connect to postgres"
+                            {:datasource datasource
+                             :timeout-ms timeout-ms}
+                            e)))))))
+    (log/info "Postgres ready in" (quot (- (System/nanoTime) start) 1000000) "ms")))
 
-(defn ^EmbeddedPostgres start! [^EmbeddedPostgres$Builder embedded-pg-builder]
-  (.start embedded-pg-builder))
-
-(defn stop! [^EmbeddedPostgres embedded-pg]
-  (.close embedded-pg))
-
-(defn get-port [^EmbeddedPostgres embedded-pg]
-  (.getPort embedded-pg))
+(defn start! [{:keys [image port timeout-ms]}]
+  (let [cfg (container-config image (or port 0))
+        name (str "tmp-sysrev-pg-" (random-uuid))
+        shutdown (shut/add-hook! #(con/stop-container! name))
+        _ (con/up! name cfg)
+        bound-port (ul/wait-timeout
+                    #(get-port name)
+                    :timeout-f #(throw (ex-info "Could not find port for container"
+                                                {:name name}))
+                    :timeout-ms 30000)]
+    (wait-pg-ready!
+     (jdbc/get-datasource {:dbtype "postgres"
+                           :host "localhost"
+                           :port bound-port
+                           :user "postgres"})
+     30000)
+    {:name name
+     :port bound-port
+     :stop! (fn [] @shutdown)}))

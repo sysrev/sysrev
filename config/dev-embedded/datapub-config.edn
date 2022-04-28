@@ -1,14 +1,13 @@
 {:aws {:access-key-id "test"
        :secret-access-key "test"
        :endpoint-override {:protocol :http
-                           :hostname "localhost"
-                           :port 8566}
+                           :hostname "localhost"}
        :region "us-east-1"}
  :datapub-embedded true
  :env :dev
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
-            :embedded? true
+            :embedded {:image "docker.io/library/postgres:13.4"}
             :dbname "datapub"
             :dbtype "postgres"
             :host "localhost"

@@ -83,10 +83,12 @@
         poly/flyway {:local/root "components/flyway"}
         poly/lacinia {:local/root "components/lacinia"}
         poly/lacinia-pedestal {:local/root "components/lacinia-pedestal"}
+        poly/localstack {:local/root "components/localstack"}
         poly/notification {:local/root "components/notification"}
         poly/nrepl {:local/root "components/nrepl"}
         poly/postgres {:local/root "components/postgres"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
+        poly/shutdown {:local/root "components/shutdown"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
         poly/user {:local/root "components/user"}
@@ -120,15 +122,13 @@
   :test {:extra-paths ["config/test" "test/clj" "resources/test"]
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
-                      com.opentable.components/otj-pg-embedded {:mvn/version "0.13.4"}
-                      io.zonky.test.postgres/embedded-postgres-binaries-darwin-amd64 {:mvn/version "12.6.0"}
-                      io.zonky.test.postgres/embedded-postgres-binaries-linux-amd64 {:mvn/version "12.6.0"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
-                                           :sha "af703e18d12418018339c78e11c43909fa681fe1"}
+                                           :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
 
+                      poly/contajners {:local/root "components/contajners"}
                       poly/datapub {:local/root "projects/datapub"}
                       poly/datapub-test {:local/root "projects/datapub/datapub-test"}
                       poly/etaoin-test {:local/root "components/etaoin-test"}

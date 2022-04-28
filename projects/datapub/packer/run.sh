@@ -5,8 +5,6 @@ set -eu
 PATH=$PATH:/nix/var/nix/profiles/per-user/admin/profile/bin/
 
 sudo docker-compose -f docker-compose-dev.yml start
-sudo mkdir -p /run/postgresql
-sudo chown admin:admin /run/postgresql
 
 while ! test -f "/home/admin/datapub/datapub-config.local.edn"; do
   sleep 1

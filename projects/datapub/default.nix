@@ -31,7 +31,7 @@ stdenv.mkDerivation {
     jdk
     nix
     packer
-    postgresql_13
+    postgresql
     rlwrap
     tessdata_best
     tesseract4
@@ -42,6 +42,5 @@ stdenv.mkDerivation {
   shellHook = ''
     export TESSDATA_PREFIX="${tessdata_best}"
     export LD_LIBRARY_PATH="${tesseract4}/lib:$LD_LIBRARY_PATH"
-    export POSTGRES_DIRECTORY="${postgresql_13}"
   '';
 }

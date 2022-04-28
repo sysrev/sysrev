@@ -6,7 +6,8 @@
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as result-set]
    [sysrev.flyway.interface :as flyway]
-   [sysrev.json.interface :as json])
+   [sysrev.json.interface :as json]
+   [sysrev.postgres.embedded :as embedded])
   (:import
    (org.postgresql.util PGobject PSQLException)))
 
@@ -60,15 +61,11 @@
   (start [this]
     (if datasource
       this
-      (let [{:keys [flyway-locations template-dbname] :as opts} (:postgres config)
-            embedded-pg (when (:embedded? opts)
-                          (->> opts :port
-                               ((requiring-resolve 'sysrev.postgres.embedded/embedded-pg-builder))
-                               ((requiring-resolve 'sysrev.postgres.embedded/start!))))
+      (let [{:keys [embedded flyway-locations template-dbname] :as opts}
+            #__ (:postgres config)
+            embedded-pg (when embedded (embedded/start! embedded))
             ;; If port 0 was specified, we need the actual port used.
-            bound-port (if embedded-pg
-                         ((requiring-resolve 'sysrev.postgres.embedded/get-port) embedded-pg)
-                         (:port opts))
+            bound-port (:port (or embedded-pg opts))
             opts (assoc opts
                         :password (get-in config [:secrets :postgres :password] (:password opts))
                         :port bound-port)]
@@ -92,7 +89,7 @@
                                              (catch java.io.FileNotFoundException _))))
           (catch Exception e
             (when embedded-pg
-              ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
+              ((:stop! embedded-pg)))
             (throw e))))))
   (stop [this]
     (if-not datasource
@@ -102,8 +99,8 @@
         (hikari-cp/close-datasource datasource-long-running)
         (when (:delete-on-stop? opts)
           (drop-db! opts))
-        (when (:embedded? opts)
-          ((requiring-resolve 'sysrev.postgres.embedded/stop!) embedded-pg))
+        (when embedded-pg
+          ((:stop! embedded-pg)))
         (assoc this
                :bound-port nil :datasource nil :datasource-long-running nil
                :embedded-pg nil :query-cache nil :query-cache-enabled nil)))))

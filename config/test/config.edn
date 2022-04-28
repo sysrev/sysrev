@@ -1,14 +1,20 @@
 {:aws {:access-key-id "test"
        :secret-access-key "test"
        :endpoint-override {:protocol :http
-                           :hostname "localhost"
-                           :port 8566}
+                           :hostname "localhost"}
        :region "us-east-1"}
  :datapub-embedded "true"
  :filestore
  {:bucket-name "test.sysrev.us"
   :create? true
   :endpoint "us-east-1"}
+ :postgres
+ {:create-if-not-exists? true
+  :dbname "sysrev"
+  :embedded {:image "docker.io/library/postgres:11.15"}
+  :host "localhost"
+  :port 0
+  :user "postgres"}
  :server {:port 0}
  :sysrev-dev-key "***REMOVED***"
  :profile :test

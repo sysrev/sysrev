@@ -3,7 +3,6 @@
   (:require [aws-api-failjure :as aaf]
             [clojure.spec.alpha :as s]
             [cognitect.aws.client.api :as aws]
-            [com.stuartsierra.component :as component]
             [orchestra.core :refer [defn-spec]]
             [sysrev.aws-client.interface :as aws-client]
             [sysrev.config :refer [env]]
@@ -41,22 +40,17 @@
         :request {:Bucket name}})))
   s3-client)
 
-(defn s3-client []
-  (component/start
-   (aws-client/aws-client
-    :client-opts (assoc (:aws env) :api :s3))))
-
 (defn-spec lookup-bucket (s/nilable string?)
   [bucket ::bucket]
   (or (get (sysrev-buckets) bucket)
       (throw (Exception. (str "invalid bucket specifier: " (pr-str bucket))))))
 
 (defn-spec save-byte-array ::file-key
-  [file-bytes ::byte-array, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
+  [sr-context map? file-bytes ::byte-array, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
   (let [file-key (or (some-> file-key str)
                      (some-> file-bytes util/byte-array->sha-1-hash))]
     (aws-client/invoke!
-     (s3-client)
+     (:s3 sr-context)
      {:op :PutObject
       :request {:Body file-bytes
                 :Bucket (lookup-bucket bucket)
@@ -65,34 +59,35 @@
     file-key))
 
 (defn-spec save-file ::file-key
-  [file any?, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
+  [sr-context map? file any?, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
   (save-byte-array
+   sr-context
    (util/file->byte-array file)
    bucket
    (when file-key
      {:file-key file-key})))
 
 (defn-spec delete-file ::s3-response
-  [file-key ::file-key, bucket ::bucket]
+  [sr-context map? file-key ::file-key, bucket ::bucket]
   (aws-client/invoke!
-   (s3-client)
+   (:s3 sr-context)
    {:op :DeleteObject
     :request {:Bucket (lookup-bucket bucket)
               :Key file-key}}))
 
 (defn-spec lookup-file ::s3-response
-  [file-key ::file-key, bucket ::bucket]
+  [sr-context map? file-key ::file-key, bucket ::bucket]
   (let [r (aws/invoke
-           (:client (s3-client))
+           (:client (:s3 sr-context))
            {:op :GetObject
             :request {:Bucket (lookup-bucket bucket)
                       :Key (some-> file-key str)}})]
     (if-let [anom (:cognitect.anomalies/category r)]
       (if (= :cognitect.anomalies/not-found anom)
         (when (not= :document bucket)
-          (lookup-file file-key :document))
+          (lookup-file sr-context file-key :document))
         (throw (aaf/->ex-info r)))
       r)))
 
-(defn get-file-stream [file-key bucket]
-  (:Body (lookup-file file-key bucket)))
+(defn get-file-stream [sr-context file-key bucket]
+  (:Body (lookup-file sr-context file-key bucket)))

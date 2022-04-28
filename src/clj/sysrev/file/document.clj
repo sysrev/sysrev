@@ -41,9 +41,9 @@
       (q/modify :project-document {:pdoc-id pdoc-id} {:delete-time :%now}))))
 
 (defn-spec save-document-file map?
-  [project-id int?, user-id int?, filename string?, file ::s3/file]
+  [sr-context map? project-id int?, user-id int?, filename string?, file ::s3/file]
   (db/with-clear-project-cache project-id
-    (let [{:keys [s3-id]} (file/save-s3-file :document filename {:file file})
+    (let [{:keys [s3-id]} (file/save-s3-file sr-context :document filename {:file file})
           previously-existed? (q/find-one [:project-document :pd] {:pd.project-id project-id :s3-id s3-id})]
       (if previously-existed?
         (q/modify :project-document {:s3-id s3-id :project-id project-id}

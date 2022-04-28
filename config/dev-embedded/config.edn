@@ -1,8 +1,7 @@
 {:aws {:access-key-id "test"
        :secret-access-key "test"
        :endpoint-override {:protocol :http
-                           :hostname "localhost"
-                           :port 8566}
+                           :hostname "localhost"}
        :region "us-east-1"}
  :datapub-embedded "true"
  :filestore
@@ -12,7 +11,7 @@
  :postgres
  {:create-if-not-exists? true
   :dbname "sysrev"
-  :embedded? true
+  :embedded {:image "docker.io/library/postgres:11.15"}
   :host "localhost"
   :port 0
   :user "postgres"}
