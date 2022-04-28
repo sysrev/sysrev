@@ -3,7 +3,7 @@
  :kaocha.plugin.junit-xml/target-file "target/junit.xml"
  :kaocha.plugin.profiling/profiling? false
  :parallel true
- :parallel-threads 4
+ :parallel-threads 8
  :plugins [:kaocha.plugin/junit-xml
            :kaocha.plugin/print-invocations
            :kaocha.plugin/profiling]

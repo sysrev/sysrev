@@ -122,7 +122,7 @@
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
-                                           :sha "af703e18d12418018339c78e11c43909fa681fe1"}
+                                           :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
