@@ -6,7 +6,8 @@
    [next.jdbc :as jdbc]
    [next.jdbc.result-set :as result-set]
    [sysrev.flyway.interface :as flyway]
-   [sysrev.json.interface :as json])
+   [sysrev.json.interface :as json]
+   [sysrev.postgres.embedded :as embedded])
   (:import
    (org.postgresql.util PGobject PSQLException)))
 
@@ -62,8 +63,7 @@
       this
       (let [{:keys [embedded flyway-locations template-dbname] :as opts}
             #__ (:postgres config)
-            embedded-pg (when embedded
-                          ((requiring-resolve 'sysrev.postgres.embedded/start!) embedded))
+            embedded-pg (when embedded (embedded/start! embedded))
             ;; If port 0 was specified, we need the actual port used.
             bound-port (:port (or embedded-pg opts))
             opts (assoc opts

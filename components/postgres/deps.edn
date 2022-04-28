@@ -6,5 +6,6 @@
         org.postgresql/postgresql {:mvn/version "42.3.3"}
 
         poly/component {:local/root "../component"}
+        poly/contajners {:local/root "../contajners"}
         poly/json {:local/root "../json"}
         poly/shutdown {:local/root "../shutdown"}}}
