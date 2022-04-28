@@ -1,7 +1,8 @@
 (ns sysrev.contajners.core
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [contajners.core :as cj])
+            [contajners.core :as cj]
+            [medley.core :as medley])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn client [category]
@@ -102,16 +103,17 @@
                       {:HostIp \"::\", :HostPort \"49155\"}]}
    into {5432 #{49154}}."
   [ports]
-  (reduce-kv
-   (fn [m k v]
-     (let [container-port (-> k namespace parse-long)]
-       (->> (filter (fn [{:keys [HostIp]}] (re-matches re-ipv4 HostIp)) v)
-            (map (comp parse-long :HostPort))
-            ;; Combine ports from different protocols with the same port number
-            (update m container-port (fnil into #{})))))
-   {}
-   ports))
- 
+  (->> (reduce-kv
+        (fn [m k v]
+          (let [container-port (-> k namespace parse-long)]
+            (->> (filter (fn [{:keys [HostIp]}] (re-matches re-ipv4 HostIp)) v)
+                 (map (comp parse-long :HostPort))
+                 ;; Combine ports from different protocols with the same port number
+                 (update m container-port (fnil into #{})))))
+        {}
+        ports)
+       (medley/filter-vals seq)))
+
 (defn container-ipv4-ports [name & {:as op-map}]
   (->> (inspect-container name op-map)
        :NetworkSettings :Ports
