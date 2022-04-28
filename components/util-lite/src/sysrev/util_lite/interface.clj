@@ -10,6 +10,13 @@
   (core/full-name x))
 
 (defmacro retry
-  "Retry body up to n times, doubling interval-ms each time and adding jitter."
+  "Retries body up to n times, doubling interval-ms each time
+   and adding jitter."
   [{:keys [interval-ms n] :as opts} & body]
   `(core/retry ~opts ~@body))
+
+(defn wait-timeout
+  "Retries pred until it returns a truthy value or timeout-ms is reached.
+   Calls timeout-f in that case."
+  [pred & {:keys [timeout-f timeout-ms] :as opts}]
+  (core/wait-timeout pred opts))

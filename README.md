@@ -32,8 +32,6 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
 ## Usage
 
-- Run container services with `nix-shell --run "bash scripts/run-dev-containers"`
-
 - Run VSCode with `nix-shell --run "bin/code"`
   - For emacs keybindings, first run `ln -s nix/vscode-emacs.nix local.nix`
   - For IntelliJ keybindings, first run `ln -s nix/vscode-intellij.nix local.nix`. You may import an IntelliJ keymaps XML file from within VSCode

@@ -35,11 +35,13 @@
                              :apdf.s3-id, :return :query)}
           [:s3.s3-id :s3.key :s3.filename]))
 
-(defn save-article-pdf [{:keys [article-id filename file file-bytes]}]
+(defn save-article-pdf [sr-context {:keys [article-id filename file file-bytes]}]
   (util/assert-single file file-bytes)
   (let [{:keys [key s3-id]}
-        (file/save-s3-file :pdf filename (or (some->> file (hash-map :file))
-                                             (some->> file-bytes (hash-map :file-bytes))))]
+        (file/save-s3-file
+         sr-context
+         :pdf filename (or (some->> file (hash-map :file))
+                           (some->> file-bytes (hash-map :file-bytes))))]
     (associate-article-pdf s3-id article-id)
     {:article-id article-id :filename filename :s3-id s3-id :key key}))
 

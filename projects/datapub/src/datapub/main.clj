@@ -1,14 +1,14 @@
 (ns datapub.main
-  (:require
-   [clojure.edn :as edn]
-   [com.stuartsierra.component :as component]
-   [datapub.file :as file]
-   [datapub.pedestal :as pedestal]
-   [datapub.secrets-manager :as secrets-manager]
-   [medley.core :as medley]
-   [sysrev.config.interface :as config]
-   [sysrev.nrepl.interface :as nrepl]
-   [sysrev.postgres.interface :as pg]))
+  (:require [clojure.edn :as edn]
+            [com.stuartsierra.component :as component]
+            [datapub.file :as file]
+            [datapub.pedestal :as pedestal]
+            [datapub.secrets-manager :as secrets-manager]
+            [medley.core :as medley]
+            [sysrev.config.interface :as config]
+            [sysrev.localstack.interface :as localstack]
+            [sysrev.nrepl.interface :as nrepl]
+            [sysrev.postgres.interface :as pg]))
 
 (def envs #{:dev :prod :staging :test})
 
@@ -50,6 +50,11 @@
     (-> (deep-merge defaults config local-config)
         (update :secrets map->Secrets))))
 
+(defn localstack [{:keys [aws env]}]
+  (if (#{:dev :test} env)
+    (localstack/localstack aws)
+    {}))
+
 (defn system-map [{:keys [aws env] :as config}]
   (if-not (envs env)
     (throw (ex-info
@@ -60,13 +65,14 @@
      :config (component/using
               (map->Config config)
               [:secrets-manager])
+     :localstack (localstack config)
      :pedestal (component/using
                 (pedestal/pedestal)
                 [:config :postgres :s3 :secrets-manager])
      :postgres (component/using
                 (pg/postgres)
                 [:config])
-     :s3 (component/using (file/s3-client aws) [:config])
+     :s3 (component/using (file/s3-client aws) [:config :localstack])
      :secrets-manager (secrets-manager/client))))
 
 (defonce system (atom nil))

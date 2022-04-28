@@ -34,9 +34,9 @@
   (q/modify :user-profile-image {:s3-id s3-id} {:meta (db/to-jsonb meta)}))
 
 (defn save-user-profile-image
-  [user-id file filename & {:keys [activate] :or {activate true}}]
+  [sr-context user-id file filename & {:keys [activate] :or {activate true}}]
   (db/with-transaction
-    (let [{:keys [key s3-id]} (file/save-s3-file :image filename {:file file})]
+    (let [{:keys [key s3-id]} (file/save-s3-file sr-context :image filename {:file file})]
       (associate-profile-image s3-id user-id)
       (when activate (activate-profile-image s3-id user-id))
       {:user-id user-id :filename filename :s3-id s3-id :key key})))
@@ -56,16 +56,13 @@
   (q/create :user-avatar-image {:user-id user-id :s3-id s3-id}))
 
 (defn save-user-avatar-image
-  [user-id file filename & [meta]]
+  [sr-context user-id file filename & [meta]]
   (db/with-transaction
     ;; delete current entry
     (when-let [current (user-active-avatar-image user-id)]
-      ;; can't delete this safely, file could be shared
-      #_(do (s3-file/delete-file (:key current) :image)
-            (file/delete-s3-id (:s3-id current)))
       (q/delete :user-avatar-image {:user-id user-id :s3-id (:s3-id current)}))
     ;; save new file/entry
-    (let [{:keys [key s3-id]} (file/save-s3-file :image filename {:file file})]
+    (let [{:keys [key s3-id]} (file/save-s3-file sr-context :image filename {:file file})]
       (associate-user-avatar-image s3-id user-id)
       ;; change the coords on active profile img
       (when meta (some-> (:s3-id (user-active-profile-image user-id))

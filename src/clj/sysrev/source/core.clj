@@ -345,7 +345,7 @@
       (q/modify :project-source {:source-id source-id} {:new-articles-available new-articles-count}))))
 
 ;; FIX: handle duplicate file uploads, don't create new copy
-(defn save-import-file [source-id filename file]
-  (let [file-hash (s3-file/save-file file :import)
+(defn save-import-file [sr-context source-id filename file]
+  (let [file-hash (s3-file/save-file sr-context file :import)
         file-meta {:filename filename :key file-hash}]
     (alter-source-meta source-id #(assoc % :s3-file file-meta))))

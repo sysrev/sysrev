@@ -49,6 +49,7 @@
                   :get-article-refs #(-> zip-file pdf-zip-entries)
                   :get-articles #(map pdf-to-article %)
                   :on-article-added #(article-file/save-article-pdf
+                                      sr-context
                                       (-> (select-keys % [:article-id :filename])
                                           (assoc :file-bytes (:file-byte-array %))))
                   :prepare-article #(-> (set/rename-keys % {:filename :primary-title})

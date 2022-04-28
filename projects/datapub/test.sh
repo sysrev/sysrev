@@ -2,6 +2,4 @@
 
 set -eou pipefail
 
-../../scripts/run-dev-containers
-
 clojure -X:test

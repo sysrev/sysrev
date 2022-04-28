@@ -15,6 +15,7 @@
         poly/file-util {:local/root "../../components/file-util"}
         poly/flyway {:local/root "../../components/flyway"}
         poly/lacinia-pedestal {:local/root "../../components/lacinia-pedestal"}
+        poly/localstack {:local/root "../../components/localstack"}
         poly/medley {:local/root "../../components/medley"}
         poly/nrepl {:local/root "../../components/nrepl"}
         poly/postgres {:local/root "../../components/postgres"}

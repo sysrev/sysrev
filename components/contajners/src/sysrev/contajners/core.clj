@@ -1,8 +1,11 @@
 (ns sysrev.contajners.core
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [com.stuartsierra.component :as component]
             [contajners.core :as cj]
-            [medley.core :as medley])
+            [medley.core :as medley]
+            [sysrev.shutdown.interface :as shut]
+            [sysrev.util-lite.interface :as ul])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn client [category]
@@ -118,3 +121,32 @@
   (->> (inspect-container name op-map)
        :NetworkSettings :Ports
        simplify-ipv4-ports))
+
+(defrecord TempContainer [after-start-f base-name container-config name shutdown]
+  component/Lifecycle
+  (start [this]
+    (if name
+      this
+      (let [name (str base-name (random-uuid))
+            shutdown (shut/add-hook! #(stop-container! name))
+            _ (up! name container-config)
+            ports (ul/wait-timeout
+                   #(container-ipv4-ports name)
+                   :timeout-f #(throw (ex-info "Could not find ports for container"
+                                               {:name name}))
+                   :timeout-ms 30000)]
+        (cond-> (assoc this
+                       :name name
+                       :ports ports
+                       :shutdown shutdown)
+          after-start-f after-start-f))))
+  (stop [this]
+    (if-not name
+      this
+      (do @shutdown
+          (assoc this :name nil :ports nil :shutdown nil)))))
+
+(defn temp-container [base-name container-config & {:keys [after-start-f]}]
+  (map->TempContainer {:after-start-f after-start-f
+                       :base-name base-name
+                       :container-config container-config}))

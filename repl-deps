@@ -5,6 +5,5 @@ set -eu
 source vars.sh
 
 scripts/rebuild-changed-files
-scripts/run-dev-containers
 
 LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl

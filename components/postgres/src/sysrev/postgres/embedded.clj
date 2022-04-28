@@ -4,7 +4,8 @@
             [next.jdbc :as jdbc]
             [sysrev.contajners.interface :as con]
             [sysrev.contajners.interface.config :as conc]
-            [sysrev.shutdown.interface :as shut]))
+            [sysrev.shutdown.interface :as shut]
+            [sysrev.util-lite.interface :as ul]))
 
 (defn container-config [image port]
   {:pre [(seq image) port]}
@@ -18,17 +19,6 @@
   (-> (con/container-ipv4-ports name)
       (get 5432)
       first))
-
-(defn wait-timeout [pred & {:keys [timeout-f timeout-ms]}]
-  {:pre [(fn? pred) (fn? timeout-f) (number? timeout-ms)]}
-  (let [start (System/nanoTime)
-        timeout-ns (* timeout-ms 1000000)]
-    (loop []
-      (let [result (pred)]
-        (cond
-          result result
-          (< timeout-ns (- (System/nanoTime) start)) (timeout-f)
-          :else (recur))))))
 
 (defn wait-pg-ready!
   "Attempt running a query until postgres is ready."
@@ -53,10 +43,11 @@
         name (str "tmp-sysrev-pg-" (random-uuid))
         shutdown (shut/add-hook! #(con/stop-container! name))
         _ (con/up! name cfg)
-        bound-port (wait-timeout #(get-port name)
-                                 :timeout-f #(throw (ex-info "Could not find port for container"
-                                                             {:name name}))
-                                 :timeout-ms 30000)]
+        bound-port (ul/wait-timeout
+                    #(get-port name)
+                    :timeout-f #(throw (ex-info "Could not find port for container"
+                                                {:name name}))
+                    :timeout-ms 30000)]
     (wait-pg-ready!
      (jdbc/get-datasource {:dbtype "postgres"
                            :host "localhost"

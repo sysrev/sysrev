@@ -92,7 +92,7 @@ jobs:
       - name: Run tests
         run: |
           nix-shell --run "bash test.sh"
-        timeout-minutes: 5
+        timeout-minutes: 20
         working-directory: projects/datapub
         env:
           AWS_REGION: us-east-1

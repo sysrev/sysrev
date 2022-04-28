@@ -808,11 +808,12 @@
 (defn label-count-chart-data [project-id]
   {:data (charts/process-label-counts project-id)})
 
-(defn save-article-pdf [article-id file filename]
+(defn save-article-pdf [sr-context article-id file filename]
   {:success true, :key (:key (article-file/save-article-pdf
+                              sr-context
                               {:article-id article-id :filename filename :file file}))})
 
-(defn open-access-available? [article-id]
+(defn open-access-available? [sr-context article-id]
   (let [pmcid (-> article-id article/article-pmcid)]
     (cond
       ;; the pdf exists in the store already
@@ -825,7 +826,7 @@
                                    article/article-pmcid
                                    pubmed/article-pmcid-pdf-filename)
               file (java.io.File. filename)
-              save-article-result (save-article-pdf article-id file filename)
+              save-article-result (save-article-pdf sr-context article-id file filename)
               key (:key save-article-result)
               s3-id (file/lookup-s3-id filename key)]
           ;; delete the temporary file
@@ -852,7 +853,7 @@
 
 (defn project-article-pdfs-zip
   "download all article pdfs associated with a project. name pdf by article-id"
-  [project-id]
+  [sr-context project-id]
   (let [articles (project/project-article-ids project-id)
         pdfs (mapcat (fn [aid]
                        (->> (:files (article-pdfs aid))
@@ -865,7 +866,7 @@
     (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
       (doseq [f pdfs]
         (util/ignore-exceptions
-         (with-open [is ^java.io.Closeable (s3-file/get-file-stream (:key f) :pdf)]
+         (with-open [is ^java.io.Closeable (s3-file/get-file-stream sr-context (:key f) :pdf)]
            (.putNextEntry zip (ZipEntry. (str (:name f))))
            (io/copy is zip)))))
     tmpzip))
@@ -1200,15 +1201,15 @@
   (user/update-user-introduction! user-id introduction)
   {:success true})
 
-(defn create-profile-image! [user-id file filename]
-  (let [image (user-image/save-user-profile-image user-id file filename)]
+(defn create-profile-image! [sr-context user-id file filename]
+  (let [image (user-image/save-user-profile-image sr-context user-id file filename)]
     {:success true :key (:key image)}))
 
 (defn read-profile-image
   "Return the currently active profile image for user"
-  [user-id]
+  [sr-context user-id]
   (if-let [{:keys [key filename] :as _x} (user-image/user-active-profile-image user-id)]
-    (-> (response/response (s3-file/get-file-stream key :image))
+    (-> (response/response (s3-file/get-file-stream sr-context key :image))
         (response/header "Content-Disposition"
                          (format "attachment: filename=\"%s\"" filename)))
     {:error {:status not-found
@@ -1221,13 +1222,13 @@
    :meta (-> (some-> user-id user-image/user-active-profile-image :meta json/read-json)
              (or {}))})
 
-(defn create-avatar! [user-id file filename meta]
-  (user-image/save-user-avatar-image user-id file filename meta)
+(defn create-avatar! [sr-context user-id file filename meta]
+  (user-image/save-user-avatar-image sr-context user-id file filename meta)
   {:success true})
 
-(defn read-avatar [user-id]
+(defn read-avatar [sr-context user-id]
   (or (when-let [{:keys [key filename]} (user-image/user-active-avatar-image user-id)]
-        (-> (response/response (s3-file/get-file-stream key :image))
+        (-> (response/response (s3-file/get-file-stream sr-context key :image))
             (response/header "Content-Disposition"
                              (format "attachment: filename=\"%s\"" filename))))
       (when-let [gravatar-img (user-image/gravatar-image-data (q/get-user user-id :email))]

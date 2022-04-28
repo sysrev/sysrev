@@ -653,10 +653,11 @@
       (with-authorize request {:roles ["admin"]}
         (api/re-import-source sr-context (:source-id body)))))
 
-(dr (GET "/api/sources/download/:project-id/:source-id" request
+(dr (GET "/api/sources/download/:project-id/:source-id"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:allow-public true}
         (let [_project-id (active-project request)
-              source-id (parse-integer (-> request :params :source-id))
+              source-id (parse-integer (:source-id params))
               {:keys [meta]} (source/get-source source-id)
               {:keys [source filename hash]} meta
               {:keys [key]} (source/source-upload-file source-id)
@@ -664,7 +665,7 @@
                               (ds-api/download-file
                                {:filename filename
                                 :hash hash})
-                              (s3-file/get-file-stream key :import))]
+                              (s3-file/get-file-stream sr-context key :import))]
           (-> (response/response response-body)
               (response/header "Content-Disposition"
                                (format "attachment; filename=\"%s\"" filename)))))))
@@ -692,13 +693,14 @@
               files (doc-file/list-project-documents project-id)]
           {:result (vec files)}))))
 
-(dr (GET "/api/files/:project-id/download/:file-key" request
+(dr (GET "/api/files/:project-id/download/:file-key"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:allow-public true}
         (let [project-id (active-project request)
-              {:keys [file-key]} (:params request)
+              {:keys [file-key]} params
               {:keys [filename]} (doc-file/lookup-document-file project-id file-key)]
           (when filename
-            (-> (response/response (s3-file/get-file-stream file-key :document))
+            (-> (response/response (s3-file/get-file-stream sr-context file-key :document))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename))))))))
 
@@ -725,12 +727,13 @@
       (with-authorize request {:allow-public true}
         (get-project-exports (active-project request)))))
 
-(dr (POST "/api/generate-project-export/:project-id/:export-type" request
+(dr (POST "/api/generate-project-export/:project-id/:export-type"
+      {:keys [body params sr-context] :as request}
       (with-authorize request {:allow-public true}
         (let [project-id (active-project request)
               user-id (current-user-id request)
-              export-type (-> request :params :export-type keyword)
-              {:keys [filters text-search separator label-id]} (:body request)
+              export-type (-> params :export-type keyword)
+              {:keys [filters text-search separator label-id]} body
               text-search (not-empty text-search)
               filters (vec (concat filters (when text-search [{:text-search text-search}])))
               article-ids (when filters
@@ -768,7 +771,7 @@
                              (clojure.data.json/write-str)
                              (create-export-tempfile))
                          :uploaded-article-pdfs-zip
-                         (api/project-article-pdfs-zip project-id))
+                         (api/project-article-pdfs-zip sr-context project-id))
               {:keys [download-id]
                :as entry} (add-project-export
                            project-id export-type tempfile
@@ -856,44 +859,51 @@
 ;;; PDF files
 ;;;
 
-(dr (GET "/api/open-access/:article-id/availability" [article-id]
-      (api/open-access-available? (parse-integer article-id))))
+(dr (GET "/api/open-access/:article-id/availability"
+      {:keys [params sr-context]}
+      (api/open-access-available?
+       sr-context
+       (parse-integer (:article-id params)))))
 
 ;; TODO: article-id is ignored; check value or remove
-(dr (GET "/api/open-access/:article-id/view/:key" [_article-id key]
-      (-> (response/response (s3-file/get-file-stream key :pdf))
-          (response/header "Content-Type" "application/pdf"))))
+(dr (GET "/api/open-access/:article-id/view/:key"
+      {:keys [params sr-context]}
+      (->  (s3-file/get-file-stream sr-context (:key params) :pdf)
+           response/response
+           (response/header "Content-Type" "application/pdf"))))
 
-(dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
+(dr (POST "/api/files/:project-id/article/:article-id/upload-pdf"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:roles ["member"]}
-        (let [{:keys [article-id]} (:params request)
-              file-data (get-in request [:params :file])
+        (let [{:keys [article-id] file-data :file} params
               file (:tempfile file-data)
               filename (:filename file-data)]
-          (api/save-article-pdf (parse-integer article-id) file filename)))))
+          (api/save-article-pdf sr-context (parse-integer article-id) file filename)))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/article-pdfs" request
       (with-authorize request {:roles ["member"]}
         (let [{:keys [article-id]} (:params request)]
           (api/article-pdfs (parse-integer article-id))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/download/:key" request
+(dr (GET "/api/files/:project-id/article/:article-id/download/:key"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:roles ["member"]}
-        (let [key (-> request :params :key)
-              article-id (parse-integer (-> request :params :article-id))
+        (let [key (:key params)
+              article-id (parse-integer (-> params :article-id))
               {:keys [filename]} (->> (article-file/get-article-file-maps article-id)
                                       (filter #(= key (str (:key %))))
                                       first)]
-          (-> (response/response (s3-file/get-file-stream key :pdf))
+          (-> (response/response (s3-file/get-file-stream sr-context key :pdf))
               (response/header "Content-Type" "application/pdf")
               (response/header "Content-Disposition"
                                (format "attachment; filename=\"%s\"" filename)))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/view/:key" request
+(dr (GET "/api/files/:project-id/article/:article-id/view/:key"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:roles ["member"]}
-        (let [{:keys [key]} (:params request)]
-          (-> (response/response (s3-file/get-file-stream key :pdf))
-              (response/header "Content-Type" "application/pdf"))))))
+        (-> (s3-file/get-file-stream sr-context (:key params) :pdf)
+            response/response
+            (response/header "Content-Type" "application/pdf")))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
       (with-authorize request {:roles ["admin"]}

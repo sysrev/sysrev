@@ -5,6 +5,5 @@ set -eu
 source vars.sh
 
 scripts/rebuild-changed-files
-scripts/run-dev-containers
 
 ENV=dev lein with-profile +dev,+repl,+local-repl repl

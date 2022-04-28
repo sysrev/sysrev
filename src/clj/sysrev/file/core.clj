@@ -46,25 +46,16 @@
   on S3, and skips creating s3store entry if that already exists.
   Multiple s3store entries may exist referencing a single file using
   different filenames."
-  [bucket ::s3/bucket, filename ::filename,
+  [sr-context map?
+   bucket ::s3/bucket, filename ::filename,
    {:keys [file file-bytes created]} (s/keys :opt-un [::s3/file ::s3/file-bytes ::created])]
   (util/assert-single file file-bytes)
   (let [file-key (or (some-> file util/file->sha-1-hash)
                      (some-> file-bytes util/byte-array->sha-1-hash))]
     (when-not (s3-key-exists? file-key)
-      (cond file        (s3/save-file file bucket :file-key file-key)
-            file-bytes  (s3/save-byte-array file-bytes bucket :file-key file-key)))
+      (cond file        (s3/save-file sr-context file bucket :file-key file-key)
+            file-bytes  (s3/save-byte-array sr-context file-bytes bucket :file-key file-key)))
     (db/with-transaction
       (let [s3-id (create-s3store (cond-> {:key file-key :filename filename}
                                     created (merge {:created created})))]
         (q/find-one :s3store {:s3-id s3-id})))))
-
-(defn-spec delete-s3-file boolean?
-  [bucket ::s3/bucket, s3-id ::s3-id]
-  (db/with-transaction
-    (if-let [file-key (s3-key s3-id)]
-      (do (when (= 1 (count (q/find :s3store {:key file-key} :s3-id)))
-            (s3/delete-file file-key bucket))
-          (delete-s3-id s3-id)
-          true)
-      false)))

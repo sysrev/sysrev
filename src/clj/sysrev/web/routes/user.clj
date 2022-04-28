@@ -64,23 +64,23 @@
              (api/update-user-introduction! user-id introduction))))
     (GET "/profile-image" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
-           (api/read-profile-image user-id)))
-    (POST "/profile-image" request
+           (api/read-profile-image (:sr-context request) user-id)))
+    (POST "/profile-image" {:keys [params sr-context] :as request}
           (with-authorize request {:authorize-fn (user-authd? user-id)}
-            (let [{:keys [tempfile filename]} (get-in request [:params :file])]
-              (api/create-profile-image! user-id tempfile filename))))
+            (let [{:keys [tempfile filename]} (:file params)]
+              (api/create-profile-image! sr-context user-id tempfile filename))))
     (GET "/profile-image/meta" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
            (api/read-profile-image-meta user-id)))
     (GET "/profile-image" request
          (with-authorize request {:authorize-fn (user-authd? user-id)}
-           (api/read-profile-image user-id)))
-    (POST "/avatar" request
+           (api/read-profile-image (:sr-context request) user-id)))
+    (POST "/avatar" {:keys [params sr-context] :as request}
           (with-authorize request {:authorize-fn (user-authd? user-id)}
-            (let [{:keys [file filename meta]} (get-in request [:params])]
-              (api/create-avatar! user-id (:tempfile file) filename meta))))
-    (GET "/avatar" _
-         (api/read-avatar user-id))
+            (let [{:keys [file filename meta]} params]
+              (api/create-avatar! sr-context user-id (:tempfile file) filename meta))))
+    (GET "/avatar" {:keys [sr-context]}
+         (api/read-avatar sr-context user-id))
     (context "/groups/public-reviewer" []
              (GET "/active" [user-id :<< as-int :as request]
                   (with-authorize request {:authorize-fn (user-authd? user-id)}

@@ -236,7 +236,7 @@
         (fn []
           (->> (try
                  (when (and filename file)
-                   (source/save-import-file source-id filename file))
+                   (source/save-import-file sr-context source-id filename file))
                  (import-source-articles
                   sr-context project-id source-id
                   (-> (assoc impl :article-refs (get-article-refs))

@@ -1,4 +1,9 @@
-{:aws {:disabled? true}
+{:aws {:access-key-id "test"
+       :secret-access-key "test"
+       :endpoint-override {:protocol :http
+                           :hostname "localhost"}
+       :region "us-east-1"}
+ :datapub-embedded true
  :env :test
  :pedestal {:port 0}
  :postgres {:create-if-not-exists? true
@@ -8,4 +13,6 @@
             :host "localhost"
             :port 0
             :user "postgres"}
+ :s3 {:datapub-bucket {:create? true
+                       :name "datapub.dev"}}
  :secrets {:sysrev-dev-key "***REMOVED***"}}

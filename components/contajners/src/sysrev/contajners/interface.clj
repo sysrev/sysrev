@@ -11,6 +11,13 @@
   [name & {:as op-map}]
   (core/stop-container! name op-map))
 
+(defn temp-container
+  "Returns a record implementing com.stuartsierra.component/Lifecycle
+   that can be used to start and stop a temporary container with a
+   random name."
+  [base-name container-config & {:keys [after-start-f] :as opts}]
+  (core/temp-container base-name container-config opts))
+
 (defn up!
   "Attempts to pull the image, create a container, and start it.
    Will simply start the container if one already exists with the

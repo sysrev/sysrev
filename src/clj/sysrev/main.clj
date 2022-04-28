@@ -2,22 +2,22 @@
 
 (ns sysrev.main
   (:gen-class)
-  (:require
-   [clojure.tools.logging :as log]
-   [com.stuartsierra.component :as component]
-   [sysrev.aws-client.interface :as aws-client]
-   [sysrev.config :refer [env]]
-   [sysrev.db.core :as db]
-   [sysrev.db.listeners :as listeners]
-   [sysrev.db.migration :as migration]
-   [sysrev.file.s3 :as s3]
-   [sysrev.nrepl.interface :as nrepl]
-   [sysrev.postgres.core :as pg]
-   [sysrev.scheduler.core :as scheduler]
-   [sysrev.sente :as sente]
-   [sysrev.sysrev-api.main]
-   [sysrev.sysrev-api.pedestal]
-   [sysrev.web.core :as web]))
+  (:require [clojure.tools.logging :as log]
+            [com.stuartsierra.component :as component]
+            [sysrev.aws-client.interface :as aws-client]
+            [sysrev.config :refer [env]]
+            [sysrev.db.core :as db]
+            [sysrev.db.listeners :as listeners]
+            [sysrev.db.migration :as migration]
+            [sysrev.file.s3 :as s3]
+            [sysrev.localstack.interface :as localstack]
+            [sysrev.nrepl.interface :as nrepl]
+            [sysrev.postgres.core :as pg]
+            [sysrev.scheduler.core :as scheduler]
+            [sysrev.sente :as sente]
+            [sysrev.sysrev-api.main]
+            [sysrev.sysrev-api.pedestal]
+            [sysrev.web.core :as web]))
 
 (defrecord PostgresRunAfterStart [done?]
   component/Lifecycle
@@ -37,6 +37,11 @@
 (defn postgres-run-after-start []
   (map->PostgresRunAfterStart {:done? false}))
 
+(defn localstack [{:keys [aws profile]}]
+  (if (#{:dev :test} profile)
+    (localstack/localstack aws)
+    {}))
+
 (defonce system (atom nil))
 
 (defn system-map [& {:keys [config postgres-overrides]}]
@@ -44,6 +49,7 @@
    :config (-> config :postgres
                (merge postgres-overrides)
                (->> (assoc config :postgres)))
+   :localstack (localstack config)
    :postgres (component/using (pg/postgres) [:config])
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
@@ -51,9 +57,11 @@
    :postgres-listener (component/using
                        (listeners/listener)
                        [:postgres :sente])
-   :s3 (aws-client/aws-client
-        :after-start s3/create-s3-buckets!
-        :client-opts (assoc (:aws config) :api :s3))
+   :s3 (component/using
+        (aws-client/aws-client
+         :after-start s3/create-s3-buckets!
+         :client-opts (assoc (:aws config) :api :s3))
+        [:localstack])
    :scheduler (component/using
                (if (#{:test :remote-test} (:profile env))
                  (scheduler/mock-scheduler)
@@ -65,7 +73,7 @@
    ;; The :sr-context (Sysrev context) holds components that many functions need
    :sr-context (component/using
                 {}
-                [:config :postgres :sysrev-api-pedestal])
+                [:config :postgres :s3 :sysrev-api-pedestal])
    :sysrev-api-config (-> (or (:sysrev-api-config config)
                               (sysrev.sysrev-api.main/get-config))
                           (assoc :get-tx (fn [_] (:connection db/*conn*))))

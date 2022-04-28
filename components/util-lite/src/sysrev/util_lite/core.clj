@@ -30,3 +30,14 @@
            (Thread/sleep interval-ms#)
            (recur (+ interval-ms# interval-ms# (.longValue ^Integer (rand-int 100))) (dec n#)))
          ret#))))
+
+(defn wait-timeout [pred & {:keys [timeout-f timeout-ms]}]
+  {:pre [(fn? pred) (fn? timeout-f) (number? timeout-ms)]}
+  (let [start (System/nanoTime)
+        timeout-ns (* timeout-ms 1000000)]
+    (loop []
+      (let [result (pred)]
+        (cond
+          result result
+          (< timeout-ns (- (System/nanoTime) start)) (timeout-f)
+          :else (recur))))))
