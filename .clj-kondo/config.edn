@@ -79,6 +79,7 @@
                                         sysrev.article.core            article
                                         sysrev.config                  config
                                         sysrev.contajners.interface    con
+                                        sysrev.contajners.interface.config conc
                                         sysrev.datasource.api          ds-api
                                         sysrev.db.core                 db
                                         sysrev.db.queries              q
