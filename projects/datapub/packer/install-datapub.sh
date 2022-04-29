@@ -13,10 +13,9 @@ nix-collect-garbage -d
 rm -rf datapub
 mkdir -p datapub/src
 cd datapub
-mv /tmp/datapub.jar /tmp/default.nix /tmp/docker-compose-dev.yml /tmp/run.sh .
+mv /tmp/datapub.jar /tmp/default.nix /tmp/run.sh .
 nix-build -A inputDerivation -o gcroots
 nix-shell --run "true"
-sudo docker-compose -f docker-compose-dev.yml up -d
 cd
 sudo chown root:root /tmp/datapub.service
 sudo mv /tmp/datapub.service /etc/systemd/system/
