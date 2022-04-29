@@ -28,10 +28,10 @@
 (defonce test-systems (atom [nil []]))
 
 (defn stop-test-systems! []
-  (swap! test-systems
-         (fn [[_ stack]]
-           (doall (pmap component/stop stack))
-           [nil []])))
+  (let [[systems] (swap! test-systems
+                         (fn [[_ stack]]
+                           [stack []]))]
+    (doall (pmap component/stop systems))))
 
 (defn execute! [system sqlmap]
   (-> system :postgres :datasource
