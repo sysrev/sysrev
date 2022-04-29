@@ -3,6 +3,7 @@
             [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
+            [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.project.core :refer [project-article-count]]
@@ -68,6 +69,7 @@
   (let [last-source-update (project-last-source-update project-id)
         last-term-update (project-important-terms-last-update project-id)]
     (cond
+      (#{:dev :test} (:profile env)) false
       (nil? last-source-update) false ; No sources - so there can't be important terms
       (nil? last-term-update) true ; terms have never been updated - need to update
       :else (> last-source-update last-term-update)))) ; if sources updated more recently than terms, then terms need update
