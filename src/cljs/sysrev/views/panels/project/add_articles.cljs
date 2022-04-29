@@ -18,9 +18,9 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.source-view :as source-view]
             [sysrev.views.pubmed :as pubmed]
-            [sysrev.views.semantic :refer [Button Checkbox Form FormField Icon
-                                           ListItem ListUI Modal ModalContent
-                                           ModalDescription ModalHeader Popup TextArea]]
+            [sysrev.views.semantic :as S :refer [Button Checkbox Form FormField Icon
+                                                 ListItem ListUI Modal ModalContent
+                                                 ModalDescription ModalHeader Popup]]
             [sysrev.views.uppy :as uppy]))
 
 ;; for clj-kondo
@@ -167,10 +167,10 @@
                :on-change (util/on-event-checkbox-value #(reset! source-import-new-results? %))}]]
           [FormField
            [:label "Notes"]
-           [TextArea {:label "Notes"
-                      :id "source-notes-input"
-                      :default-value (:notes source)
-                      :on-change (util/on-event-value #(reset! source-notes %))}]]
+           [S/TextArea {:label "Notes"
+                        :id "source-notes-input"
+                        :default-value (:notes source)
+                        :on-change (util/on-event-value #(reset! source-notes %))}]]
           [Button {:primary true
                    :id "save-source-btn"}
            "Save"]]]]])))
@@ -293,36 +293,41 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
 
 (def-action :project/import-project-articles
   :uri (fn [] "/api/import-project-articles")
-  :content (fn [project-id url]
+  :content (fn [project-id urls]
              {:project-id project-id
-              :url url})
+              :urls urls})
   :process (fn [_ [project-id _ _] {:keys [success]}]
              (when success
                {:dispatch [:on-add-source project-id]})))
 
+(defn non-blank-lines [s]
+  (->> (str/split s #"\n+")
+       (remove str/blank?)
+       (map str/trim)))
+
 (defn ImportProject []
-  (let [url (atom "")]
-    (fn []
-      (let [import-error @(r/cursor state [:import-error])]
+  (r/with-let [import-error (r/cursor state [:import-error])
+               urls (r/atom "")]
+    [:div.ui
+     [:h3 "2. Import articles from another project"]
+     (if @import-error
+       [:div
+        [:div.ui.error.message
+         (str @import-error)]]
+       [:div.input
+        [:p "Article search URLs: "]
         [:div.ui
-         [:h3 "2. Import articles from another project"]
-         (if import-error
-           [:div
-            [:div.ui.error.message
-             (str import-error)]]
-           [:div.input
-            "Article search URL: "
-            [:span.ui.input
-             {:style {:margin-left "5px"}}
-             [:input {:on-change #(reset! url (-> % .-target .-value))}]]
-            [:button.ui.blue.button
-             {:on-click #(when (seq @url)
-                           (dispatch [:action [:project/import-project-articles
-                                               @(subscribe [:active-project-id])
-                                               @url]])
-                           (dispatch [::add-documents-visible false])
-                           (reset! state {}))}
-             [:i.download.icon] " Import"]])]))))
+         [S/TextArea
+          {:style {:margin-left "5px" :min-height "15em" :min-width "30em"}
+           :on-change #(reset! urls %)}]]
+        [:button.ui.blue.button
+         {:on-click #(when-let [lines (some-> @urls .-target .-value non-blank-lines seq)]
+                       (dispatch [:action [:project/import-project-articles
+                                           @(subscribe [:active-project-id])
+                                           lines]])
+                       (dispatch [::add-documents-visible false])
+                       (reset! state {}))}
+         [:i.download.icon] " Import"]])]))
 
 (defn DeleteArticleSource [source-id]
   (let [project-id @(subscribe [:active-project-id])]
@@ -374,9 +379,9 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
                "Datasource Query"   (str (:query meta))
                "Dataset"            (str "Dataset ID: " (:dataset-id meta))
                "Datasource"         (str "Datasource ID: " (:datasource-id meta))
-               "Project Filter"     (let [{:keys [source-project-id filters]} meta]
-                                      (-> {:source-project-id source-project-id :filters filters}
-                                          (util/write-json true)))
+               "Project Filter"     (util/write-json
+                                     (select-keys meta [:url-filters])
+                                     true)
                nil))))
 
 (defn ReImportSource [source]

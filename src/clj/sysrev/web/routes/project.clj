@@ -472,8 +472,8 @@
 (dr (POST "/api/import-project-articles"
       {:keys [body sr-context] :as request}
       (with-authorize request {:roles ["admin"]}
-        (let [{:keys [project-id url]} body]
-          (api/import-project-articles sr-context project-id url)))))
+        (let [{:keys [project-id urls]} body]
+          (api/import-project-articles sr-context project-id urls)))))
 ;;;
 ;;; Article review
 ;;;

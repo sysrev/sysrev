@@ -268,24 +268,21 @@
                    {:entity-ids entity-ids
                     :query query}))
 
-(defn url-project-id [url]
-  (some->> url
-           (re-find #".*/p/(\d+)/.*")
-           second
-           parse-long))
-
 (defn import-project-articles
-  [sr-context project-id url]
+  [sr-context project-id urls]
   (wrap-import-api
-   (fn [{:keys [url-filter]}]
-     (let [source-project-id (url-project-id url-filter)]
-       (if-not (some-> source-project-id project/project-exists?)
+   (fn [{:keys [url-filters]}]
+     (let [source-project-ids (->> url-filters
+                                   (map project-filter/url-project-id)
+                                   distinct)]
+       (if-not (and (seq source-project-ids)
+                    (every? project/project-exists? source-project-ids))
          {:error {:message "Project not found"}}
          (project-filter/import
           sr-context project-id
-          {:source-project-id source-project-id
-           :url-filter url-filter}))))
-   {:url-filter url}))
+          {:source-project-ids source-project-ids
+           :url-filters url-filters}))))
+   {:url-filters urls}))
 
 (s/def ::sources vector?)
 

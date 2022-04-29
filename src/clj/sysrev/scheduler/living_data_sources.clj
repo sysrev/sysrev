@@ -17,10 +17,10 @@
     (source/set-new-articles-available project-id source-id (count new-article-ids))))
 
 (defn check-new-articles-project-filter [{:keys [source-id] :as source}]
-  (let [new-article-ids (project-filter/get-new-articles-available source)
+  (let [new-article-ct (project-filter/count-new-articles-available source)
         project-id (source/source-id->project-id source-id)]
-    (source/set-new-articles-available project-id source-id (count new-article-ids))
-    (count new-article-ids)))
+    (source/set-new-articles-available project-id source-id new-article-ct)
+    new-article-ct))
 
 (defn check-new-articles-pubmed [{:keys [source-id] :as source}]
   (let [new-article-ids (pubmed/get-new-articles-available source)
