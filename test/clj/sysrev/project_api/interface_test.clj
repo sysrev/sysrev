@@ -1,4 +1,4 @@
-(ns sysrev.sysrev-api.project-test
+(ns sysrev.project-api.interface-test
   (:require
    [clojure.test :refer :all]
    [sysrev.sysrev-api-client.interface.queries :as sacq]

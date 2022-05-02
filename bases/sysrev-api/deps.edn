@@ -1,9 +1,6 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/test.check {:mvn/version "1.1.1"}
-
-        poly/config {:local/root "../../components/config"}
+ :deps {poly/config {:local/root "../../components/config"}
         poly/flyway {:local/root "../../components/flyway"}
         poly/lacinia-pedestal {:local/root "../../components/lacinia-pedestal"}
         poly/nrepl {:local/root "../../components/nrepl"}
-        poly/postgres {:local/root "../../components/postgres"}}}
+        poly/project-api {:local/root "../../components/project-api"}}}

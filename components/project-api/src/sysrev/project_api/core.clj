@@ -1,13 +1,25 @@
-(ns sysrev.sysrev-api.project
-  (:require
-   [clojure.string :as str]
-   [clojure.test.check.generators :as gen]
-   [com.walmartlabs.lacinia.resolve :as resolve]
-   [medley.core :as medley]
-   [sysrev.lacinia.interface :as sl
-    :refer [execute-one! with-tx-context]]
-   [sysrev.postgres.interface :as pg]
-   [sysrev.sysrev-api.user :as user]))
+(ns sysrev.project-api.core
+  (:require [clojure.string :as str]
+            [clojure.test.check.generators :as gen]
+            [com.walmartlabs.lacinia.resolve :as resolve]
+            [medley.core :as medley]
+            [sysrev.lacinia.interface :as sl
+             :refer [execute-one! with-tx-context]]
+            [sysrev.postgres.interface :as pg]))
+
+(defn bearer-token [context]
+  (some-> context :request :headers (get "authorization")
+          (->> (re-matches #"(?i)Bearer (.*)"))
+          second))
+
+(defn current-user-id [context]
+  (when-let [token (bearer-token context)]
+    (with-tx-context [context context]
+      (-> context
+          (execute-one! {:select :user-id
+                         :from :web-user
+                         :where [:= :api-token token]})
+          :web-user/user-id))))
 
 (defn project-permissions-for-user [context ^Long project-id ^Long user-id]
   (when user-id
@@ -65,7 +77,7 @@
 (defn get-project [context {:keys [id]} _]
   (when-let [int-id (sl/parse-int-id id)]
     (with-tx-context [context context]
-      (let [user-id (user/current-user-id context)
+      (let [user-id (current-user-id context)
             ks (sl/current-selection-names context)
             perms (project-permissions-for-user context int-id user-id)
             {:project/keys [settings] :as project}
@@ -93,7 +105,7 @@
 
 (defn create-project! [context args _]
   (with-tx-context [context context]
-    (let [user-id (user/current-user-id context)
+    (let [user-id (current-user-id context)
           {:keys [name public]} (get-in args [:input :create])]
       (cond
         (not user-id) (resolve/resolve-as nil {:message "Invalid API token"})
@@ -142,7 +154,7 @@
 (defn get-project-label [context {:keys [id]} _]
   (when-let [uuid (and id (parse-uuid id))]
     (with-tx-context [context context]
-      (let [user-id (user/current-user-id context)
+      (let [user-id (current-user-id context)
             ks (sl/current-selection-names context)
             {:label/keys [project-id] :as project-label}
             #__ (execute-one!
@@ -178,7 +190,7 @@
 (defn create-project-label!
   [context {{:keys [create projectId]} :input} _]
   (with-tx-context [context context]
-    (let [user-id (user/current-user-id context)
+    (let [user-id (current-user-id context)
           {:keys [consensus enabled name question required type]
            :or {consensus false
                 enabled true

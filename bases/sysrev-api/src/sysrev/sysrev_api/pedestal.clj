@@ -3,7 +3,7 @@
             [io.pedestal.http :as http]
             [sysrev.lacinia-pedestal.interface :as slp]
             [sysrev.lacinia.interface :as sl]
-            [sysrev.sysrev-api.project :as project]))
+            [sysrev.project-api.interface :as project-api]))
 
 (defn allowed-origins [env]
   {:allowed-origins
@@ -17,7 +17,7 @@
 
 (defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (sl/load-schema ["sysrev-api/schema.graphql"]
-                                        :resolvers project/resolvers)
+                                        :resolvers project-api/resolvers)
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor

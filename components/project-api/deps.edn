@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {poly/medley {:local/root "../medley"}
+        poly/lacinia {:local/root "../lacinia"}
+        poly/postgres {:local/root "../postgres"}}}
