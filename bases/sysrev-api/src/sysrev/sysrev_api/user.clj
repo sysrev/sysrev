@@ -1,6 +1,6 @@
 (ns sysrev.sysrev-api.user
   (:require
-   [sysrev.sysrev-api.core :as core
+   [sysrev.lacinia.interface
     :refer [execute-one! with-tx-context]]))
 
 (defn bearer-token [context]

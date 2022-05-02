@@ -74,7 +74,7 @@
             :description :description
             :name :name
             :public :public}
-      inv-cols (medley/map-kv (fn [k v] [v k]) cols)]
+      cols-inv (sl/invert cols)]
 
   (defn resolve-dataset [context {:keys [id]} _]
     (when-let [int-id (sl/parse-int-id id)]
@@ -86,7 +86,7 @@
               select (keep cols ks)]
           (-> (when (seq select)
                 (sl/remap-keys
-                 inv-cols
+                 cols-inv
                  (execute-one!
                   context
                   {:select select
@@ -235,7 +235,7 @@
                 :externalCreated :external-created
                 :externalId :external-id
                 :groupingId :grouping-id}
-      inv-cols (into {} (map (fn [[k v]] [v k]) cols-all))
+      cols-inv (into {} (map (fn [[k v]] [v k]) cols-all))
       cols-file (assoc cols-all
                        :content :file-hash
                        :content-hash :content-hash
@@ -292,7 +292,7 @@
                :from :entity
                :where [:= :id int-id]}))
            (as-> $
-               (sl/remap-keys #(inv-cols % %) $)
+                 (sl/remap-keys #(cols-inv % %) $)
              (assoc $
                     :id id
                     :contentUrl

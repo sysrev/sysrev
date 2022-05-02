@@ -126,6 +126,7 @@
            sysrev.db.core/with-tx clojure.core/with-open
            sysrev.file-util.interface/with-temp-file clojure.core/with-open
            sysrev.file-util.interface/with-temp-files clojure.core/with-open
+           sysrev.lacinia.interface/with-tx-context clojure.core/with-open
            sysrev.pdf-read.core/with-PDDocument clojure.core/with-open
            sysrev.pdf-read.interface/with-PDDocument clojure.core/with-open
            sysrev.test.core/with-test-system clojure.core/with-open

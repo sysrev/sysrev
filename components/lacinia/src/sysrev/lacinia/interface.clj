@@ -22,6 +22,22 @@
   [map-or-seq]
   (core/denamespace-keys map-or-seq))
 
+(defn execute-one!
+  "General SQL execution function that returns just the first row of a result.
+
+  Builds a query with (`honey.sql/format` sqlmap) and executes it with
+  `next.jdbc/execute-one!`."
+  [context sqlmap]
+  (core/execute-one! context sqlmap))
+
+(defn invert
+  "Returns the inversion of the map `m`, with values swapped for keys.
+   
+   If multiple values in `m`m map to the same key, an arbitrary value is
+   retained and the others are dropped."
+  [m]
+  (core/invert m))
+
 (defn ^Long parse-int-id
   "Returns parsed Long value if the string represents a normalized integer
   value (one that begins with a digit 1-9, not a zero or +/-).
@@ -49,3 +65,10 @@
 See https://graphql.org/learn/schema/#scalar-types
 and https://lacinia.readthedocs.io/en/latest/custom-scalars.html"}
   scalars core/scalars)
+
+(defmacro with-tx-context
+  "Either use an existing transaction in the context, or create a new transaction
+  and add it to the context."
+  [[name-sym context] & body]
+  `(core/with-tx-context [~name-sym ~context]
+     ~@body))

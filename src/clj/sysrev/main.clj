@@ -74,9 +74,8 @@
    :sr-context (component/using
                 {}
                 [:config :postgres :s3 :sysrev-api-pedestal])
-   :sysrev-api-config (-> (or (:sysrev-api-config config)
-                              (sysrev.sysrev-api.main/get-config))
-                          (assoc :get-tx (fn [_] (:connection db/*conn*))))
+   :sysrev-api-config (or (:sysrev-api-config config)
+                          (sysrev.sysrev-api.main/get-config))
    :sysrev-api-pedestal (component/using
                          (sysrev.sysrev-api.pedestal/pedestal)
                          {:config :sysrev-api-config

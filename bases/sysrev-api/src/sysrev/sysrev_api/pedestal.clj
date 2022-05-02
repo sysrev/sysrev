@@ -4,9 +4,7 @@
    [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
    [io.pedestal.http :as http]
    [sysrev.lacinia-pedestal.interface :as slp]
-   [sysrev.sysrev-api.core :as core]
-   [sysrev.sysrev-api.graphql :as graphql]
-   [io.pedestal.interceptor :as interceptor]))
+   [sysrev.sysrev-api.graphql :as graphql]))
 
 (defn allowed-origins [env]
   {:allowed-origins
@@ -18,23 +16,8 @@
    :creds true
    :max-age 86400})
 
-(defn get-tx-interceptor
-  "Gets the tx from the provided `f` fn.
-
-  `f` takes one argument, the pedestal `context`. `f` must return
-  a `java.sql.Connection` or `nil`."
-  [f]
-  (interceptor/interceptor
-   {:name ::get-tx
-    :enter (fn [context]
-             (let [tx (f context)]
-               (if tx
-                 (assoc context ::core/tx tx)
-                 context)))}))
-
 (defn service-map [{:keys [env host port] :as opts} pedestal]
-  (let [get-tx (get-in pedestal [:config :get-tx])
-        compiled-schema (graphql/load-schema)
+  (let [compiled-schema (graphql/load-schema)
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
@@ -44,11 +27,7 @@
                         json-error-interceptors
                         :route-name ::graphql-api-cors-preflight]
                        ["/api"
-                        :post (into
-                               (if get-tx
-                                 [(get-tx-interceptor get-tx)]
-                                 [])
-                               (slp/api-interceptors compiled-schema app-context))
+                        :post (slp/api-interceptors compiled-schema app-context)
                         :route-name ::graphql-api]
                        ["/health"
                         :get

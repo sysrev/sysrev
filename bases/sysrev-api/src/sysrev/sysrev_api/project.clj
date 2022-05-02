@@ -4,10 +4,9 @@
    [clojure.test.check.generators :as gen]
    [com.walmartlabs.lacinia.resolve :as resolve]
    [medley.core :as medley]
-   [sysrev.lacinia.interface :as sl]
-   [sysrev.postgres.interface :as pg]
-   [sysrev.sysrev-api.core :as core
+   [sysrev.lacinia.interface :as sl
     :refer [execute-one! with-tx-context]]
+   [sysrev.postgres.interface :as pg]
    [sysrev.sysrev-api.user :as user]))
 
 (defn project-permissions-for-user [context ^Long project-id ^Long user-id]
@@ -61,7 +60,7 @@
    :name :name
    :public :settings})
 
-(def project-cols-inv (-> project-cols (dissoc :public) core/inv-cols))
+(def project-cols-inv (-> project-cols (dissoc :public) sl/invert))
 
 (defn get-project [context {:keys [id]} _]
   (when-let [int-id (sl/parse-int-id id)]
@@ -138,7 +137,7 @@
    :required :required
    :type :value-type})
 
-(def project-label-cols-inv (-> project-label-cols core/inv-cols))
+(def project-label-cols-inv (-> project-label-cols sl/invert))
 
 (defn get-project-label [context {:keys [id]} _]
   (when-let [uuid (and id (parse-uuid id))]

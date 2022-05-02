@@ -4,7 +4,9 @@
    [com.walmartlabs.lacinia.executor :as executor]
    [com.walmartlabs.lacinia.selection :as selection]
    [medley.core :as medley]
-   [sysrev.json.interface :as json])
+   [next.jdbc :as jdbc]
+   [sysrev.json.interface :as json]
+   [sysrev.postgres.interface :as pg])
   (:import
    (java.sql Timestamp)
    (java.time Instant)
@@ -85,6 +87,9 @@
       (->> (map (comp selection/field-name selection/field)))
       set))
 
+(defn invert [m]
+  (reduce (fn [m [k v]] (assoc m v k)) {} m))
+
 (defn denamespace-keys [map-or-seq]
   (cond (map? map-or-seq) (medley/map-keys (comp keyword name) map-or-seq)
         (sequential? map-or-seq) (map denamespace-keys map-or-seq)))
@@ -94,3 +99,16 @@
                                denamespace-keys
                                (medley/map-keys key-f))
         (sequential? map-or-seq) (map (partial remap-keys key-f) map-or-seq)))
+
+(defmacro with-tx-context
+  [[name-sym context] & body]
+  `(let [context# ~context]
+     (if-let [tx# (::tx context#)]
+       (let [~name-sym context#] ~@body)
+       (jdbc/with-transaction [tx# (get-in context# [:pedestal :postgres :datasource])
+                               {:isolation :serializable}]
+         (let [~name-sym (assoc context# ::tx tx#)]
+           ~@body)))))
+
+(defn execute-one! [context sqlmap]
+  (pg/execute-one! (::tx context) sqlmap))
