@@ -24,9 +24,9 @@ jobs:
           echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
           nix-build -A inputDerivation -o gcroots
 
-      - name: Test nix-shell via the linter
+      - name: Test nix-shell
         run: |
-          nix-shell --run "bash lint-all"
+          nix-shell --pure --run "echo 0 | clj-kondo --lint -"
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.13.0
