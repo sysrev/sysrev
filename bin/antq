@@ -7,6 +7,7 @@ clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.6.0"} org.slf4j
         --exclude=clojure-csv/clojure-csv \
         --exclude=com.google.api-client/google-api-client \
         --exclude=honeysql/honeysql \
+        --exclude=javax.servlet/javax.servlet-api \
         --exclude=john-shaffer/aws-cloudformation-github-deploy \
         --exclude=john-shaffer/cache \
         --exclude=lambdaisland/kaocha \

@@ -1,5 +1,5 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.0"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/test.check {:mvn/version "1.1.1"}
 
         poly/config {:local/root "../../components/config"}

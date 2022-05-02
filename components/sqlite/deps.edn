@@ -1,6 +1,6 @@
 {:paths ["src"]
- :deps {com.github.seancorfield/honeysql {:mvn/version "2.2.868"}
-        com.github.seancorfield/next.jdbc {:mvn/version "1.2.772"}
+ :deps {com.github.seancorfield/honeysql {:mvn/version "2.2.891"}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.2.780"}
         org.xerial/sqlite-jdbc {:mvn/version "3.36.0.3"}
 
         poly/component {:local/root "../component"}}}

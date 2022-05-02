@@ -2,15 +2,15 @@
 let
   target = pkgs.stdenv.targetPlatform;
   rev = (if target.isDarwin then
-    "31aa631dbc496500efd2507baaed39626f6650f2"
+    "66a2919980c87f22fa199f9e2210ea71504f2fd0"
   else
-    "af0a9bc0e5341855518e9c1734d7ef913e5138b9");
+    "fd3e33d696b81e76b30160dfad2efb7ac1f19879");
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
     sha256 = (if target.isDarwin then
-      "08qaraj9j7m2g1ldhpkg8ksylk7s00mr7khkzif0m8jshkq8j92b"
+      "17wh922pxsybx26dmh5jx75ch6hnq0p3iccp96lmjk4dj22131fx"
     else
-      "0qqxa8xpy1k80v5al45bsxqfs3n6cphm9nki09q7ara7yf7yyrh1");
+      "1liw3glyv1cx0bxgxnq2yjp0ismg0np2ycg72rqghv75qb73zf9h");
   };
 in let
   pkgs = import nixpkgs { };

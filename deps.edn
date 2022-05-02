@@ -1,5 +1,5 @@
 {:paths ["src/clj" "src/cljc" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.0"}
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
 
 ;;; clojure.spec
         orchestra/orchestra {:mvn/version "2021.01.01-1"}
@@ -9,7 +9,7 @@
         commons-io/commons-io {:mvn/version "2.11.0"}
         commons-codec/commons-codec {:mvn/version "1.15"}
         org.apache.commons/commons-compress {:mvn/version "1.21"}
-        prismatic/schema {:mvn/version "1.2.0"}
+        prismatic/schema {:mvn/version "1.2.1"}
 
 ;;; Logging
         org.slf4j/slf4j-api {:mvn/version "1.7.36"}
@@ -26,7 +26,7 @@
 
 ;;; Data formats
         com.cognitect/transit-clj {:mvn/version "1.0.329"}
-        org.clojure/data.csv {:mvn/version "1.0.0"}
+        org.clojure/data.csv {:mvn/version "1.0.1"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
         org.clojure/data.zip {:mvn/version "1.0.0"}
         ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
@@ -62,7 +62,7 @@
         buddy/buddy-hashers {:mvn/version "1.8.158"}
         buddy/buddy-sign {:mvn/version "3.4.333"}
         clj-http/clj-http {:mvn/version "3.12.3"}
-        com.cognitect.aws/s3 {:mvn/version "820.2.1083.0"}
+        com.cognitect.aws/s3 {:mvn/version "822.2.1109.0"}
         com.draines/postal {:mvn/version "2.0.5"} ;; email client
         com.velisco/clj-ftp {:mvn/version "0.3.17"}
         hashp/hashp {:mvn/version "0.2.1"}
@@ -102,21 +102,20 @@
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-paths ["config/dev" "development/src"]
         :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
-                     rs.shaffe/salmon {:git/url "https://github.com/john-shaffer/salmon.git"
-                                       :sha "2f2281a867e544db292dc83e2fea11cb6dbdd21a"}
+                     rs.shaffe/salmon {:mvn/version "0.2.0"}
 
                      poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/sqlite {:local/root "components/sqlite"}
-                     clj-kondo/clj-kondo {:mvn/version "2022.03.09"}}}
+                     clj-kondo/clj-kondo {:mvn/version "2022.04.25"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "1.2.3"}}
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user]}"]}
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "e874e809aa9d3cecaa0540376bd2875f99b37372"}}
+                       :sha "abd20bb656e2cdd712732d80e1238316d3ea1b7f"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
