@@ -86,8 +86,6 @@
                                     'sysrev.data.core/def-data analyze-def-data
                                     'sysrev.action.core/def-action analyze-def-action}}}}))
 
-#_(def out (analyze-source))
-
 (defn- get-keywords-usages [out var-name]
   (->> (:analysis out)
        :keywords
@@ -150,3 +148,8 @@
       (println (fmt-message :unused-event event)))
     #_(doseq [event _undefined]
         (println (fmt-message :undefined-event event)))))
+
+(comment
+  (do
+    (print-unused-reg-sub)
+    (print-unused-reg-event)))

@@ -23,8 +23,6 @@
 (set! react-pdf/pdfjs.GlobalWorkerOptions.workerSrc
       "/js/pdfjs-dist/build/pdf.worker.min.js")
 
-(def view :pdf)
-
 (defn pdf-url-open-access?
   "Given a pdf-url, is it an open access pdf?"
   [pdf-url]
