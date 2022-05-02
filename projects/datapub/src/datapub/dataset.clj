@@ -881,3 +881,23 @@
                     (catch Exception e
                       (prn e))))]
         (fn [] (future-cancel fut))))))
+
+(def resolvers
+  {:Dataset {:entities #'resolve-Dataset#entities
+             :indices #'resolve-Dataset#indices}
+   :DatasetEntitiesEdge {:node #'resolve-DatasetEntitiesEdge#node}
+   :ListDatasetsEdge {:node #'resolve-ListDatasetsEdge#node}
+   :Query {:dataset #'resolve-dataset
+           :datasetEntitiesById #'resolve-datasetEntitiesById
+           :datasetEntity #'resolve-dataset-entity
+           :listDatasets #'list-datasets}
+   :Mutation {:createDataset #'create-dataset!
+              :createDatasetEntity #'create-dataset-entity!
+              :createDatasetIndex #'create-dataset-index!
+              :updateDataset #'update-dataset!}
+   :Subscription {:datasetEntities sl/resolve-value
+                  :searchDataset sl/resolve-value}})
+
+(def streamers
+  {:Subscription {:datasetEntities #'dataset-entities-subscription
+                  :searchDataset #'search-dataset-subscription}})

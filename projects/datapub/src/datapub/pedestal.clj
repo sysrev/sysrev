@@ -1,12 +1,11 @@
 (ns datapub.pedestal
-  (:require
-   [clojure.core.async :refer [chan]]
-   [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
-   [datapub.dataset :as dataset]
-   [datapub.graphql :as graphql]
-   [io.pedestal.http :as http]
-   [sysrev.lacinia-pedestal.interface :as slp]
-   [taoensso.timbre :as t]))
+  (:require [clojure.core.async :refer [chan]]
+            [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
+            [datapub.dataset :as dataset]
+            [io.pedestal.http :as http]
+            [sysrev.lacinia.interface :as sl]
+            [sysrev.lacinia-pedestal.interface :as slp]
+            [taoensso.timbre :as t]))
 
 (defn allowed-origins [env]
   {:allowed-origins
@@ -27,7 +26,10 @@
     {:status 403 :headers {} :body "Forbidden"}))
 
 (defn service-map [{:keys [env host port] :as opts} pedestal]
-  (let [compiled-schema (graphql/load-schema)
+  (let [compiled-schema (sl/load-schema ["datapub/schema.graphql"
+                                         "datapub/schema-subscription.graphql"]
+                                        :resolvers dataset/resolvers
+                                        :streamers dataset/streamers)
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
@@ -79,7 +81,7 @@
          ::http/type :jetty}
         pedestal2/enable-graphiql
         (pedestal2/enable-subscriptions
-         graphql/load-schema
+         compiled-schema
          {:app-context app-context
           :subscription-interceptors
           #__ (slp/subscription-interceptors compiled-schema app-context)

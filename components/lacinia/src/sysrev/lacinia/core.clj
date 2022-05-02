@@ -1,16 +1,17 @@
 (ns sysrev.lacinia.core
-  (:require
-   [com.walmartlabs.lacinia.constants :as constants]
-   [com.walmartlabs.lacinia.executor :as executor]
-   [com.walmartlabs.lacinia.selection :as selection]
-   [medley.core :as medley]
-   [next.jdbc :as jdbc]
-   [sysrev.json.interface :as json]
-   [sysrev.postgres.interface :as pg])
-  (:import
-   (java.sql Timestamp)
-   (java.time Instant)
-   (java.time.format DateTimeFormatter)))
+  (:require [clojure.java.io :as io]
+            [com.walmartlabs.lacinia.constants :as constants]
+            [com.walmartlabs.lacinia.executor :as executor]
+            [com.walmartlabs.lacinia.parser.schema :as pschema]
+            [com.walmartlabs.lacinia.schema :as schema]
+            [com.walmartlabs.lacinia.selection :as selection]
+            [medley.core :as medley]
+            [next.jdbc :as jdbc]
+            [sysrev.json.interface :as json]
+            [sysrev.postgres.interface :as pg])
+  (:import (java.sql Timestamp)
+           (java.time Instant)
+           (java.time.format DateTimeFormatter)))
 
 (defn parse-DateTime [x]
   (-> (try
@@ -78,6 +79,14 @@
 
 (defn resolve-value [_ _ value]
   value)
+
+(defn load-schema [schema-filenames & {:keys [resolvers streamers]}]
+  (-> (->> (map (comp slurp io/resource) schema-filenames)
+           (apply str))
+      (pschema/parse-schema {:resolvers resolvers
+                             :scalars scalars
+                             :streamers (or streamers {})})
+      schema/compile))
 
 (defn current-selection-names [context]
   (-> context

@@ -1,10 +1,9 @@
 (ns sysrev.sysrev-api.pedestal
-  (:require
-   [clojure.core.async :refer [chan]]
-   [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
-   [io.pedestal.http :as http]
-   [sysrev.lacinia-pedestal.interface :as slp]
-   [sysrev.sysrev-api.graphql :as graphql]))
+  (:require [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
+            [io.pedestal.http :as http]
+            [sysrev.lacinia-pedestal.interface :as slp]
+            [sysrev.lacinia.interface :as sl]
+            [sysrev.sysrev-api.project :as project]))
 
 (defn allowed-origins [env]
   {:allowed-origins
@@ -17,7 +16,8 @@
    :max-age 86400})
 
 (defn service-map [{:keys [env host port] :as opts} pedestal]
-  (let [compiled-schema (graphql/load-schema)
+  (let [compiled-schema (sl/load-schema ["sysrev-api/schema.graphql"]
+                                        :resolvers project/resolvers)
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
@@ -48,13 +48,7 @@
          ::http/routes routes
          ::http/port port
          ::http/type :jetty}
-        pedestal2/enable-graphiql
-        (pedestal2/enable-subscriptions
-         graphql/load-schema
-         {:app-context app-context
-          :subscription-interceptors
-          #__ (slp/subscription-interceptors compiled-schema app-context)
-          :values-chan-fn #(chan 10)}))))
+        pedestal2/enable-graphiql)))
 
 (defn pedestal []
   (slp/pedestal service-map))

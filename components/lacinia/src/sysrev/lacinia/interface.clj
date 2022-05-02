@@ -33,10 +33,17 @@
 (defn invert
   "Returns the inversion of the map `m`, with values swapped for keys.
    
-   If multiple values in `m`m map to the same key, an arbitrary value is
+   If multiple values in `m` map to the same key, an arbitrary value is
    retained and the others are dropped."
   [m]
   (core/invert m))
+
+(defn load-schema
+  "Returns a compiled and parsed lacinia schema.
+   
+   `schema-filenames`: A seq of resource filenames."
+  [schema-filenames & {:keys [resolvers streamers] :as opts}]
+  (core/load-schema schema-filenames opts))
 
 (defn ^Long parse-int-id
   "Returns parsed Long value if the string represents a normalized integer

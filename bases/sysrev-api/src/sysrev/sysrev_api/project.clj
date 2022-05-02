@@ -214,3 +214,13 @@
   (get-project-label context val nil))
 
 (defn resolve-project#labels [_ _ _])
+
+(def resolvers
+  {:CreateProjectLabelPayload {:projectLabel #'resolve-create-project-label-payload#project-label}
+   :CreateProjectPayload {:project #'resolve-create-project-payload#project}
+   :Project {:labels #'resolve-project#labels}
+   :ProjectLabel {:project #'resolve-project-label#project}
+   :Query {:getProject #'get-project
+           :getProjectLabel #'get-project-label}
+   :Mutation {:createProject #'create-project!
+              :createProjectLabel #'create-project-label!}})
