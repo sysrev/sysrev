@@ -14,14 +14,6 @@
   [context]
   (core/current-selection-names context))
 
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
-(defn denamespace-keys
-  "Removes namespaces from keywords and symbols in the map(s).
-
-  Used to turn `next.jdbc` query results into a lacinia resolver result."
-  [map-or-seq]
-  (core/denamespace-keys map-or-seq))
-
 (defn execute-one!
   "General SQL execution function that returns just the first row of a result.
 
@@ -66,12 +58,6 @@
   The resolver equivalent of `identity`."
   [_context _args value]
   (core/resolve-value nil nil value))
-
-(def ^{:doc "A map of implementations of custom scalar types.
-
-See https://graphql.org/learn/schema/#scalar-types
-and https://lacinia.readthedocs.io/en/latest/custom-scalars.html"}
-  scalars core/scalars)
 
 (defmacro with-tx-context
   "Either use an existing transaction in the context, or create a new transaction

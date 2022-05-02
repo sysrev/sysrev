@@ -55,7 +55,11 @@
     (throw (ex-info "Must be a positive integer."
                     {:value x}))))
 
-(def scalars
+(def ^{:doc "A map of implementations of custom scalar types.
+
+See https://graphql.org/learn/schema/#scalar-types
+and https://lacinia.readthedocs.io/en/latest/custom-scalars.html"}
+  scalars
   {:DateTime
    {:parse #'parse-DateTime
     :serialize #'serialize-DateTime}
@@ -99,7 +103,11 @@
 (defn invert [m]
   (reduce (fn [m [k v]] (assoc m v k)) {} m))
 
-(defn denamespace-keys [map-or-seq]
+(defn denamespace-keys
+  "Removes namespaces from keywords and symbols in the map(s).
+
+  Used to turn `next.jdbc` query results into a lacinia resolver result."
+  [map-or-seq]
   (cond (map? map-or-seq) (medley/map-keys (comp keyword name) map-or-seq)
         (sequential? map-or-seq) (map denamespace-keys map-or-seq)))
 
