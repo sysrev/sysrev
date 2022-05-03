@@ -1,5 +1,6 @@
 (ns sysrev.memcached.core
-  (:require [clojure.edn :as edn]
+  (:require [clojure.core.cache.wrapped :as cw]
+            [clojure.edn :as edn]
             [clojurewerkz.spyglass.client :as spy]
             [com.stuartsierra.component :as component]
             [sysrev.contajners.interface :as con]
@@ -7,7 +8,7 @@
             [sysrev.util-lite.interface :as ul])
   (:import (java.util.concurrent CancellationException)))
 
-(defrecord TempClient [client server]
+(defrecord TempClient [cache client server]
   component/Lifecycle
   (start [this]
     (if client
@@ -15,7 +16,9 @@
       (->> server :ports first val first
            (str "localhost:")
            spy/bin-connection
-           (assoc this :client))))
+           (assoc this
+                  :cache (cw/ttl-cache-factory {} :ttl 2000)
+                  :client))))
   (stop [this]
     (if-not client
       this
@@ -64,5 +67,11 @@
       r)))
 
 (defmacro cache [component ^String key ^Long ttl-sec & body]
-  `(cache* ~component ~key ~ttl-sec
-           (fn [] ~@body)))
+  `(let [component# ~component
+         key# ~key]
+     (cw/lookup-or-miss
+      (:cache component#)
+      key#
+      (fn [_#]
+        (cache* component# key# ~ttl-sec
+                (fn [] ~@body))))))
