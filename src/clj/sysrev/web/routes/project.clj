@@ -704,13 +704,14 @@
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename))))))))
 
-(dr (POST "/api/files/:project-id/upload" request
+(dr (POST "/api/files/:project-id/upload"
+      {:keys [params sr-context] :as request}
       (with-authorize request {:roles ["member"]}
         (let [project-id (active-project request)
               user-id (current-user-id request)
-              {:keys [file]} (:params request)
+              {:keys [file]} params
               {:keys [tempfile filename]} file]
-          (doc-file/save-document-file project-id user-id filename tempfile)
+          (doc-file/save-document-file sr-context project-id user-id filename tempfile)
           {:result 1}))))
 
 (dr (POST "/api/files/:project-id/delete/:file-key" request
