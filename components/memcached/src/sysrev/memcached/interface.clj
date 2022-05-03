@@ -10,6 +10,11 @@
   [component ^String key ^Long ttl-sec & body]
   `(core/cache ~component ~key ~ttl-sec ~@body))
 
+(defn flush!
+  "Empty the memcached server and the client's internal cache."
+  [component]
+  (core/flush! component))
+
 (defn temp-client
   "Returns a record implementing com.stuartsierra.component/Lifecycle
    that starts and stop a client for a `temp-server`.

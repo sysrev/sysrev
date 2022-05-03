@@ -18,6 +18,7 @@
             [sysrev.file-util.interface :as file-util]
             [sysrev.junit.interface :as junit]
             [sysrev.main :as main]
+            [sysrev.memcached.interface :as mem]
             [sysrev.payment.plans :as plans]
             [sysrev.postgres.interface :as pg]
             [sysrev.test.fixtures :as test-fixtures]
@@ -89,9 +90,10 @@
     (migration/ensure-updated-db)
     system))
 
-(defn recreate-db! [{:keys [postgres postgres-listener] :as system}]
+(defn refresh! [{:keys [memcached postgres postgres-listener] :as system}]
   (let [listener (component/stop postgres-listener)]
     (pg/recreate-db! postgres)
+    (mem/flush! memcached)
     (assoc system :postgres-listener (component/start listener))))
 
 (defmacro with-test-system [[name-sym opts] & body]
@@ -114,7 +116,7 @@
                             [nil stack#]))))]
        (try
          (let [system# (if system#
-                         (recreate-db! system#)
+                         (refresh! system#)
                          (do (st/instrument)
                              (start-test-system!)))
                ~name-sym system#]
