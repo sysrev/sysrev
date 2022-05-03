@@ -33,15 +33,19 @@
 (def import-ds-query
   ^ResolverResult
   (fn [context {:keys [id query]} _]
-    (let [project-id id
+    (let [sr-context (-> context :request :sr-context)
+          project-id id
           api-token (:authorization context)]
-      (with-datasource-proxy result {:query query :project-id project-id :project-role "admin"
-                                     :api-token api-token}
+      (with-datasource-proxy
+        sr-context
+        result
+        {:query query :project-id project-id :project-role "admin"
+         :api-token api-token}
         ;; https://stackoverflow.com/questions/28091305/find-value-of-specific-key-in-nested-map
         ;; this is hack which assumes that only vectors will
         ;; contain entities in a response.
         (import-source
-         (-> context :request :sr-context)
+         sr-context
          :datasource-query
          project-id {:query query :entities (->> (:body result)
                                                  (tree-seq map? vals)
@@ -72,18 +76,22 @@
 (def import-datasource-flattened
   ^ResolverResult
   (fn [context {:keys [id datasource]} _]
-    (let [project-id id
+    (let [sr-context (-> context :request :sr-context)
+          project-id id
           api-token (:authorization context)]
       (if (<= datasource 3)
         (fail "That datasource can't be imported, please select an id > 3")
-        (with-datasource-proxy result {:query [[:datasource {:id datasource}
-                                                [:name [:datasets
-                                                        [:id :name [:entities [:id]]]]]]]
-                                       :project-id project-id :project-role "admin"
-                                       :api-token api-token}
+        (with-datasource-proxy
+          sr-context
+          result
+          {:query [[:datasource {:id datasource}
+                    [:name [:datasets
+                            [:id :name [:entities [:id]]]]]]]
+           :project-id project-id :project-role "admin"
+           :api-token api-token}
           (let [{:keys [datasets name]} (get-in result [:body :data :datasource])
                 entities (medley/join (map :entities datasets))]
-            (try (import-source (-> context :request :sr-context)
+            (try (import-source sr-context
                                 :datasource project-id {:datasource-id datasource
                                                         :datasource-name name
                                                         :entities entities})
@@ -113,16 +121,20 @@
 (def import-dataset
   ^ResolverResult
   (fn [context {:keys [id dataset]} _]
-    (let [project-id id
+    (let [sr-context (-> context :request :sr-context)
+          project-id id
           api-token (:authorization context)]
       (if (<= dataset 7)
         (fail "That dataset can't be imported, please select an id > 7")
-        (with-datasource-proxy result {:query [[:dataset {:id dataset}
-                                                [:name [:entities [:id]]]]]
-                                       :project-id project-id :project-role "admin"
-                                       :api-token api-token}
+        (with-datasource-proxy
+          sr-context
+          result
+          {:query [[:dataset {:id dataset}
+                    [:name [:entities [:id]]]]]
+           :project-id project-id :project-role "admin"
+           :api-token api-token}
           (let [{:keys [entities name]} (get-in result [:body :data :dataset])]
-            (import-source (-> context :request :sr-context)
+            (import-source sr-context
                            :dataset project-id
                            {:dataset-id dataset
                             :dataset-name name
@@ -132,17 +144,21 @@
 (def import-datasource
   ^ResolverResult
   (fn [context {:keys [id datasource]} _]
-    (let [project-id id
+    (let [sr-context (-> context :request :sr-context)
+          project-id id
           api-token (:authorization context)]
       (if (<= datasource 3)
         (fail "That datasource can't be imported, please select an id > 3")
-        (with-datasource-proxy result {:query [[:datasource {:id datasource}
-                                                [[:datasets [:id :name [:entities [:id]]]]]]]
-                                       :project-id project-id :project-role "admin"
-                                       :api-token api-token}
+        (with-datasource-proxy
+          sr-context
+          result
+          {:query [[:datasource {:id datasource}
+                    [[:datasets [:id :name [:entities [:id]]]]]]]
+           :project-id project-id :project-role "admin"
+           :api-token api-token}
           (let [datasets (get-in result [:body :data :datasource :datasets])]
             (try (doseq [{:keys [id name entities]} datasets]
-                   (import-source (-> context :request :sr-context)
+                   (import-source sr-context
                                   :dataset project-id
                                   {:dataset-id id
                                    :dataset-name name

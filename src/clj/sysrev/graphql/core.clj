@@ -12,7 +12,7 @@
   (resolve-as nil [(cond-> {:message message}
                      more (merge more))]))
 
-(defn authorization-error [{:keys [api-token project-id project-role]}]
+(defn authorization-error [sr-context {:keys [api-token project-id project-role]}]
   (let [user-id (some-> api-token (user-by-api-token) :user-id)]
     (cond (not (seq api-token))
           (fail "api-token not supplied in request headers as Authorization: Bearer <api-token>")
@@ -35,19 +35,22 @@
                (not (or (-> (project/project-settings project-id)
                             ((comp true? :public-access)))
                         (pplan/project-unlimited-access? project-id)
-                        (user/dev-user? user-id))))
+                        (user/dev-user? sr-context user-id))))
           (fail "This request requires an upgraded plan"))))
 
-(defmacro with-graphql-auth [opts & body]
-  `(or (authorization-error ~opts)
+(defmacro with-graphql-auth [sr-context opts & body]
+  `(or (authorization-error ~sr-context ~opts)
        (do ~@body)))
 
-(defmacro with-datasource-proxy [result
+(defmacro with-datasource-proxy [sr-context
+                                 result
                                  {:keys [query api-token project-id project-role]}
                                  & body]
-  `(with-graphql-auth {:api-token ~api-token
-                       :project-id ~project-id
-                       :project-role ~project-role}
+  `(with-graphql-auth
+     ~sr-context
+     {:api-token ~api-token
+      :project-id ~project-id
+      :project-role ~project-role}
      (let [query# ~query
            ~result (ds-api/run-ds-query (cond-> query#
                                           (vector? query#) (gquery))

@@ -36,7 +36,7 @@
 (defn user-can-access-dataset? [sr-context user-id dataset-id]
   (or (->> (projects-with-dataset sr-context dataset-id)
            (user-project-member? sr-context user-id))
-      (user/dev-user? user-id)))
+      (user/dev-user? sr-context user-id)))
 
 (defn dataset-jwt [sr-context user-id dataset-id]
   (when (and user-id dataset-id

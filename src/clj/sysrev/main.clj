@@ -78,7 +78,7 @@
    ;; The :sr-context (Sysrev context) holds components that many functions need
    :sr-context (component/using
                 {}
-                [:config :postgres :s3 :sysrev-api-pedestal])
+                [:config :memcached :postgres :s3 :sysrev-api-pedestal])
    :sysrev-api-config (or (:sysrev-api-config config)
                           (sysrev.sysrev-api.main/get-config))
    :sysrev-api-pedestal (component/using

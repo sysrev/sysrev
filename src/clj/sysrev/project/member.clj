@@ -100,8 +100,8 @@
          user/get-users-public-info
          (util/index-by :user-id))))
 
-(defn clone-authorized? [project-id user-id]
+(defn clone-authorized? [sr-context project-id user-id]
   (boolean
    (or (:public-access (project/project-settings project-id))
        (and user-id (project/project-admin-or-owner? user-id project-id))
-       (user/dev-user? user-id))))
+       (user/dev-user? sr-context user-id))))

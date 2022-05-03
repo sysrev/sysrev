@@ -20,6 +20,7 @@
             [orchestra.core :refer [defn-spec]]
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
+            [sysrev.memcached.interface :as mem]
             [sysrev.postgres.interface :as pg]
             [sysrev.util :as util :refer [in?]])
   (:import (java.sql Connection PreparedStatement)
@@ -299,6 +300,10 @@
 (extend-protocol j/ISQLValue
   DateTime
   (sql-value [v] (tc/to-sql-date v)))
+
+(defmacro cache [sr-context key ^Long ttl-sec & body]
+  `(mem/cache (:memcached ~sr-context) (pr-str ~key) ~ttl-sec
+              ~@body))
 
 ;;
 ;; Facility for caching results of expensive data queries

@@ -37,8 +37,8 @@
 (defn delete-user [user-id]
   (user/delete-user user-id))
 
-(defn dev-user? [user-id]
-  (user/dev-user? user-id))
+(defn dev-user? [sr-context user-id]
+  (user/dev-user? sr-context user-id))
 
 (defn email-verify-code
   "Return the verification code for this user-id and email, if one exists."

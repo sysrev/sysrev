@@ -157,7 +157,7 @@
     (cond
       (->> (map :project-id filters)
            distinct
-           (every? #(member/clone-authorized? % user-id))
+           (every? #(member/clone-authorized? sr-context % user-id))
            not)
       {:error {:message "Source project must be public or user must have admin rights to it"}}
 

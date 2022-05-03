@@ -66,6 +66,7 @@
           _ (add-user-to-group! user-id group-id :permissions ["admin"])
           {:keys [dest-project-id]}
           #__ (api/clone-project-for-org!
+               (:sr-context system)
                {:src-project-id project-a-id :user-id creator-id :org-id group-id})]
       (account/log-in test-resources user)
       (testing ":group-has-new-project notifications"

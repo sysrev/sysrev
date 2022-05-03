@@ -249,13 +249,14 @@
            (:sr-context request)
            project-name user-id public-access)))))
 
-(dr (POST "/api/clone-project" request
+(dr (POST "/api/clone-project" {:keys [body sr-context] :as request}
       (with-authorize request {:logged-in true}
-        (let [user-id (current-user-id request)
-              {:keys [src-project-id]} (:body request)]
+        (let [user-id (current-user-id request)]
           (assert (integer? user-id))
-          (api/clone-project-for-user! {:src-project-id src-project-id
-                                        :user-id user-id})))))
+          (api/clone-project-for-user!
+           sr-context
+           {:src-project-id (:src-project-id body)
+            :user-id user-id})))))
 
 (dr (POST "/api/delete-project" request
       (with-authorize request {:roles ["admin"]}

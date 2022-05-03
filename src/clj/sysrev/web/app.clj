@@ -293,7 +293,7 @@
         public-project (and valid-project (-> (project/project-settings project-id)
                                               ((comp true? :public-access))))
         member (and user-id valid-project (project-member project-id user-id))
-        dev-user? (delay (user/dev-user? user-id))
+        dev-user? (delay (user/dev-user? (:sr-context request) user-id))
         mperms (:permissions member)]
     (cond (and project-id (not valid-project))
           {:error {:status 404 :type :not-found

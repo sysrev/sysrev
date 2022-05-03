@@ -121,7 +121,9 @@
   (fn [context {:keys [id]} _]
     (let [project-id id
           api-token (:authorization context)]
-      (with-graphql-auth {:api-token api-token :project-id project-id :project-role "admin"}
+      (with-graphql-auth
+        (-> context :request :sr-context)
+        {:api-token api-token :project-id project-id :project-role "admin"}
         (let [selections-seq (executor/selections-seq context)]
           (reset! selections-seq-atom selections-seq)
           (resolve-as

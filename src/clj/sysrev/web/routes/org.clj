@@ -79,13 +79,14 @@
           (let [{:keys [project-name public-access]} (-> request :body)
                 user-id (current-user-id request)]
             (api/create-project-for-org! project-name user-id org-id public-access))))
-      (POST "/project/clone" request
+      (POST "/project/clone" {:keys [body sr-context] :as request}
         (with-authorize request {:authorize-fn (org-role? org-id ["admin" "owner"])}
-          (let [{:keys [src-project-id]} (:body request)
-                user-id (current-user-id request)]
-            (api/clone-project-for-org! {:src-project-id src-project-id
-                                         :user-id user-id
-                                         :org-id org-id}))))
+          (let [user-id (current-user-id request)]
+            (api/clone-project-for-org!
+             sr-context
+             {:src-project-id (:src-project-id body)
+              :user-id user-id
+              :org-id org-id}))))
       (GET "/projects" request
         (with-authorize request {}
           (api/group-projects org-id :private-projects?

@@ -142,12 +142,12 @@
                  :returning [:user-id :permissions])
        (finally (clear-user-cache user-id))))
 
-(defn dev-user? [user-id]
-  (if-not user-id
-    false
-    (db/with-query-cache [:user user-id :dev-user?]
-      (boolean
-       (some-> (q/get-user user-id :permissions) (in? "admin"))))))
+(defn dev-user? [sr-context user-id]
+  (and user-id
+       (db/cache
+        sr-context [:user user-id :dev-user?] 300
+        (boolean
+         (some-> (q/get-user user-id :permissions) (in? "admin"))))))
 
 (defn valid-password? [email password-attempt]
   (let [entry (user-by-email email)

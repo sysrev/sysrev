@@ -1,5 +1,6 @@
 (ns sysrev.memcached.core
-  (:require [clojurewerkz.spyglass.client :as spy]
+  (:require [clojure.edn :as edn]
+            [clojurewerkz.spyglass.client :as spy]
             [com.stuartsierra.component :as component]
             [sysrev.contajners.interface :as con]
             [sysrev.contajners.interface.config :as conc]
@@ -53,3 +54,15 @@
 (defn temp-server []
   (con/temp-container "tmp-memcached-" (container-config)
                       :after-start-f after-start))
+
+(defn cache*
+  [{:keys [client]} ^String key ^Long ttl-sec f]
+  (if-let [v (spy/get client key)]
+    (edn/read-string v)
+    (let [r (f)]
+      (spy/set client key ttl-sec (pr-str r))
+      r)))
+
+(defmacro cache [component ^String key ^Long ttl-sec & body]
+  `(cache* ~component ~key ~ttl-sec
+           (fn [] ~@body)))
