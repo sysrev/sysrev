@@ -84,6 +84,7 @@
         poly/lacinia {:local/root "components/lacinia"}
         poly/lacinia-pedestal {:local/root "components/lacinia-pedestal"}
         poly/localstack {:local/root "components/localstack"}
+        poly/memcached {:local/root "components/memcached"}
         poly/notification {:local/root "components/notification"}
         poly/nrepl {:local/root "components/nrepl"}
         poly/postgres {:local/root "components/postgres"}

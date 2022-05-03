@@ -1,0 +1,6 @@
+{:paths ["src"]
+ :deps {clojurewerkz/spyglass {:mvn/version "1.2.0"}
+        net.spy/spymemcached {:mvn/version "2.12.3"}
+
+        poly/component {:local/root "../component"}
+        poly/contajners {:local/root "../contajners"}}}

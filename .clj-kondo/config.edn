@@ -59,8 +59,10 @@
 ;;; library namespaces [CLJ]
                                         clj-http.client                http
                                         clojure-csv.core               csv
+                                        clojurewerkz.spyglass.client   spy
                                         cognitect.aws.client.api       aws
                                         cognitect.transit              transit
+                                        com.stuartsierra.component     component
                                         contajners.core                cj
                                         honeysql.core                  sql
                                         honeysql.helpers               sqlh
@@ -90,6 +92,7 @@
                                         sysrev.label.answer            answer
                                         sysrev.lacinia.interface       sl
                                         sysrev.lacinia-pedestal.interface slp
+                                        sysrev.memcached.interface     mem
                                         sysrev.nrepl.interface         nrepl
                                         sysrev.postgres.interface      pg
                                         sysrev.project.core            project

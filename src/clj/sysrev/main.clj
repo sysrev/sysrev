@@ -11,6 +11,7 @@
             [sysrev.db.migration :as migration]
             [sysrev.file.s3 :as s3]
             [sysrev.localstack.interface :as localstack]
+            [sysrev.memcached.interface :as mem]
             [sysrev.nrepl.interface :as nrepl]
             [sysrev.postgres.core :as pg]
             [sysrev.scheduler.core :as scheduler]
@@ -50,6 +51,10 @@
                (merge postgres-overrides)
                (->> (assoc config :postgres)))
    :localstack (localstack config)
+   :memcached (component/using
+              (mem/temp-client)
+              {:server :memcached-server})
+   :memcached-server (mem/temp-server)
    :postgres (component/using (pg/postgres) [:config])
    :postgres-run-after-start (component/using
                               (postgres-run-after-start)
