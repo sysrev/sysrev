@@ -1,6 +1,7 @@
 (ns sysrev.views.components.brat
   (:require [reagent.core :as r]
-            [reagent.dom :as rdom]))
+            [reagent.dom :as rdom]
+            [sysrev.util :as util]))
 
 (let [now (js/Date.now)]
   (def empty-doc
@@ -22,6 +23,27 @@
       :messages #js[]
       :protocol 1})
 
+(defn create-span-response [^js data]
+  (let [source-data ^js (.-sourceData data)
+        ;; This is a string for some reason
+        offsets (js/JSON.parse (.-offsets data))
+        ;; Find the next-highest id
+        id (->> source-data .-entities
+                (keep (comp #(util/parse-integer %) first))
+                (reduce max 0)
+                inc str)]
+    ;; Add the new span to the existing ones
+    (->> source-data .-entities
+         (concat #js[#js[id (.-type data) offsets]])
+         into-array
+         (set! (.-entities source-data)))
+    (-> {:action "createSpan"
+         :annotations source-data
+         :edited #js[#js[id]]
+         :messages #js[]
+         :protocol 1}
+        clj->js)))
+
 (defn send-message [elem m]
   (.postMessage (.-contentWindow elem)
                 (.stringify js/JSON (clj->js m))))
@@ -32,9 +54,11 @@
                   :text (:text opts ""))))
 
 (defn ajax-callback [opts-atom request]
-  (let [action (.-action (.-data request))
+  (let [data (.-data request)
+        action (.-action data)
         success #(.success request %)]
     (case action
+      "createSpan" (success (create-span-response data))
       "getDocument" (success (get-doc-response @opts-atom))
       "loadConf" (success loadConf-response)
       "logout" nil

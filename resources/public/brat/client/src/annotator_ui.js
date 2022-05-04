@@ -213,6 +213,7 @@ var AnnotatorUI = (function($, window, undefined) {
           });
           spanOptions = {
             action: 'createSpan',
+            'sourceData': sourceData,
             offsets: offsets,
             type: editedSpan.type,
             id: id,
@@ -1648,6 +1649,7 @@ var AnnotatorUI = (function($, window, undefined) {
             } else {
               spanOptions = {
                 action: 'createSpan',
+                'sourceData': sourceData,
                 offsets: [newOffset]
               }
             }
@@ -2387,7 +2389,6 @@ var AnnotatorUI = (function($, window, undefined) {
         }]);
 
       var spanFormSubmit = function(evt, typeRadio) {
-        alert("SPAN FORM SUBMITTED")
         typeRadio = typeRadio || $('#span_form input:radio:checked');
         var type = typeRadio.val();
         $('#span_form-ok').blur();
@@ -2395,7 +2396,7 @@ var AnnotatorUI = (function($, window, undefined) {
         $.extend(spanOptions, {
           action: 'createSpan',
           collection: coll,
-          'document': doc,
+          'sourceData': sourceData,
           type: type,
           comment: $('#span_notes').val()
         });
@@ -2413,10 +2414,7 @@ var AnnotatorUI = (function($, window, undefined) {
         spanForm.parent().find('*').blur();
 
         $('#waiter').dialog('open');
-        console.log(spanOptions)
         dispatcher.post('ajax', [spanOptions, 'edited']);
-        // console.log(dispatcher)
-        // dispatcher.handleLocalAjax('ajax', [spanOptions], 'edited');
         return false;
       };
       $('#span_notes').focus(function () {
@@ -2441,6 +2439,7 @@ var AnnotatorUI = (function($, window, undefined) {
           // the normal dialog should be brought up for the same span.
           spanOptions = {
             action: 'createSpan',
+            'sourceData': sourceData,
             offsets: rapidSpanOptions.offsets,
           };
           // TODO: avoid using the stored mouse event
@@ -2453,6 +2452,7 @@ var AnnotatorUI = (function($, window, undefined) {
             action: 'createSpan',
             collection: coll,
             'document': doc,
+            'sourceData': sourceData,
             type: type,
           });
           $('#waiter').dialog('open');

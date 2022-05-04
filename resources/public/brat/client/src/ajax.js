@@ -3680,26 +3680,6 @@ var Ajax = (function ($, window, undefined) {
                 dispatcher.post(0, callback, [whoamiResponse]);
                 return whoamiResponse;
             }
-            else if (data.action === "createSpan") {
-
-                let loadedDoc = window.loadedDoc
-                if (!loadedDoc.annotations) {
-                    loadedDoc.annotations = loadedDoc
-                    loadedDoc.annotations.entities = []
-                }
-                loadedDoc.annotations.entities.push([loadedDoc.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
-                loadedDoc.edited = ["1"]
-
-                dispatcher.post('messages', [loadedDoc.messages]);
-                dispatcher.post(0, callback, [loadedDoc]);
-                // dummyDocEdited.annotations.entities.push([dummyDocEdited.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
-                // dummyDocEdited.edited = ["1"]
-                //
-                // dispatcher.post('messages', [dummyDocEdited.messages]);
-                // dispatcher.post(0, callback, [dummyDocEdited]);
-
-                return data;
-            }
 
             merge = merge || {};
             dispatcher.post('spin');
