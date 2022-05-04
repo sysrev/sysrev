@@ -3152,498 +3152,6 @@ var dummyReturn = {
     "relation_attribute_types": []
 }
 
-var dummyDocument = {
-    "modifications": [],
-    "normalizations": [],
-    "ctime": 1651080922.703893,
-    "triggers": [],
-    "text": "Top bar and menu\n\nAs you may have already noticed, brat has a blue TOP BAR that opens the MENU when you place the mouse cursor over it. Once the mouse pointer leaves the menu area the menu will disappear, allowing more screen space for text and annotations.\n\nThe menu provides access to various dialogs for working with text and annotations, as well as a button for logging in in and out of brat.\n\nFinally, you should find a \"help\" link in the menu, which will open the brat manual in a separate page if clicked. You won't need the manual for this tutorial, but it may be helpful for reference later.\n",
-    "source_files": [
-        "ann",
-        "txt"
-    ],
-    "mtime": 1650937567.940038,
-    "messages": [],
-    "sentence_offsets": [
-        [
-            0,
-            16
-        ],
-        [
-            18,
-            257
-        ],
-        [
-            259,
-            396
-        ],
-        [
-            398,
-            600
-        ]
-    ],
-    "relations": [],
-    "entities": [],
-    "comments": [],
-    "token_offsets": [
-        [
-            0,
-            3
-        ],
-        [
-            4,
-            7
-        ],
-        [
-            8,
-            11
-        ],
-        [
-            12,
-            16
-        ],
-        [
-            18,
-            20
-        ],
-        [
-            21,
-            24
-        ],
-        [
-            25,
-            28
-        ],
-        [
-            29,
-            33
-        ],
-        [
-            34,
-            41
-        ],
-        [
-            42,
-            50
-        ],
-        [
-            51,
-            55
-        ],
-        [
-            56,
-            59
-        ],
-        [
-            60,
-            61
-        ],
-        [
-            62,
-            66
-        ],
-        [
-            67,
-            70
-        ],
-        [
-            71,
-            74
-        ],
-        [
-            75,
-            79
-        ],
-        [
-            80,
-            85
-        ],
-        [
-            86,
-            89
-        ],
-        [
-            90,
-            94
-        ],
-        [
-            95,
-            99
-        ],
-        [
-            100,
-            103
-        ],
-        [
-            104,
-            109
-        ],
-        [
-            110,
-            113
-        ],
-        [
-            114,
-            119
-        ],
-        [
-            120,
-            126
-        ],
-        [
-            127,
-            131
-        ],
-        [
-            132,
-            135
-        ],
-        [
-            136,
-            140
-        ],
-        [
-            141,
-            144
-        ],
-        [
-            145,
-            150
-        ],
-        [
-            151,
-            158
-        ],
-        [
-            159,
-            165
-        ],
-        [
-            166,
-            169
-        ],
-        [
-            170,
-            174
-        ],
-        [
-            175,
-            179
-        ],
-        [
-            180,
-            183
-        ],
-        [
-            184,
-            188
-        ],
-        [
-            189,
-            193
-        ],
-        [
-            194,
-            204
-        ],
-        [
-            205,
-            213
-        ],
-        [
-            214,
-            218
-        ],
-        [
-            219,
-            225
-        ],
-        [
-            226,
-            231
-        ],
-        [
-            232,
-            235
-        ],
-        [
-            236,
-            240
-        ],
-        [
-            241,
-            244
-        ],
-        [
-            245,
-            257
-        ],
-        [
-            259,
-            262
-        ],
-        [
-            263,
-            267
-        ],
-        [
-            268,
-            276
-        ],
-        [
-            277,
-            283
-        ],
-        [
-            284,
-            286
-        ],
-        [
-            287,
-            294
-        ],
-        [
-            295,
-            302
-        ],
-        [
-            303,
-            306
-        ],
-        [
-            307,
-            314
-        ],
-        [
-            315,
-            319
-        ],
-        [
-            320,
-            324
-        ],
-        [
-            325,
-            328
-        ],
-        [
-            329,
-            341
-        ],
-        [
-            342,
-            344
-        ],
-        [
-            345,
-            349
-        ],
-        [
-            350,
-            352
-        ],
-        [
-            353,
-            354
-        ],
-        [
-            355,
-            361
-        ],
-        [
-            362,
-            365
-        ],
-        [
-            366,
-            373
-        ],
-        [
-            374,
-            376
-        ],
-        [
-            377,
-            379
-        ],
-        [
-            380,
-            383
-        ],
-        [
-            384,
-            387
-        ],
-        [
-            388,
-            390
-        ],
-        [
-            391,
-            396
-        ],
-        [
-            398,
-            406
-        ],
-        [
-            407,
-            410
-        ],
-        [
-            411,
-            417
-        ],
-        [
-            418,
-            422
-        ],
-        [
-            423,
-            424
-        ],
-        [
-            425,
-            431
-        ],
-        [
-            432,
-            436
-        ],
-        [
-            437,
-            439
-        ],
-        [
-            440,
-            443
-        ],
-        [
-            444,
-            449
-        ],
-        [
-            450,
-            455
-        ],
-        [
-            456,
-            460
-        ],
-        [
-            461,
-            465
-        ],
-        [
-            466,
-            469
-        ],
-        [
-            470,
-            474
-        ],
-        [
-            475,
-            481
-        ],
-        [
-            482,
-            484
-        ],
-        [
-            485,
-            486
-        ],
-        [
-            487,
-            495
-        ],
-        [
-            496,
-            500
-        ],
-        [
-            501,
-            503
-        ],
-        [
-            504,
-            512
-        ],
-        [
-            513,
-            516
-        ],
-        [
-            517,
-            522
-        ],
-        [
-            523,
-            527
-        ],
-        [
-            528,
-            531
-        ],
-        [
-            532,
-            538
-        ],
-        [
-            539,
-            542
-        ],
-        [
-            543,
-            547
-        ],
-        [
-            548,
-            557
-        ],
-        [
-            558,
-            561
-        ],
-        [
-            562,
-            564
-        ],
-        [
-            565,
-            568
-        ],
-        [
-            569,
-            571
-        ],
-        [
-            572,
-            579
-        ],
-        [
-            580,
-            583
-        ],
-        [
-            584,
-            593
-        ],
-        [
-            594,
-            600
-        ]
-    ],
-    "action": "getDocument",
-    "attributes": [],
-    "equivs": [],
-    "events": [],
-    "protocol": 1
-}
-
-
-
 var dummyDocEdited = {
     "protocol": 1,
     "messages": [],
@@ -4146,281 +3654,159 @@ var whoamiResponse = {
     "user": null
 }
 
-var loadConfResponse = {
-    "action": "loadConf",
-    "messages": [],
-    "protocol": 1
-}
-
 // action: getDocument
 // collection: /tutorials/tutorials/news/
 // document: 030-login
 
-var Ajax = (function($, window, undefined) {
-    var Ajax = function(dispatcher) {
+var Ajax = (function ($, window, undefined) {
+    var Ajax = function (dispatcher) {
 
-      var that = this;
-      var pending = 0;
-      var count = 0;
-      var pendingList = {};
+        var that = this;
+        var pending = 0;
+        var count = 0;
+        var pendingList = {};
 
-      // merge data will get merged into the response data
-      // before calling the callback
-      var ajaxCall = function(data, callback, merge) {
-        console.log(data)
-        console.log(callback)
-        console.log(merge)
-
-        if (data.action === "getDocument") {
-          // dispatcher.post('messages', [data.messages]);
-          dispatcher.post(0, callback, [data.document]);
-          return dummyReturn;
-        }
-
-        if (data.action === "getCollectionInformation") {
-          dispatcher.post('messages', [dummyReturn.messages]);
-          dispatcher.post(0, callback, [dummyReturn]);
-          return dummyReturn;
-        }
-        else if (data.action === "whoami") {
-          // dont show the tut
-          dispatcher.post('messages', [whoamiResponse.messages]);
-          dispatcher.post(0, callback, [whoamiResponse]);
-          return whoamiResponse;
-        }
-        else if (data.action === "loadConf"){
-          dispatcher.post(0, callback, [loadConfResponse]);
-          return loadConfResponse;
-        }
-        else if (data.action === "createSpan"){
-
-          let loadedDoc = window.loadedDoc
-          if( !loadedDoc.annotations) {
-            loadedDoc.annotations = loadedDoc
-            loadedDoc.annotations.entities = []
-          }
-          loadedDoc.annotations.entities.push([loadedDoc.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
-          loadedDoc.edited = ["1"]
-
-          dispatcher.post('messages', [loadedDoc.messages]);
-          dispatcher.post(0, callback, [loadedDoc]);
-          // dummyDocEdited.annotations.entities.push([dummyDocEdited.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
-          // dummyDocEdited.edited = ["1"]
-          //
-          // dispatcher.post('messages', [dummyDocEdited.messages]);
-          // dispatcher.post(0, callback, [dummyDocEdited]);
-
-          return data;
-        }
-        // var tutorialForm = $('#tutorial');
-        // dispatcher.post('messages', [dummyReturn.messages]);
-        // dispatcher.post('showForm', [tutorialForm]);
-        return 1;
-        merge = merge || {};
-        dispatcher.post('spin');
-        pending++;
-        var id = count++;
-
-        // special value: `merge.keep = true` prevents obsolescence
-        pendingList[id] = merge.keep || false;
-        delete merge.keep;
-
-        // If no protocol version is explicitly set, set it to current
-        if (data['protocol'] === undefined) {
-          // TODO: Extract the protocol version somewhere global
-          data['protocol'] = 1;
-        }
-
-        if (callback) {
-          dispatcher.post(0, callback, []);
-        }
-
-        $.ajax({
-          url: 'ajax.cgi',
-          data: data,
-          type: 'POST',
-          success: function(response) {
-            pending--;
-            // If no exception is set, verify the server results
-            if (response.exception == undefined && response.action !== data.action) {
-              console.error('Action ' + data.action +
-                ' returned the results of action ' + response.action);
-              response.exception = true;
-              dispatcher.post('messages', [[['Protocol error: Action' + data.action + ' returned the results of action ' + response.action + ' maybe the server is unable to run, please run tools/troubleshooting.sh from your installation to diagnose it', 'error', -1]]]);
+        // merge data will get merged into the response data
+        // before calling the callback
+        var ajaxCall = function (data, callback, merge, extraOptions) {
+            if (data.action === "getCollectionInformation") {
+                dispatcher.post('messages', [dummyReturn.messages]);
+                dispatcher.post(0, callback, [dummyReturn]);
+                return dummyReturn;
             }
+            else if (data.action === "whoami") {
+                // dont show the tut
+                dispatcher.post('messages', [whoamiResponse.messages]);
+                dispatcher.post(0, callback, [whoamiResponse]);
+                return whoamiResponse;
+            }
+            else if (data.action === "createSpan") {
 
-            // If the request is obsolete, do nothing; if not...
-            if (pendingList.hasOwnProperty(id)) {
-              dispatcher.post('messages', [response.messages]);
-              if (response.exception == 'configurationError'
-                  || response.exception == 'protocolVersionMismatch') {
-                // this is a no-rescue critical failure.
-                // Stop *everything*.
-                pendingList = {};
-                dispatcher.post('screamingHalt');
-                // If we had a protocol mismatch, prompt the user for a reload
-                if (response.exception == 'protocolVersionMismatch') {
-                  if(confirm('The server is running a different version ' +
-                      'from brat than your client, possibly due to a ' +
-                      'server upgrade. Would you like to reload the ' +
-                      'current page to update your client to the latest ' +
-                      'version?')) {
-                    window.location.reload(true);
-                  } else {
-                    dispatcher.post('messages', [[['Fatal Error: Protocol ' +
-                        'version mismatch, please contact the administrator',
-                        'error', -1]]]);
-                  }
+                let loadedDoc = window.loadedDoc
+                if (!loadedDoc.annotations) {
+                    loadedDoc.annotations = loadedDoc
+                    loadedDoc.annotations.entities = []
                 }
-                return;
-              }
+                loadedDoc.annotations.entities.push([loadedDoc.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
+                loadedDoc.edited = ["1"]
 
-              delete pendingList[id];
+                dispatcher.post('messages', [loadedDoc.messages]);
+                dispatcher.post(0, callback, [loadedDoc]);
+                // dummyDocEdited.annotations.entities.push([dummyDocEdited.annotations.entities.length + 1, data.type, JSON.parse(data.offsets)])
+                // dummyDocEdited.edited = ["1"]
+                //
+                // dispatcher.post('messages', [dummyDocEdited.messages]);
+                // dispatcher.post(0, callback, [dummyDocEdited]);
 
-              // if .exception is just Boolean true, do not process
-              // the callback; if it is anything else, the
-              // callback is responsible for handling it
-              if (response.exception == true) {
-                $('#waiter').dialog('close');
-              } else if (callback) {
-                $.extend(response, merge);
-                dispatcher.post(0, callback, [response]);
-              }
+                return data;
             }
-            // dispatcher.post('unspin');
-          },
-          error: function(response, textStatus, errorThrown) {
-            pending--;
-            // dispatcher.post('unspin');
-            $('#waiter').dialog('close');
-            dispatcher.post('messages', [[['Error: Action' + data.action + ' failed on error ' + response.statusText, 'error']]]);
-            console.error(textStatus + ':', errorThrown, response);
-          }
-        });
-        return id;
-      };
 
-      var isReloadOkay = function() {
-        // do not reload while data is pending
-        return pending == 0;
-      };
+            merge = merge || {};
+            dispatcher.post('spin');
+            pending++;
+            var id = count++;
 
-      var makeObsolete = function(all) {
-        if (all) {
-          pendingList = {};
-        } else {
-          $.each(pendingList, function(id, keep) {
-            if (!keep) delete pendingList[id];
-          });
+            // special value: `merge.keep = true` prevents obsolescence
+            pendingList[id] = merge.keep || false;
+            delete merge.keep;
+
+            // If no protocol version is explicitly set, set it to current
+            if (data['protocol'] === undefined) {
+                // TODO: Extract the protocol version somewhere global
+                data['protocol'] = 1;
+            }
+
+            options = {
+                data: data,
+                success: function (response) {
+                    pending--;
+                    // If no exception is set, verify the server results
+                    if (response.exception == undefined && response.action !== data.action) {
+                        console.error('Action ' + data.action +
+                            ' returned the results of action ' + response.action);
+                        response.exception = true;
+                        dispatcher.post('messages', [[['Protocol error: Action' + data.action + ' returned the results of action ' + response.action + ' maybe the server is unable to run, please run tools/troubleshooting.sh from your installation to diagnose it', 'error', -1]]]);
+                    }
+
+                    // If the request is obsolete, do nothing; if not...
+                    if (pendingList.hasOwnProperty(id)) {
+                        dispatcher.post('messages', [response.messages]);
+                        if (response.exception == 'configurationError'
+                            || response.exception == 'protocolVersionMismatch') {
+                            // this is a no-rescue critical failure.
+                            // Stop *everything*.
+                            pendingList = {};
+                            dispatcher.post('screamingHalt');
+                            // If we had a protocol mismatch, prompt the user for a reload
+                            if (response.exception == 'protocolVersionMismatch') {
+                                if (confirm('The server is running a different version ' +
+                                    'from brat than your client, possibly due to a ' +
+                                    'server upgrade. Would you like to reload the ' +
+                                    'current page to update your client to the latest ' +
+                                    'version?')) {
+                                    window.location.reload(true);
+                                } else {
+                                    dispatcher.post('messages', [[['Fatal Error: Protocol ' +
+                                        'version mismatch, please contact the administrator',
+                                        'error', -1]]]);
+                                }
+                            }
+                            return;
+                        }
+
+                        delete pendingList[id];
+
+                        // if .exception is just Boolean true, do not process
+                        // the callback; if it is anything else, the
+                        // callback is responsible for handling it
+                        if (response.exception == true) {
+                            $('#waiter').dialog('close');
+                        } else if (callback) {
+                            $.extend(response, merge);
+                            dispatcher.post(0, callback, [response]);
+                        }
+                    }
+                    dispatcher.post('unspin');
+                },
+                error: function (response, textStatus, errorThrown) {
+                    pending--;
+                    dispatcher.post('unspin');
+                    $('#waiter').dialog('close');
+                    dispatcher.post('messages', [[['Error: Action' + data.action + ' failed on error ' + response.statusText, 'error']]]);
+                    console.error(textStatus + ':', errorThrown, response);
+                }
+            };
+
+            if (extraOptions) {
+                $.extend(options, extraOptions);
+            }
+            setTimeout(() =>
+                window.ajaxCallback(options),
+                0
+            );
+            return id;
+        };
+
+        var isReloadOkay = function () {
+            // do not reload while data is pending
+            return pending == 0;
+        };
+
+        var makeObsolete = function (all) {
+            if (all) {
+                pendingList = {};
+            } else {
+                $.each(pendingList, function (id, keep) {
+                    if (!keep) delete pendingList[id];
+                });
+            }
         }
-      }
 
-      dispatcher.
-          on('isReloadOkay', isReloadOkay).
-          on('makeAjaxObsolete', makeObsolete).
-          on('ajax', ajaxCall);
+        dispatcher.
+            on('isReloadOkay', isReloadOkay).
+            on('makeAjaxObsolete', makeObsolete).
+            on('ajax', ajaxCall);
     };
 
     return Ajax;
 })(jQuery, window);
-
-
-// var Ajax = (function($, window, undefined) {
-//     var Ajax = function(dispatcher) {
-//       var URL_BASE = 'offline_data';
-//
-//       var that = this;
-//
-//       // merge data will get merged into the response data
-//       // before calling the callback
-//       var ajaxCall = function(data, callback, merge) {
-//         dispatcher.post('spin');
-//
-//         var url;
-//         switch (data.action) {
-//           case 'getDocument':
-//             url = data.collection + data.document + '.data.js';
-//             break;
-//
-//           case 'getCollectionInformation':
-//             url = data.collection + 'collection.js';
-//             break;
-//
-//           case 'whoami':
-//           case 'storeSVG':
-//             // ignore
-//             // TODO: disable SVG links
-//             dispatcher.post(0, callback, [{ user: null, messages: [], action: data.action }]);
-//             dispatcher.post('unspin');
-//             return;
-//
-//           default:
-//             // an action that is not a visualisation action got through
-//             alert("DEBUG TODO XXX UNSUPPORTED ALERT WHATNOW ETC: " + data.action); // XXX
-//         }
-//
-//         console.log(url)
-//
-//         // load the file
-//         // NOTE: beware, there is no error checking possible in this
-//         // loading method. No error handler. If the file is malformed,
-//         // there will be an error that is not under our control. If the
-//         // file is missing, there will be no error, and no callback -
-//         // the interface will get stuck. Be sure collection.js is up to
-//         // date, and no manual messing with URL :)
-//         var scr = document.createElement('script');
-//         scr.onload = function(evt) {
-//           jsonp.messages = [];
-//           if (merge) {
-//             $.extend(jsonp, merge);
-//           }
-//           dispatcher.post(0, callback, [jsonp]);
-//           dispatcher.post('unspin');
-//           document.head.removeChild(evt.target);
-//         };
-//         scr.type = 'text/javascript';
-//         scr.src = URL_BASE + url;
-//         console.log(scr)
-//         document.head.appendChild(scr);
-//
-//         /*
-//         * Chrome "feature" prevents this nice pure JSON solution
-//         * http://www.google.com/support/forum/p/Chrome/thread?tid=36708c2c62cb9b0c&hl=en
-//         * http://code.google.com/p/chromium/issues/detail?id=46167
-//         *
-//         *
-//         * chrome.exe --allow-file-access-from-files
-//         * open /Applications/Google\ Chrome.app --args --allow-file-access-from-files
-//         */
-//         /*
-//         var $iframe = $('<iframe/>');
-//         $iframe.bind('load', function(evt) {
-//           console.log("foo3", evt.target);
-//           var json = $iframe.contents().text();
-//           console.log("ok1");
-//           var response = $.parseJSON(json);
-//           console.log("ok2", merge, json);
-//           response.messages = [];
-//           response.action = [];
-//           $iframe.remove();
-//
-//           if (merge) {
-//             $.extend(response, merge);
-//           }
-//           dispatcher.post(0, callback, [response]);
-//           dispatcher.post('unspin');
-//         });
-//
-//         $('body').append($iframe);
-//         $iframe.css('display', 'none');
-//         $iframe.attr('src', URL_BASE + url);
-//         console.log("foo2", $iframe);
-//         */
-//       };
-//
-//       dispatcher.
-//           on('ajax', ajaxCall);
-//     };
-//
-//     return Ajax;
-// })(jQuery, window);
