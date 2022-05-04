@@ -34,11 +34,6 @@ var Dispatcher = (function($, window, undefined) {
         }
       };
 
-      var handleLocalAjax = function(async, message, args, returnType) {
-        console.log(message);
-        // console.log(this)
-      }
-
       var post = function(asynch, message, args, returnType) {
         if (typeof(asynch) !== 'number') {
           // no asynch parameter
@@ -121,8 +116,7 @@ var Dispatcher = (function($, window, undefined) {
       var dispatcher = {
         on: on,
         post: post,
-        proxy: proxy,
-        handleLocalAjax: handleLocalAjax
+        proxy: proxy
       };
       Dispatcher.dispatchers.push(dispatcher);
       return dispatcher;
