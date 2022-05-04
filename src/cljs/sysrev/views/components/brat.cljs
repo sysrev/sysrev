@@ -63,7 +63,8 @@
       "loadConf" (success loadConf-response)
       "logout" nil
       "saveConf" nil
-      (js/console.warn "Unhandled brat action:" action))))
+      (js/console.warn "Unhandled brat action:" action
+                       (.-data request)))))
 
 (defn Brat [opts]
   (let [iframe (atom nil)
