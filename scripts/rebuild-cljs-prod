@@ -11,11 +11,13 @@ sync_package_json () {
     fi
 }
 
+cd client
+sync_package_json;
+
+cd ..
 changes="$(scripts/find-client-changes)"
 
 cd client
-
-sync_package_json;
 
 if [ ! -z "$changes" ] ; then
     echo "Found client changes:"
