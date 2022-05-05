@@ -7,6 +7,8 @@
              :refer [execute-one! with-tx-context]]
             [sysrev.postgres.interface :as pg]))
 
+(def re-project-name #"([A-Za-z0-9]+-)*[A-Za-z0-9]+")
+
 (defn bearer-token [context]
   (some-> context :request :headers (get "authorization")
           (->> (re-matches #"(?i)Bearer (.*)"))
@@ -109,8 +111,19 @@
           {:keys [name public]} (get-in args [:input :create])]
       (cond
         (not user-id) (resolve/resolve-as nil {:message "Invalid API token"})
-        (str/blank? name) (resolve/resolve-as nil {:message "Project name cannot be blank"
-                                                   :name name})
+
+        (str/blank? name)
+        (resolve/resolve-as nil {:message "Project name cannot be blank"
+                                 :name name})
+
+        (< 40 (count name))
+        (resolve/resolve-as nil {:message "Project name must be 40 characters or less."
+                                 :name name})
+
+        (not (re-matches re-project-name name))
+        (resolve/resolve-as nil {:message "Project name may only contain letters, numbers, and hyphens. It may not start or end with a hyphen."
+                                 :name name})
+
         :else
         (let [settings {:public-access public
                         :second-review-prob 0.5}

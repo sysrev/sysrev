@@ -1,21 +1,26 @@
 (ns sysrev.views.panels.create-project
   (:require [medley.core :as medley :refer [find-first]]
+            [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
+                                   trim-v]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]
             [sysrev.nav :refer [make-url]]
             [sysrev.shared.plans-info :as plans-info]
             [sysrev.util :as util :refer [parse-integer]]
-            [sysrev.views.semantic :refer [Divider Dropdown Form Grid Input Row Column
-                                           Button Icon Radio Header]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel with-loader]]))
+            [sysrev.views.semantic :refer [Button Column Divider Dropdown Form
+                                           Grid Header Icon Input Radio Row]]))
 
 ;; for clj-kondo
 (declare panel state)
 
 (setup-panel-state panel [:new-project]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
+
+(reg-sub      ::error-message #(panel-get % :error-message))
+(reg-event-db ::error-message [trim-v]
+              (fn [db [msg]] (panel-set db :error-message msg)))
 
 (def-action :create-project
   :uri (fn [_ _] "/api/create-project")
@@ -24,7 +29,9 @@
   :process (fn [_ _ {:keys [success message project]}]
              (when success
                {:dispatch-n (list [:reload [:identity]]
-                                  [:project/navigate (:project-id project)])})))
+                                  [:project/navigate (:project-id project)])}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:db (panel-set db :error-message (:message error))}))
 
 (def-action :create-org-project
   :uri (fn [_ org-id _] (str "/api/org/" org-id "/project"))
@@ -33,7 +40,9 @@
   :process (fn [_ _ {:keys [success message project]}]
              (when success
                {:dispatch-n (list [:reload [:identity]]
-                                  [:project/navigate (:project-id project)])})))
+                                  [:project/navigate (:project-id project)])}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:db (panel-set db :error-message (:message error))}))
 
 (defn NewProjectButton [& [{:keys [project-owner]}]]
   [Button {:id "new-project"
@@ -68,7 +77,8 @@
         plan (if (= @project-owner "current-user")
                @(subscribe [:user/current-plan])
                (:plan (->> orgs (find-first #(= @project-owner (:group-id %))))))
-        owner-has-pro? (plans-info/pro? (:nickname plan))]
+        owner-has-pro? (plans-info/pro? (:nickname plan))
+        error @(subscribe [::error-message])]
     [Form {:id "create-project"
            :on-submit #(when @project-name
                          (if (= @project-owner "current-user")
@@ -130,6 +140,11 @@
             "Private Projects are only available for "
             [:a {:href "/pricing"} "Premium Accounts"]
             "."]]]]]]
+      (when error
+        [:<>
+         [Divider]
+         [:div.ui.error.message {:style {:display "block"}}
+          error]])
       [Divider]
       [Button {:type :submit :positive true
                :disabled (or (action/running?)

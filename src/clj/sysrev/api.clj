@@ -115,16 +115,20 @@
   minimum label, returning the project in a response map"
   [sr-context map? project-name string?, user-id int?, public-access boolean?]
   (let [{:keys [api-key]} (user/user-identity-info user-id)
-        {:keys [id name]}
-        #__ (-> (api2/ex!
+        {:keys [data errors]}
+        #__ (-> (api2/execute!
                  sr-context
                  (sacq/create-project "project{id name}")
                  {:input {:create {:name project-name :public public-access}}}
                  :api-token api-key)
-                :body :data :createProject :project)
-        project-id (parse-long id)]
-    (db/clear-project-cache project-id)
-    {:project {:name name :project-id project-id}}))
+                :body)
+        {:keys [id name]} (-> data :createProject :project)
+        project-id (some-> id parse-long)]
+    (if project-id
+      (do
+        (db/clear-project-cache project-id)
+        {:project {:name name :project-id project-id}})
+      {:error (first errors)})))
 
 (defn update-member-permissions!
   "Update a user's permissions for a project, adding them as a new member if needed."
@@ -147,25 +151,35 @@
          (some #{"owner" "admin"} permissions) ["member" "admin"]
          (some #{"member"} permissions) ["member"])))))
 
+(def re-project-name #"([A-Za-z0-9]+-)*[A-Za-z0-9]+")
+
 (defn-spec create-project-for-org! (req-un ::project)
   "Create a new project for org-id using project-name and insert a
   minimum label, returning the project in a response map"
   [project-name string?, user-id int?, group-id int?, public-access boolean?]
-  (with-transaction
-    (let [{:keys [project-id] :as project} (project/create-project project-name)]
-      (label/add-label-overall-include project-id)
-      (group/create-project-group! project-id group-id)
-      (sync-project-members! project-id group-id)
-      (change-project-settings project-id [{:setting :public-access
-                                            :value public-access}])
-      (notification/create-notification
-       {:adding-user-id user-id
-        :group-id group-id
-        :group-name (q/find-one :groups {:group-id group-id} :group-name)
-        :project-id project-id
-        :project-name project-name
-        :type :group-has-new-project})
-      {:project (select-keys project [:project-id :name])})))
+  (cond
+    (< 40 (count project-name))
+    {:error {:message "Project name must be 40 characters or less."}}
+
+    (not (re-matches re-project-name project-name))
+    {:error {:message "Project name may only contain letters, numbers, and hyphens. It may not start or end with a hyphen."}}
+
+    :else
+    (with-transaction
+      (let [{:keys [project-id] :as project} (project/create-project project-name)]
+        (label/add-label-overall-include project-id)
+        (group/create-project-group! project-id group-id)
+        (sync-project-members! project-id group-id)
+        (change-project-settings project-id [{:setting :public-access
+                                              :value public-access}])
+        (notification/create-notification
+         {:adding-user-id user-id
+          :group-id group-id
+          :group-name (q/find-one :groups {:group-id group-id} :group-name)
+          :project-id project-id
+          :project-name project-name
+          :type :group-has-new-project})
+        {:project (select-keys project [:project-id :name])}))))
 
 (defn-spec delete-project! (req-un ::sp/project-id)
   "Delete a project with project-id by user-id. Checks to ensure the
@@ -1246,14 +1260,23 @@
                 (mapv #(assoc % :plan (plans/group-current-plan (:group-id %)))))}))
 
 (defn validate-org-name [org-name]
-  (cond (group/group-name->id org-name)
-        ;; alredy exists
+  (cond (str/blank? org-name)
+        {:error {:status bad-request
+                 :message (str "Organization names can't be blank!")}}
+
+        (< 40 (count org-name))
+        {:error {:status bad-request
+                 :message (str "Organization name must be 40 characters or less.")}}
+
+        (not (re-matches #"([A-Za-z0-9]+-)*[A-Za-z0-9]+" org-name))
+        {:error {:status bad-request
+                 :message (str "Organization name may only contain letters, numbers, and hyphens. It may not start or end with a hyphen.")}}
+
+        (group/group-name->id org-name)
         {:error {:status conflict
                  :message (str "An organization with the name '" org-name "' already exists."
                                " Please try using another name.")}}
-        (str/blank? org-name)
-        {:error {:status bad-request
-                 :message (str "Organization names can't be blank!")}}
+
         :else {:valid true}))
 
 (defn create-org! [user-id org-name]
