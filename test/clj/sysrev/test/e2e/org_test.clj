@@ -29,7 +29,7 @@
 (deftest ^:e2e test-simple-org
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
-          org-1-name (str "Foo Bar Inc. " (util/random-id))]
+          org-1-name (str "Foo-Bar-Inc-" (util/random-id))]
       (account/log-in test-resources user)
       (testing "a person can create a org and they are automatically made owners"
         (doto driver
@@ -58,9 +58,9 @@
 (deftest ^:e2e test-private-setting-disabled
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
-          org-name (str "Foo Bar Inc. " (util/random-id))
+          org-name (str "Foo-Bar-Inc-" (util/random-id))
           org-id (create-org! test-resources org-name user-id)
-          project-name (str "Foo Bar Article Reviews " (util/random-id))]
+          project-name (str "Foo-Bar-Article-Reviews-" (util/random-id))]
       (account/log-in test-resources user)
       (e/go test-resources (str "/org/" org-id "/projects"))
       (testing "private setting is disabled"
@@ -73,9 +73,9 @@
 (deftest ^:e2e test-private-projects
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [{:keys [user-id] :as user} (test/create-test-user system)
-          org-name (str "Foo Bar Inc. " (util/random-id))
+          org-name (str "Foo-Bar-Inc-" (util/random-id))
           org-id (create-org! test-resources org-name user-id)
-          project-name (str "Foo Bar Article Reviews " (util/random-id))
+          project-name (str "Foo-Bar-Article-Reviews-" (util/random-id))
           _ (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
           {{:keys [project-id]} :project} (api/create-project-for-org! project-name user-id org-id false)
           project-url (str "/o/" org-id "/p/" project-id)]

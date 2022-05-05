@@ -13,7 +13,7 @@
             [sysrev.user.core :as user]
             [sysrev.util :as util :refer [sum]]))
 
-(def test-project-name "Sysrev Browser Test")
+(def test-project-name "Sysrev-Browser-Test")
 
 (defn wait-for-project-import [route-response project-id n-sources]
   (Thread/sleep 2000)
@@ -59,7 +59,7 @@
           search-term "foo bar"
           route-response (route-response-fn handler)
           {:keys [email password]} (test/create-test-user system)
-          test-project-name (str test-project-name " " (util/random-id))]
+          test-project-name (str test-project-name "-" (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" {:email email :password password})
                   [:result :valid]))
@@ -105,7 +105,7 @@
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
           {:keys [email user-id password]} (test/create-test-user system)
-          test-project-name (str test-project-name " " (util/random-id))]
+          test-project-name (str test-project-name "-" (util/random-id))]
       (is (integer? user-id))
       (user/set-user-permissions user-id ["user"])
       ;; the projects array in identity is empty
@@ -136,7 +136,7 @@
           route-response (route-response-fn handler)
           {:keys [email password]} (test/create-test-user system)
           new-user (test/create-test-user system :email "baz@qux.com" :password "bazqux")
-          test-project-name (str test-project-name " " (util/random-id))]
+          test-project-name (str test-project-name "-" (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login"
                                   {:email email :password password})
@@ -208,7 +208,7 @@
     (let [handler (sysrev-handler system)
           {:keys [email password]} (test/create-test-user system)
           route-response (route-response-fn handler)
-          test-project-name (str test-project-name " " (util/random-id))
+          test-project-name (str test-project-name "-" (util/random-id))
           _ (route-response :post "/api/auth/login" {:email email :password password})
           create-project-response (route-response :post "/api/create-project"
                                                   {:project-name test-project-name
@@ -306,8 +306,8 @@
           route-response (route-response-fn handler)
           test-user-a (test/create-test-user system)
           test-user-b (test/create-test-user system)
-          project-name "Clone SRC Test"
-          test-project-name (str project-name " " (util/random-id))]
+          project-name "Clone-SRC-Test"
+          test-project-name (str project-name "-" (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" test-user-a)
                   [:result :valid]))
@@ -337,10 +337,10 @@
           route-response (route-response-fn handler)
           test-user-a (test/create-test-user system)
           test-user-b (test/create-test-user system)
-          project-name "Clone SRC Test"
-          test-project-name (str project-name " " (util/random-id))
-          test-org "Alpha Org"
-          org-name (str test-org " " (util/random-id))]
+          project-name "Clone-SRC-Test"
+          test-project-name (str project-name "-" (util/random-id))
+          test-org "Alpha-Org"
+          org-name (str test-org "-" (util/random-id))]
       ;; login this user
       (is (get-in (route-response :post "/api/auth/login" test-user-a)
                   [:result :valid]))
@@ -366,8 +366,8 @@
                        [:error :message])
                "You don't have permission to clone that project"))
         ;; someone else also can't clone the project to their own group
-        (let [test-org-b "Bravo Org"
-              org-name-b (str test-org-b " " (util/random-id))
+        (let [test-org-b "Bravo-Org"
+              org-name-b (str test-org-b "-" (util/random-id))
               org-b (route-response :post "/api/org" {:org-name org-name-b})
               org-b-id (get-in org-b [:result :id])]
           (is (= (get-in (route-response :post (str "/api/org/" org-b-id  "/project/clone")

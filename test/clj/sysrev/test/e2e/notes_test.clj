@@ -18,7 +18,7 @@
           {:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project-id]} (:project (api/create-project-for-user!
                                           (:sr-context system)
-                                          "Browser Test (test-notes)" user-id true))]
+                                          "Browser-Test-test-notes" user-id true))]
       (member/add-project-member
        project-id user-id :permissions ["admin" "member"])
       (src/import-source

@@ -24,7 +24,7 @@
         (ea/refresh driver)
         (testing "create private project"
           (doto driver
-            (et/is-fill-visible {:css "#create-project .project-name input"} "SysRev Browser Test (test-user-create-new)")
+            (et/is-fill-visible {:css "#create-project .project-name input"} "test-user-create-new")
             (et/is-click-visible (str "//p[contains(text(),'Private')]"
                                       "/ancestor::div[contains(@class,'row')]"
                                       "/descendant::div[contains(@class,'radio') and not(contains(@class,'disabled'))]"))
@@ -55,7 +55,7 @@
 (deftest ^:e2e test-private-project-downgrade
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources (str "Baz Qux " (util/random-id)))]
+          project-id (e-project/create-project! test-resources (str "Baz-Qux-" (util/random-id)))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
       (e/go-project test-resources project-id "/settings")
       (doto driver
@@ -78,7 +78,7 @@
 (deftest ^:e2e test-private-project-plan-upgrade
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources (str "Baz Qux " (util/random-id)))]
+          project-id (e-project/create-project! test-resources (str "Baz-Qux-" (util/random-id)))]
       (test/change-user-plan! system user-id "Unlimited_Org_Annual_free")
       (e/go-project test-resources project-id "/settings")
       (doto driver

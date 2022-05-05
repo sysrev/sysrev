@@ -34,14 +34,14 @@
     (let [strings (for [_ (range 13)] (str/lower-case (util/random-id)))
           [s1 s2 & _] strings
           project-names (->> (for [x strings, y strings, z strings]
-                               (str x " " y " " z))
+                               (str x "-" y "-" z))
                              (take 35))
           users (->> (for [x strings, y strings]
                        (str x "@" y (nth [".com" ".org" ".net"] (rand-int 3))))
                      (take 10))
           group-names (->> (for [x strings, y strings, z strings]
-                             (str x " " y " " z " "
-                                  (nth ["LLC." "Inc." "LMTD." "Corp." "Co."] (rand-int 5))))
+                             (str x "-" y "-" z "-"
+                                  (nth ["LLC" "Inc" "LMTD" "Corp" "Co"] (rand-int 5))))
                            (take 35))]
       (doseq [name project-names]
         (project/create-project name))

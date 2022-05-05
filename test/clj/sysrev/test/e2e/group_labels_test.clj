@@ -19,7 +19,7 @@
     (let [user-id (account/log-in
                    test-resources
                    (test/create-test-user system {:email "browser_test@example.com"}))
-          project-name (str "Group Label Paywall Test " (util/random-id))
+          project-name (str "test-paywall-" (util/random-id))
           project-id (e-project/create-project! test-resources project-name)]
       (testing "Paywall is in place"
         (e/go-project test-resources project-id "/labels/edit")

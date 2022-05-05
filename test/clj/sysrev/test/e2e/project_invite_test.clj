@@ -38,7 +38,7 @@
 (deftest ^:e2e test-valid-emails
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources "Test Valid Invites")]
+          project-id (e-project/create-project! test-resources "Test-Valid-Invites")]
       (member/add-project-member project-id user-id :permissions ["owner" "admin" "member"])
       (e/refresh driver)
       (e/go-project test-resources project-id "/users")
@@ -59,7 +59,7 @@
 (deftest ^:e2e test-invalid-emails
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources "Test Invalid Invites")]
+          project-id (e-project/create-project! test-resources "Test-Invalid-Invites")]
       (member/add-project-member project-id user-id :permissions ["owner" "admin" "member"])
       (e/refresh driver)
       (e/go-project test-resources project-id "/users")
@@ -76,7 +76,7 @@
           emails (->> (range 0 (inc (:max-bulk-invitations env)))
                       (map #(str "email" % "@example.com")))
           user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources "Test Max Emails")]
+          project-id (e-project/create-project! test-resources "Test-Max-Emails")]
       (member/add-project-member project-id user-id :permissions ["owner" "admin" "member"])
       (e/refresh driver)
       (e/go-project test-resources project-id "/users")

@@ -21,7 +21,7 @@
     (util/with-print-time-elapsed "import-pubmed-search"
       (let [search-term "foo bar"
             pmids (:pmids (pubmed/get-search-query-response search-term 1))
-            new-project (project/create-project "test project")
+            new-project (project/create-project "test-project")
             new-project-id (:project-id new-project)]
         (try
           (db/with-transaction
@@ -51,7 +51,7 @@
   (test/with-test-system [{:keys [sr-context]} {}]
     (util/with-print-time-elapsed "import-endnote-xml"
       (let [input (get-test-file "Sysrev_Articles_5505_20181128.xml")
-            {:keys [project-id]} (project/create-project "autotest endnote import")]
+            {:keys [project-id]} (project/create-project "autotest-endnote-import")]
         (try (is (= 0 (project/project-article-count project-id)))
              (is (completes? (src/import-source
                               sr-context :endnote-xml
@@ -60,7 +60,7 @@
              (finally (project/delete-project project-id))))
       (let [filename "test2-endnote.xml.gz"
             gz-file (-> (str "test-files/" filename) io/resource io/file)
-            {:keys [project-id]} (project/create-project "autotest endnote import 2")]
+            {:keys [project-id]} (project/create-project "autotest-endnote-import-2")]
         (try (util/with-gunzip-file [file gz-file]
                (is (= 0 (project/project-article-count project-id)))
                (is (completes? (src/import-source
@@ -77,7 +77,7 @@
   (test/with-test-system [{:keys [sr-context]} {}]
     (util/with-print-time-elapsed "import-pmid-file"
       (let [input (get-test-file "test-pmids-200.txt")
-            {:keys [project-id]} (project/create-project "autotest pmid import")]
+            {:keys [project-id]} (project/create-project "autotest-pmid-import")]
         (try
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
@@ -101,7 +101,7 @@
     (util/with-print-time-elapsed "import-pdf-zip"
       (let [filename "test-pdf-import.zip"
             file (-> (str "test-files/" filename) io/resource io/file)
-            {:keys [project-id]} (project/create-project "autotest pdf-zip import")]
+            {:keys [project-id]} (project/create-project "autotest-pdf-zip-import")]
         (try
           (is (= 0 (project/project-article-count project-id)))
           (is (completes? (db/with-transaction
@@ -122,7 +122,7 @@
   (test/with-test-system [{:keys [sr-context]} {}]
     (util/with-print-time-elapsed "import-ds-pubmed-titles"
       (let [search-term "mouse rat computer six"
-            {:keys [project-id]} (project/create-project "test import-ds-pubmed-titles")]
+            {:keys [project-id]} (project/create-project "test-import-ds-pubmed-titles")]
         (try (db/with-transaction
                (src/import-source
                 sr-context :pubmed

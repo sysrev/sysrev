@@ -13,7 +13,7 @@
           {:keys [user-id] :as user} (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
                              (:sr-context system)
-                             "Markdown Test" user-id true)
+                             "Markdown-Test" user-id true)
           {:keys [project-id]} project
           description-first "#foo bar\n##baz qux"
           description-edit "\nquxx quzz corge"

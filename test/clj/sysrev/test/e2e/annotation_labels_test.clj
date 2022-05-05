@@ -18,7 +18,7 @@
           project (:project
                    (api/create-project-for-user!
                     (:sr-context system)
-                    "Browser Test (annotation labels)" (:user-id user) true))]
+                    "Browser-Test-annotation-labels" (:user-id user) true))]
       (doto test-resources
         (account/log-in user)
         (labels/define-label (:project-id project) annotation-label-definition)))))

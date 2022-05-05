@@ -84,12 +84,9 @@
   (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [api-token user-id]} (test/create-test-user system)
           test-user-2 (test/create-test-user system)
-          project-name "Graphql - Paywall Test"
+          project-name "Graphql-Paywall-Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
-                                           sr-context
-                                           "Graphql - Paywall Test"
-                                           user-id
-                                           true)]
+                                           sr-context project-name user-id true)]
       (user/change-user-setting user-id :dev-account-enabled? true)
       (user/change-user-setting (:user-id test-user-2) :dev-account-enabled? true)
       (member/add-project-member project-id (:user-id test-user-2) :permissions ["admin" "member"])
@@ -136,7 +133,7 @@
 (deftest ^:integration test-project-query
   (test/with-test-system [{:keys [sr-context] :as system} {}]
     (let [{:keys [user-id]} (test/create-test-user system)
-          project-name "Graphql - Project Query Test"
+          project-name "Graphql-Project-Query-Test"
           {{:keys [project-id]} :project} (api/create-project-for-user!
                                            sr-context project-name user-id false)
           test-user-1 (test/create-test-user system :email "user1@foo.bar")

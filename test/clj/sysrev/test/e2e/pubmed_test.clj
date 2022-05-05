@@ -14,7 +14,7 @@
 (deftest ^:e2e test-import
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
-          project-id (e-project/create-project! test-resources "Test import-pubmed-sources")]
+          project-id (e-project/create-project! test-resources "import-pubmed-sources")]
       (member/add-project-member project-id user-id :permissions ["owner" "admin" "member"])
       (e/go-project test-resources project-id "/add-articles")
       (testing "Can import PubMed articles to a project"

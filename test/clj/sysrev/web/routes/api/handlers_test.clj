@@ -23,7 +23,7 @@
           (-> (handler
                (->  (mock/request :post "/web-api/create-project")
                     (mock/body (util/write-json
-                                {:project-name "The taming of the foo"
+                                {:project-name "create-project-test"
                                  :api-token api-token}))
                     (mock/header "Content-Type" "application/json")))
               :body util/read-json)
@@ -40,7 +40,7 @@
           user-foo (test/create-test-user system)
           user-baz (test/create-test-user system)
           user-quux (test/create-test-user system)
-          group-name "Baz Business"
+          group-name "Baz-Business"
           group-id (:id (api/create-org! (:user-id user-baz) group-name))]
       ;; make test user is an admin
       (user/set-user-permissions (:user-id test-user) ["user" "admin"])
@@ -54,7 +54,7 @@
             (-> (handler
                  (->  (mock/request :post "/web-api/create-project")
                       (mock/body (util/write-json
-                                  {:project-name "Baz Qux Research"
+                                  {:project-name "Baz-Qux-Research"
                                    :api-token api-token}))
                       (mock/header "Content-Type" "application/json")))
                 :body util/read-json)

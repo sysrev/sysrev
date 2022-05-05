@@ -45,7 +45,7 @@
 (deftest ^:e2e test-unlimited-reviews-setting
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (account/log-in test-resources (test/create-test-user system))
-    (let [project-id (e-project/create-project! test-resources "Unlimited Reviews Test")]
+    (let [project-id (e-project/create-project! test-resources "Unlimited-Reviews-Test")]
       (e/go-project test-resources project-id "/settings")
       (testing "can enable unlimited reviews setting"
         (project/change-project-setting project-id :unlimited-reviews false)
@@ -60,7 +60,7 @@
     (let [{:keys [sr-context]} system
           users (vec (repeatedly 3 #(test/create-test-user system)))
           _ (account/log-in test-resources (first users))
-          project-id (e-project/create-project! test-resources "Unlimited Reviews Test")]
+          project-id (e-project/create-project! test-resources "Unlimited-Reviews-Test")]
       (project/change-project-setting project-id :unlimited-reviews true)
       (src/import-source
        sr-context :pmid-vector project-id

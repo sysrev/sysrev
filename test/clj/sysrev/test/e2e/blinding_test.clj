@@ -28,7 +28,7 @@
           user2 (test/create-test-user system)
           {:keys [project]} (api/create-project-for-user!
                              (:sr-context system)
-                             "Sysrev Browser Test (label blinding)"
+                             "Sysrev-Browser-Test-label-blinding"
                              (:user-id user1)
                              true)
           {:keys [project-id]} project]

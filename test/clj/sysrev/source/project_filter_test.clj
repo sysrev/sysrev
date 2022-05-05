@@ -23,7 +23,7 @@
       (testing "Articles can be imported from a project with one type of article"
         (let [project-1-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source"
+                                "Project-Filter-Import-Source"
                                 user-id
                                 true)
                                :project
@@ -31,7 +31,7 @@
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Target"
+                                "Project-Filter-Import-Target"
                                 user-id
                                 true)
                                :project
@@ -70,7 +70,7 @@
       (testing "Articles can be imported from a project with one type of article and filters"
         (let [project-1-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source"
+                                "Project-Filter-Import-Source"
                                 user-id
                                 true)
                                :project
@@ -78,7 +78,7 @@
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Target"
+                                "Project-Filter-Import-Target"
                                 user-id
                                 true)
                                :project
@@ -117,7 +117,7 @@
       (testing "Articles can be imported from a project with two types of article"
         (let [project-1-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source"
+                                "Project-Filter-Import-Source"
                                 user-id
                                 true)
                                :project
@@ -125,7 +125,7 @@
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Target"
+                                "Project-Filter-Import-Target"
                                 user-id
                                 true)
                                :project
@@ -173,7 +173,7 @@
       (testing "Articles can be re-imported from a project with one type of article"
         (let [project-1-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source"
+                                "Project-Filter-Import-Source"
                                 user-id
                                 true)
                                :project
@@ -181,7 +181,7 @@
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Target"
+                                "Project-Filter-Import-Target"
                                 user-id
                                 true)
                                :project
@@ -241,7 +241,7 @@
       (testing "Articles can be re-imported from a project with one type of article"
         (let [project-1-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source 1"
+                                "Project-Filter-Import-Source-1"
                                 user-id
                                 true)
                                :project
@@ -249,7 +249,7 @@
               project-1-url (str "https://sysrev.com/p/" project-1-id)
               project-2-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Source 2"
+                                "Project-Filter-Import-Source-2"
                                 user-id
                                 true)
                                :project
@@ -257,7 +257,7 @@
               project-2-url (str "https://sysrev.com/p/" project-2-id)
               project-3-id (-> (api/create-project-for-user!
                                 sr-context
-                                "Project Filter Import Target"
+                                "Project-Filter-Import-Target"
                                 user-id
                                 true)
                                :project
