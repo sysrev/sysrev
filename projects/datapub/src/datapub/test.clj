@@ -126,7 +126,7 @@
                   (create-dataset!
                    system
                    {:description "ClinicalTrials.gov is a database of privately and publicly funded clinical studies conducted around the world."
-                    :name "ClinicalTrials.gov"
+                    :name "ctgov"
                     :public true}))]
     (doseq [{:keys [content externalId]} (-> "datapub/ctgov-entities.edn"
                                              io/resource
@@ -164,7 +164,7 @@
   (let [ds-id (or dataset-id
                   (create-dataset!
                    system
-                   {:name "Drugs@FDA Application Documents"
+                   {:name "fda-drugs-docs"
                     :public true}))]
     (doseq [{:keys [external-created external-id filename grouping-id metadata]}
             #__ (-> "datapub/fda-drugs-docs-entities.edn"

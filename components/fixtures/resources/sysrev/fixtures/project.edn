@@ -1,15 +1,15 @@
 [{:project-id 21696
   :enabled true
-  :name "Mangiferin - Data Extraction"
+  :name "Mangiferin-Data-Extraction"
   :project-uuid #uuid "e55b18a-7a86-4e7b-aa1d-d16ba074b983"
   :settings [:lift {:public-access true :second-review-prob 0.5}]}
  {:project-id 1200001
   :enabled true
-  :name "Public Project 1200001"
+  :name "Public-Project-1200001"
   :project-uuid #uuid "929412a9-80ff-45c4-acfb-71f3e19b40fe"
   :settings [:lift {:public-access true :second-review-prob 0.5}]}
  {:project-id 1200002
   :enabled true
-  :name "Public Project 1200002"
+  :name "Public-Project-1200002"
   :project-uuid #uuid "34c6b22f-49e1-4748-b023-e42d51395bfe"
   :settings [:lift {:public-access true :second-review-prob 0.5}]}]
