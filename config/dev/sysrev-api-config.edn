@@ -1,2 +1,2 @@
 {:env :dev
- :pedestal {:port 4060}}
+ :pedestal {:port 0}}

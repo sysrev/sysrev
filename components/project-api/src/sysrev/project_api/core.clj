@@ -9,6 +9,9 @@
 
 (def re-project-name #"([A-Za-z0-9]+-)*[A-Za-z0-9]+")
 
+(defn graphql-endpoint [context]
+  (-> context :pedestal :config :graphql-endpoint))
+
 (defn bearer-token [context]
   (some-> context :request :headers (get "authorization")
           (->> (re-matches #"(?i)Bearer (.*)"))
@@ -61,6 +64,11 @@
 (defn token-check [user-id]
   (when-not user-id
     (resolve/resolve-as nil {:message "Invalid API token"})))
+
+(defn dev-key-check [context]
+  (when-not (some-> context :pedestal :config :sysrev-dev-key
+                    (= (bearer-token context)))
+    (resolve/resolve-as nil {:message "Restricted to internal use"})))
 
 (defn project-admin-check [context ^Long project-id ^Long user-id]
   (when-not (and project-id
@@ -148,7 +156,7 @@
                                    :user-id user-id}]})
           {:id (str project-id)})))))
 
-(defn resolve-create-project-payload#project [context _ val]
+(defn resolve-project-field [context _ val]
   (get-project context val nil))
 
 ;; NOTE: name column is not Name. short-label is Name.
@@ -180,9 +188,6 @@
           (some-> project-label
                   (->> (sl/remap-keys #(or (project-label-cols-inv %) %)))
                   (assoc :id id)))))))
-
-(defn resolve-project-label#project [_ _ _]
-  nil)
 
 (defn random-id
   "Generate a random string id from uppercase/lowercase letters"
@@ -239,13 +244,3 @@
   (get-project-label context val nil))
 
 (defn resolve-project#labels [_ _ _])
-
-(def resolvers
-  {:CreateProjectLabelPayload {:projectLabel #'resolve-create-project-label-payload#project-label}
-   :CreateProjectPayload {:project #'resolve-create-project-payload#project}
-   :Project {:labels #'resolve-project#labels}
-   :ProjectLabel {:project #'resolve-project-label#project}
-   :Query {:getProject #'get-project
-           :getProjectLabel #'get-project-label}
-   :Mutation {:createProject #'create-project!
-              :createProjectLabel #'create-project-label!}})

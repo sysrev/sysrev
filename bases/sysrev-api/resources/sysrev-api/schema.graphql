@@ -128,7 +128,7 @@ input ProjectLabelInput {
 input CreateProjectLabelInput {
   create: ProjectLabelInput!
 
-  "The ID of the project that the label will belong to."
+  "The ID of the Project that the label will belong to."
   projectId: ID
 }
 
@@ -136,14 +136,42 @@ type CreateProjectLabelPayload {
   projectLabel: ProjectLabel
 }
 
+## ProjectSource ##
+
+type ProjectSource {
+  "The source's unique ID."
+  id: ID!
+
+  "The Project that the source belongs to."
+  project: Project!
+}
+
+input ProjectSourceInput {
+  "The ID of the Dataset that provides the source data."
+  datasetId: ID
+
+  "The ID of the Project that the source belongs to."
+  projectId: ID
+}
+
+input CreateProjectSourceInput {
+  create: ProjectSourceInput!
+}
+
+type CreateProjectSourcePayload {
+  projectSource: ProjectSource
+}
+
 type Query {
   getProject(id: ID!): Project
   getProjectLabel(id: ID!): ProjectLabel
+  getProjectSource(id: ID!): ProjectSource
 }
 
 type Mutation {
   createProject(input: CreateProjectInput!): CreateProjectPayload
   createProjectLabel(input: CreateProjectLabelInput!): CreateProjectLabelPayload
+  createProjectSource(input: CreateProjectSourceInput!): CreateProjectSourcePayload
 }
 
 schema {

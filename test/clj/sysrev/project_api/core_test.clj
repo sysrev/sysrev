@@ -1,9 +1,8 @@
-(ns sysrev.project-api.interface-test
-  (:require
-   [clojure.test :refer :all]
-   [sysrev.sysrev-api-client.interface.queries :as sacq]
-   [sysrev.sysrev-api.test :as api-test]
-   [sysrev.test.core :as test]))
+(ns sysrev.project-api.core-test
+  (:require [clojure.test :refer :all]
+            [sysrev.sysrev-api-client.interface.queries :as sacq]
+            [sysrev.sysrev-api.test :as api-test]
+            [sysrev.test.core :as test]))
 
 (defn ex! [system query & [variables opts]]
   (-> (api-test/execute! system query variables opts)

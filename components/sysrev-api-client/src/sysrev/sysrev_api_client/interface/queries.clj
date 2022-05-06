@@ -25,6 +25,15 @@
        (return->string return)
        "}}"))
 
+(defn create-project-source
+  "Returns the string representation of a createProjectSource mutation.
+
+  The return arg is processed by `return->string`."
+  [return]
+  (str "mutation($input: CreateProjectSourceInput!){createProjectSource(input: $input){"
+       (return->string return)
+       "}}"))
+
 (defn get-project
   "Returns the string representation of a getProject query.
 

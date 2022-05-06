@@ -105,11 +105,15 @@
                        (-> ((requiring-resolve 'datapub.main/get-config))
                            ((requiring-resolve 'datapub.main/system-map))))})))
         config (if datapub
-                 (let [port (get-in datapub [:system :pedestal :bound-port])]
-                   (assoc config
-                          :datapub-endpoint (str "http://localhost:" port "/api")
-                          :datapub-ws (str "ws://localhost:" port "/ws")
-                          :graphql-endpoint (str "http://localhost:" port "/api")))
+                 (let [port (get-in datapub [:system :pedestal :bound-port])
+                       graphql-endpoint (str "http://localhost:" port "/api")]
+                   (-> config
+                       (assoc :datapub-endpoint graphql-endpoint
+                              :datapub-ws (str "ws://localhost:" port "/ws")
+                              :graphql-endpoint graphql-endpoint)
+                       (update :sysrev-api-config assoc
+                               :graphql-endpoint graphql-endpoint
+                               :sysrev-dev-key (:sysrev-dev-key config))))
                  config)
         system (-> ((or system-map-f system-map)
                     :config config
