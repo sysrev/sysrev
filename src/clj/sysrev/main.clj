@@ -71,7 +71,7 @@
                (if (#{:test :remote-test} (:profile env))
                  (scheduler/mock-scheduler)
                  (scheduler/scheduler))
-               [:config :postgres])
+               [:config :postgres :sr-context])
    :sente (component/using
            (sente/sente :receive-f sente/receive-sente-channel!)
            [:config :postgres])

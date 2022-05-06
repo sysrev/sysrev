@@ -1,6 +1,7 @@
 (ns sysrev.scheduler.core
   (:require [clojurewerkz.quartzite.scheduler :as qs]
             [com.stuartsierra.component :as component]
+            [sysrev.scheduler.job-queue :as job-queue]
             [sysrev.scheduler.stripe-jobs :refer [schedule-plans-job schedule-subscriptions-job]]
             [sysrev.scheduler.living-data-sources :refer [schedule-living-data-sources]]))
 
@@ -24,6 +25,7 @@
 (defn scheduler []
   (map->Scheduler {:schedule-f
                    (fn [scheduler]
+                     (job-queue/job scheduler)
                      (schedule-plans-job scheduler)
                      (schedule-subscriptions-job scheduler)
                      (schedule-living-data-sources scheduler))}))

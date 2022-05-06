@@ -346,6 +346,7 @@
         (System/exit 0)))))
 
 (defn importing-articles? [system project-id]
+  {:pre [(integer? project-id)]}
   (->> (execute!
         system
         {:select [:meta]

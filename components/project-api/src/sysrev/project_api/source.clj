@@ -33,6 +33,13 @@
        (sl/execute-one! context)
        :project-source/source-id))
 
+(defn insert-job! [context source-id]
+  (->> {:insert-into :job
+        :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
+                  :status "new"
+                  :type "import-project-source-articles"}]}
+       (sl/execute-one! context)))
+
 (defn create-project-source!
   [context {{:keys [create]} :input} _]
   (sl/with-tx-context [context context]
@@ -45,10 +52,10 @@
        (when-not (sl/execute-one! context {:select :project-id
                                            :from :project
                                            :where [:= :project-id project-id]})
-        (resolve/resolve-as
-         nil
-         {:projectId projectId
-          :message "Project does not exist"}))
+         (resolve/resolve-as
+          nil
+          {:projectId projectId
+           :message "Project does not exist"}))
        (when-not (dpc/get-dataset datasetId "id"
                                   :auth-token (core/bearer-token context)
                                   :endpoint (core/graphql-endpoint context))
@@ -57,4 +64,5 @@
           {:datasetId datasetId
            :message "Dataset does not exist"}))
        (let [source-id (insert-source! context project-id datasetId)]
-        {:projectSource {:id (str source-id)}})))))
+         (insert-job! context source-id)
+         {:projectSource {:id (str source-id)}})))))
