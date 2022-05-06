@@ -3760,6 +3760,7 @@ var Ajax = (function ($, window, undefined) {
             if (extraOptions) {
                 $.extend(options, extraOptions);
             }
+
             setTimeout(() =>
                 window.ajaxCallback(options),
                 0

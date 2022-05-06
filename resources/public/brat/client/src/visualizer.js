@@ -2971,6 +2971,10 @@ Util.profileStart('before render');
               that.svg = svg = _svg;
               $svg = $(svg._svg);
 
+              // this isn't being picked up properly outside this file
+              // hack to put this in the global ns
+              window.globalSvg = that.svg;
+
               /* XXX HACK REMOVED - not efficient?
 
               // XXX HACK to allow off-DOM SVG element creation

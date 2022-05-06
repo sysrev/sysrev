@@ -44,6 +44,24 @@
          :protocol 1}
         clj->js)))
 
+
+(defn create-arc-response [^js data]
+  (let [source-data ^js (.-sourceData data)
+        id (->> source-data .-relations
+                (keep (comp #(util/parse-integer %) first))
+                (reduce max 0)
+                inc str)]
+    (->> source-data .-relations
+         (concat #js[#js[id (.-type data) #js[#js["Arg1" (.-origin data)] #js["Arg2" (.-target data)]]]])
+         into-array
+         (set! (.-relations source-data)))
+    (clj->js
+      {:action "createArc"
+       :annotations source-data
+       :edited []
+       :messages #js[]
+       :protocol 1})))
+
 (defn send-message [elem m]
   (.postMessage (.-contentWindow elem)
                 (.stringify js/JSON (clj->js m))))
@@ -63,6 +81,7 @@
       "loadConf" (success loadConf-response)
       "logout" nil
       "saveConf" nil
+      "createArc" (success (create-arc-response data))
       (js/console.warn "Unhandled brat action:" action
                        (.-data request)))))
 

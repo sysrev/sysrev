@@ -1539,6 +1539,7 @@ var AnnotatorUI = (function($, window, undefined) {
             } else {
               arcOptions = {
                 action: 'createArc',
+                'sourceData': sourceData,
                 origin: originSpan.id,
                 target: targetSpan.id,
                 collection: coll,
@@ -1922,8 +1923,6 @@ var AnnotatorUI = (function($, window, undefined) {
       };
 
       var rememberSpanSettings = function(response) {
-
-        console.log("ASDS")
         spanKeymap = {};
 
         // TODO: check for exceptions in response
@@ -2188,7 +2187,6 @@ var AnnotatorUI = (function($, window, undefined) {
 
       var undoStack = [];
       var edited = function(response) {
-        console.log("ASDSDSDSDSD")
         var x = response.exception;
 
         if (x) {
