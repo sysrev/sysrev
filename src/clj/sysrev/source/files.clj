@@ -141,8 +141,10 @@
                   :from :project-source
                   :where [:= :source-id source-id]}
                  (db/execute-one! sr-context))]
+    (db/clear-project-cache project-id)
     (->> (get-dataset-entity-ids (source/datapub-opts sr-context) dataset-id)
-         (import-entities! sr-context project-id source-id dataset-id))))
+         (import-entities! sr-context project-id source-id dataset-id))
+    (db/clear-project-cache project-id)))
 
 (defn get-jobs [sr-context type]
   (->> {:select :*
