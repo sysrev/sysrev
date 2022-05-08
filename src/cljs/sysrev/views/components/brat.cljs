@@ -62,6 +62,12 @@
        :messages #js[]
        :protocol 1})))
 
+
+(defn save-doc [data]
+  (print data))
+  ; on success
+  ; on fail
+
 (defn send-message [elem m]
   (.postMessage (.-contentWindow elem)
                 (.stringify js/JSON (clj->js m))))
@@ -82,6 +88,7 @@
       "logout" nil
       "saveConf" nil
       "createArc" (success (create-arc-response data))
+      "saveDoc" (save-doc data)
       (js/console.warn "Unhandled brat action:" action
                        (.-data request)))))
 

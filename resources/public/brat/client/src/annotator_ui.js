@@ -76,6 +76,13 @@ var AnnotatorUI = (function($, window, undefined) {
         return m[1]; // always matches
       }
 
+      // custom to add a save hook for sysrev
+      $('#save_doc').click(function() {
+        var modifiedSource = sourceData;
+        modifiedSource.action = "saveDoc";
+        dispatcher.post('ajax', [sourceData]);
+      })
+
       var hideForm = function() {
         keymap = null;
         rapidAnnotationDialogVisible = false;
@@ -1508,6 +1515,7 @@ var AnnotatorUI = (function($, window, undefined) {
         svgElement.removeClass('unselectable');
         $('.reselectTarget').removeClass('reselectTarget');
       };
+
 
       var onMouseUp = function(evt) {
         if (that.user === null) return;
