@@ -11,10 +11,11 @@
 
 (def retry-recur-val ::retry-recur)
 
-(defmacro retry [{:keys [interval-ms n throw-pred]} & body]
-  `(let [throw-pred# (or ~throw-pred (constantly false))]
-     (loop [interval-ms# ~interval-ms
-            n# ~n]
+(defmacro retry [opts & body]
+  `(let [opts# ~opts
+         throw-pred# (or (:throw-pred opts#) (constantly false))]
+     (loop [interval-ms# (:interval-ms opts#)
+            n# (:n opts#)]
      ;; Can't recur from inside the catch, so we use a special return
      ;; value to signal the need to recur.
        (let [ret#

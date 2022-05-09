@@ -205,8 +205,7 @@
       :n 4
       :throw-pred pg/serialization-error?}
      ~retry-opts)
-    ~@body)
-  `(do ~@body))
+    ~@body))
 
 (defmacro with-tx
   "Either use an existing :tx in the sr-context, or create a new transaction

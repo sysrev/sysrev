@@ -16,7 +16,7 @@
    If throw-pred is provided, it will be called on the exception. If
    throw-pred returns true, the exception is re-thrown and the body is
    not retried."
-  [{:keys [interval-ms n throw-pred] :as opts} & body]
+  [opts & body]
   `(core/retry ~opts ~@body))
 
 (defn wait-timeout
