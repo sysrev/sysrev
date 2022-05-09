@@ -221,6 +221,20 @@
           (let [~binding (assoc sr-context# :tx tx#)]
             ~@body))))))
 
+(defmacro with-long-tx
+  "Either use an existing :tx in the sr-context, or create a new transaction
+  and assign it to :tx in the sr-context."
+  [[binding sr-context] & body]
+  `(let [sr-context# ~sr-context]
+     (if-let [tx# (:tx sr-context#)]
+       (let [~binding sr-context#] ~@body)
+       (retry-serial
+        (merge {:n 0} (:tx-retry-opts sr-context#))
+        (jdbc/with-transaction [tx# (get-in sr-context# [:postgres :datasource-long-running])
+                                {:isolation :serializable}]
+          (let [~binding (assoc sr-context# :tx tx#)]
+            ~@body))))))
+
 (defn execute!
   "Execute a HoneySQL 2 map."
   [sr-context sqlmap]

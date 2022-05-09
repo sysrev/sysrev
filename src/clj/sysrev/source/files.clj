@@ -43,13 +43,13 @@
 (defn goc-article-data!
   "Get or create an article-data row for an entity."
   [sr-context {:keys [entity-id] :as m}]
-  (db/with-tx [sr-context sr-context]
+  (db/with-long-tx [sr-context sr-context]
     (or (get-article-data! sr-context entity-id)
         (create-article-data! sr-context m))))
 
 (defn create-article!
   [sr-context project-id source-id article-data-id]
-  (db/with-tx [sr-context sr-context]
+  (db/with-long-tx [sr-context sr-context]
     (when-let [article-id (->> {:insert-into :article
                                 :on-conflict []
                                 :do-nothing []
@@ -82,7 +82,7 @@
       (let [entity-id (create-entity! {:datapub-opts datapub-opts
                                        :dataset-id dataset-id
                                        :file file})]
-        (db/with-tx [sr-context sr-context]
+        (db/with-long-tx [sr-context sr-context]
           (let [article-data-id (-> sr-context
                                     (goc-article-data!
                                      {:dataset-id dataset-id
@@ -110,7 +110,7 @@
 
 (defn import-entities! [sr-context project-id source-id dataset-id entity-ids]
   (doseq [entity-id entity-ids]
-    (db/with-tx [sr-context (assoc-in sr-context [:tx-retry-opts :n] 4)]
+    (db/with-long-tx [sr-context (assoc-in sr-context [:tx-retry-opts :n] 4)]
       (let [article-data-id (-> sr-context
                                 (goc-article-data!
                                  {:dataset-id dataset-id
