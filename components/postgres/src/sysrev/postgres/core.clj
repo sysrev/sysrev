@@ -1,15 +1,13 @@
 (ns sysrev.postgres.core
-  (:require
-   [com.stuartsierra.component :as component]
-   [hikari-cp.core :as hikari-cp]
-   [honey.sql :as sql]
-   [next.jdbc :as jdbc]
-   [next.jdbc.result-set :as result-set]
-   [sysrev.flyway.interface :as flyway]
-   [sysrev.json.interface :as json]
-   [sysrev.postgres.embedded :as embedded])
-  (:import
-   (org.postgresql.util PGobject PSQLException)))
+  (:require [com.stuartsierra.component :as component]
+            [hikari-cp.core :as hikari-cp]
+            [honey.sql :as sql]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as result-set]
+            [sysrev.flyway.interface :as flyway]
+            [sysrev.json.interface :as json]
+            [sysrev.postgres.embedded :as embedded])
+  (:import (org.postgresql.util PGobject PSQLException)))
 
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
@@ -17,7 +15,8 @@
     (.setValue (json/write-str x))))
 
 (defn serialization-error? [^Throwable e]
-  (and (instance? PSQLException e)
+  (and (or (instance? PSQLException e)
+           (some->> e ex-cause (instance? PSQLException)))
        (->> e ex-message (re-find #"could not serialize access") boolean)))
 
 (defn make-datasource

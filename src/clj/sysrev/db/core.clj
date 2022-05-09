@@ -203,7 +203,7 @@
     (merge
      {:interval-ms 100
       :n 4
-      :throw-pred pg/serialization-error?}
+      :throw-pred (complement pg/serialization-error?)}
      ~retry-opts)
     ~@body))
 
@@ -215,7 +215,7 @@
      (if-let [tx# (:tx sr-context#)]
        (let [~binding sr-context#] ~@body)
        (retry-serial
-        (merge {:n 1} (:tx-retry-opts sr-context#))
+        (merge {:n 0} (:tx-retry-opts sr-context#))
         (jdbc/with-transaction [tx# (get-in sr-context# [:postgres :datasource])
                                 {:isolation :serializable}]
           (let [~binding (assoc sr-context# :tx tx#)]
