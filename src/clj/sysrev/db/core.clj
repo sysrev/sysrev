@@ -22,7 +22,8 @@
             [sysrev.config :refer [env]]
             [sysrev.memcached.interface :as mem]
             [sysrev.postgres.interface :as pg]
-            [sysrev.util :as util :refer [in?]])
+            [sysrev.util :as util :refer [in?]]
+            [sysrev.util-lite.interface :as ul])
   (:import (java.sql Connection PreparedStatement)
            (org.joda.time DateTime)
            (org.postgresql.jdbc PgArray)
@@ -195,6 +196,18 @@
               (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
 
+(defmacro retry-serial
+  "Retry the body on serialization errors from postgres."
+  [retry-opts & body]
+  `(ul/retry
+    (merge
+     {:interval-ms 100
+      :n 4
+      :throw-pred pg/serialization-error?}
+     ~retry-opts)
+    ~@body)
+  `(do ~@body))
+
 (defmacro with-tx
   "Either use an existing :tx in the sr-context, or create a new transaction
   and assign it to :tx in the sr-context."
@@ -202,10 +215,12 @@
   `(let [sr-context# ~sr-context]
      (if-let [tx# (:tx sr-context#)]
        (let [~binding sr-context#] ~@body)
-       (jdbc/with-transaction [tx# (get-in sr-context# [:postgres :datasource])
-                               {:isolation :serializable}]
-         (let [~binding (assoc sr-context# :tx tx#)]
-           ~@body)))))
+       (retry-serial
+        (merge {:n 1} (:tx-retry-opts sr-context#))
+        (jdbc/with-transaction [tx# (get-in sr-context# [:postgres :datasource])
+                                {:isolation :serializable}]
+          (let [~binding (assoc sr-context# :tx tx#)]
+            ~@body))))))
 
 (defn execute!
   "Execute a HoneySQL 2 map."

@@ -1,6 +1,5 @@
 (ns sysrev.postgres.interface
-  (:require
-   [sysrev.postgres.core :as core]))
+  (:require [sysrev.postgres.core :as core]))
 
 (defn execute!
   "General SQL execution function that returns a fully-realized result set.
@@ -48,3 +47,11 @@
   `(get-in postgres [:config :postgres :template-dbname])` must be set."
   [postgres]
   (core/recreate-db! postgres))
+
+(defn serialization-error?
+  "Returns true if e is caused by a postgres serialization error.
+   See https://wiki.postgresql.org/wiki/SSI
+   
+   The transaction can often be successfully retried when these errors occur."
+  [^Throwable e]
+  (core/serialization-error? e))

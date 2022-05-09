@@ -16,6 +16,10 @@
     (.setType "jsonb")
     (.setValue (json/write-str x))))
 
+(defn serialization-error? [^Throwable e]
+  (and (instance? PSQLException e)
+       (->> e ex-message (re-find #"could not serialize access") boolean)))
+
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."
   [config]

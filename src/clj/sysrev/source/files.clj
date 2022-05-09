@@ -110,7 +110,7 @@
 
 (defn import-entities! [sr-context project-id source-id dataset-id entity-ids]
   (doseq [entity-id entity-ids]
-    (db/with-tx [sr-context sr-context]
+    (db/with-tx [sr-context (assoc-in sr-context [:tx-retry-opts :n] 4)]
       (let [article-data-id (-> sr-context
                                 (goc-article-data!
                                  {:dataset-id dataset-id
