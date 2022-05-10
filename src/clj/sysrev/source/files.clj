@@ -50,16 +50,23 @@
 (defn create-article!
   [sr-context project-id source-id article-data-id]
   (db/with-long-tx [sr-context sr-context]
-    (when-let [article-id (->> {:insert-into :article
-                                :on-conflict []
-                                :do-nothing []
-                                :returning :article-id
-                                :values [{:article-data-id article-data-id
-                                          :project-id project-id}]}
-                               (db/execute-one! sr-context)
-                               :article/article-id)]
+    (when-let [article-id (or (->> {:select :article-id
+                                    :from :article
+                                    :where [:and
+                                            [:= :article-data-id article-data-id]
+                                            [:= :project-id project-id]]}
+                                   (db/execute-one! sr-context)
+                                   :article/article-id)
+                              (->> {:insert-into :article
+                                    :returning :article-id
+                                    :values [{:article-data-id article-data-id
+                                              :project-id project-id}]}
+                                   (db/execute-one! sr-context)
+                                   :article/article-id))]
       (->> {:insert-into :article-source
-            :values [{:article-id article-id :source-id source-id}]}
+            :values [{:article-id article-id :source-id source-id}]
+            :on-conflict []
+            :do-nothing []}
            (db/execute-one! sr-context))
       nil)))
 
