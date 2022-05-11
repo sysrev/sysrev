@@ -15,4 +15,7 @@
  :max-bulk-invitations 100
  :e-util-api-key "***REMOVED***"
  :private-config "config.local.edn"
+ :sysrev-api-config {:env :prod
+                     :graphql-endpoint "https://api.sysrev.com/graphql"
+                     :pedestal {:port 4040}}
  :web-server {:web-asset-path "/out"}}

@@ -23,4 +23,6 @@
  :mock-email true
  :e-util-api-key "***REMOVED***"
  :private-config "config.local.edn"
+ :sysrev-api-config {:env :test
+                     :pedestal {:port 0}}
  :web-server {:web-asset-path "/out-production"}}

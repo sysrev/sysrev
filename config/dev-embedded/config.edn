@@ -23,4 +23,6 @@
  :e-util-api-key "***REMOVED***"
  :profile :dev
  :private-config "config.local.edn"
+  :sysrev-api-config {:env :dev
+                      :pedestal {:port 0}}
  :web-server {:web-asset-path "/out-dev"}}

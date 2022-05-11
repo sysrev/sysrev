@@ -1,3 +1,0 @@
-{:env :prod
- :graphql-endpoint "https://api.sysrev.com/graphql"
- :pedestal {:port 4040}}

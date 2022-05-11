@@ -101,15 +101,25 @@
             [sysrev.test.core :as test]
             [sysrev.user.interface.spec :as su]))
 
-(defn -main []
-  (st/instrument)
-  (try
-    (sysrev.init/start-app)
-    (fixtures/load-fixtures!)
-    (catch Exception e
-      (log/error "Exception in sysrev.init/start-app")
-      (log/error (.getMessage e))
-      (log/error (with-out-str (print-cause-trace-custom e)))))
-  (main/start-nrepl! env)
-  (spit ".nrepl-port" (:bound-port (:nrepl @main/nrepl)))
-  (clojure.main/repl :init #(in-ns 'sysrev.user)))
+(defn -main [& args]
+  (let [exit? (boolean (some #{"--exit"} args))]
+    (try
+      (st/instrument)
+      (try
+        (sysrev.init/start-app)
+        (fixtures/load-fixtures!)
+        (catch Exception e
+          (log/error "Exception in sysrev.init/start-app")
+          (log/error (.getMessage e))
+          (log/error (with-out-str (print-cause-trace-custom e)))))
+      (main/start-nrepl! env)
+      (spit ".nrepl-port" (:bound-port (:nrepl @main/nrepl)))
+      (if exit?
+        (System/exit 0)
+        (clojure.main/repl :init #(in-ns 'sysrev.user)))
+      (catch Throwable e
+        (if exit?
+          (do
+            (log/error e)
+            (System/exit 1))
+          (throw e))))))
