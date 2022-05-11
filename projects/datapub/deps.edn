@@ -11,15 +11,20 @@
         io.replikativ/hasch {:mvn/version "0.3.7"}
 
         poly/aws-client {:local/root "../../components/aws-client"}
+        poly/component {:local/root "../../components/component"}
         poly/config {:local/root "../../components/config"}
+        poly/contajners {:local/root "../../components/contajners"}
         poly/file-util {:local/root "../../components/file-util"}
         poly/flyway {:local/root "../../components/flyway"}
+        poly/json {:local/root "../../components/json"}
+        poly/lacinia {:local/root "../../components/lacinia"}
         poly/lacinia-pedestal {:local/root "../../components/lacinia-pedestal"}
         poly/localstack {:local/root "../../components/localstack"}
         poly/medley {:local/root "../../components/medley"}
         poly/nrepl {:local/root "../../components/nrepl"}
-        poly/postgres {:local/root "../../components/postgres"}
         poly/pdf-read {:local/root "../../components/pdf-read"}
+        poly/postgres {:local/root "../../components/postgres"}
+        poly/shutdown {:local/root "../../components/shutdown"}
         poly/tesseract {:local/root "../../components/tesseract"}
         poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:dev {:extra-paths ["test" "config/dev"]

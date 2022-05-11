@@ -1,5 +1,2 @@
 {:paths ["src"]
- :deps {poly/aws-client {:local/root "../aws-client"}
-        poly/component {:local/root "../component"}
-        poly/contajners {:local/root "../contajners"}
-        poly/util-lite {:local/root "../util-lite"}}}
+ :deps {}}

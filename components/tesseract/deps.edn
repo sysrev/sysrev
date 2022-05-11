@@ -1,3 +1,2 @@
 {:paths ["src"]
- :deps {net.sourceforge.tess4j/tess4j {:mvn/version "4.6.0"
-                                       :exclusions [bouncycastle/bctsp-jdk14]}}}
+ :deps {net.sourceforge.tess4j/tess4j {:mvn/version "4.6.1"}}}

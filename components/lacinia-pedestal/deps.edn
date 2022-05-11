@@ -15,8 +15,4 @@
         org.eclipse.jetty.http2/http2-server {:mvn/version "9.4.44.v20210927"}
         org.eclipse.jetty.websocket/websocket-api {:mvn/version "9.4.44.v20210927"}
         org.eclipse.jetty.websocket/websocket-servlet {:mvn/version "9.4.44.v20210927"}
-        org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.44.v20210927"}
-
-        poly/component {:local/root "../component"}
-        poly/lacinia {:local/root "../lacinia"}
-        poly/medley {:local/root "../medley"}}}
+        org.eclipse.jetty.websocket/websocket-server {:mvn/version "9.4.44.v20210927"}}}

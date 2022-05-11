@@ -3,9 +3,4 @@
         com.github.seancorfield/next.jdbc {:mvn/version "1.2.780"}
         hikari-cp/hikari-cp {:git/url "https://github.com/insilica/hikari-cp.git"
                              :sha "716ddf4e1a49cd424179e8b4d75a05436da8113d"}
-        org.postgresql/postgresql {:mvn/version "42.3.4"}
-
-        poly/component {:local/root "../component"}
-        poly/contajners {:local/root "../contajners"}
-        poly/json {:local/root "../json"}
-        poly/shutdown {:local/root "../shutdown"}}}
+        org.postgresql/postgresql {:mvn/version "42.3.4"}}}

@@ -1,6 +1,2 @@
 {:paths ["src"]
- :deps {com.walmartlabs/lacinia {:mvn/version "1.1"}
-
-        poly/json {:local/root "../json"}
-        poly/medley {:local/root "../medley"}
-        poly/postgres {:local/root "../postgres"}}}
+ :deps {com.walmartlabs/lacinia {:mvn/version "1.1"}}}
