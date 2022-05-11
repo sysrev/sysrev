@@ -104,6 +104,10 @@
                        :api-key api-token))))
           (is (test/wait-not-importing? system project-2-id))
           (is (= 1 (project/project-article-count project-2-id)))
+          (is (= 5
+                 (q/find-count :article {})
+                 (q/find-count :article-pdf {}))
+              "All pdfs are imported")
           (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
                                                           :ad.title %}
                                            :join [[:article-data :ad] :a.article-data-id])]

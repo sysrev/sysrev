@@ -79,7 +79,7 @@
                               (pg/execute! (db/connectable))
                               (keep :article/article-data-id))))
         articles-to-import (remove dupe-data-ids article-data-ids)
-        new-ids (when (seq article-data-ids)
+        new-ids (when (seq articles-to-import)
                   (q/create :article
                             (map #(do {:article-data-id %
                                        :project-id project-id})
@@ -88,7 +88,7 @@
         new-pdfs (mapcat
                   (fn [{:keys [pdf-ids]} article-id]
                     (map #(do {:article-id article-id :s3-id %}) (db/seq-array pdf-ids)))
-                  articles-to-import
+                  (filter (comp (set articles-to-import) :article/article-data-id) old-articles)
                   new-ids)]
     (when (seq new-pdfs)
       (q/create :article-pdf new-pdfs))
