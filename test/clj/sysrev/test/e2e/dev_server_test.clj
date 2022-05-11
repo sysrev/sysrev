@@ -14,12 +14,12 @@
       (log/info name line))))
 
 (deftest ^:integration test-dev-server
-  (testing "Embedded dev server starts up and shuts down within 2 minutes"
+  (testing "Embedded dev server starts up and shuts down successfully"
     (let [process (popen/popen ["clj" "-M:dev-embedded:dev:test:repl" "0""--exit"])
           _ (future (log-stderr! "dev-embedded" process))
           _ (future (log-stdout! "dev-embedded" process))
           exit-code (-> (future (popen/join process))
-                        (deref 120000 ::timeout))]
+                        (deref 300000 ::timeout))]
       (try
         (is (= 0 exit-code))
         (finally
