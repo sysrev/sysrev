@@ -93,9 +93,10 @@
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
-  [& {:keys [config postgres-overrides system-map-f]}]
+  [& {:keys [config port-override postgres-overrides system-map-f]}]
   (log/info "Starting system")
-  (let [config (or config env)
+  (let [config (cond-> (or config env)
+                 port-override (assoc-in [:server :port] port-override))
         datapub (when (:datapub-embedded config)
                   (component/start
                    ((requiring-resolve 'datapub.main/datapub-system)
@@ -125,9 +126,10 @@
 
 (defn start!
   "Start a system and assign it to the sysrev.main/system atom."
-  [& {:keys [only-if-new postgres-overrides]}]
+  [& {:keys [only-if-new port-override postgres-overrides]}]
   (when (or (not only-if-new) (nil? @system))
     (reset! system (start-non-global!
+                    :port-override port-override
                     :postgres-overrides postgres-overrides))))
 
 (defn stop!

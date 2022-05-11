@@ -165,17 +165,6 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
     `repl> (sysrev.init/start-app)`
 
-* You can switch databases for the app
-```clojure
-repl> (sysrev.init/start-app {:dbname "sysrev_test"})
-true
-```
-or just
-```clojure
-repl> (sysrev.init/start-db {:db-name "sysrev_test"})
-{:datasource #object[com.zaxxer.hikari.HikariDataSource 0x6fcbe652 "HikariDataSource (HikariPool-3)"], :config {:dbname "sysrev", :user "postgres", :password "", :host "localhost", :port 5432, :db-name "sysrev_test"}}
-```
-
 * To manage database with Flyway:
 
     Edit `flyway.conf` to match database connection settings.
