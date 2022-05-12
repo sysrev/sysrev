@@ -68,9 +68,9 @@
 (def-action :save-brat-annotation
   :uri (constantly "/api/set-labels")
   :content (fn [project-id {:keys [article-id label-values change? confirm? resolve?]}]
-             (print project-id)
-             (print article-id)
-             (print label-values)
+             ; (print project-id)
+             ; (print article-id)
+             ; (print label-values)
              {:project-id project-id
               :article-id article-id
               :label-values label-values
@@ -93,10 +93,10 @@
      1200001
      {
       :article-id 36900004
-      :label-values {#uuid "f41e6392-db88-464c-8f9f-4ffa78beee15" (.stringify js/JSON data)}
+      :label-values {#uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8" (.stringify js/JSON data)}
       :confirm? true
-      ; :resolve? (boolean resolving?)
-      :on-success #(print "hello")}]]))
+      :resolve? true}]]))
+      ; :on-success #(print "hello")}]]))
 
   ; on success
   ; on fail
