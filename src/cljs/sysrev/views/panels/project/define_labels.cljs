@@ -15,6 +15,7 @@
             [sysrev.util :as util :refer [css in? parse-integer]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
+            [sysrev.views.components.relationship-builder :refer [RelationshipBuilder]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.semantic :as S :refer [Button Divider Form FormField Modal
                                                  ModalContent ModalDescription
@@ -148,6 +149,7 @@
                      "string"       {:multi? false :max-length 100}
                      "categorical"  {:inclusion-values [] :multi? true}
                      "annotation"  {}
+                     "relationship" {:entities []}
                      {})
        :inclusion false
        :category "extra"
@@ -415,6 +417,7 @@
   :uri (fn [] "/api/sync-project-labels")
   :content (fn [project-id labels] {:project-id project-id :labels labels})
   :process (fn [_ _ {:keys [valid? labels]}]
+             (print valid?)
              (if valid? ;; update successful?
                ;; update (1) app-wide project data and (2) local namespace state
                (do (set-app-db-labels! labels)
@@ -468,6 +471,10 @@
    :inclusion    {:display "Inclusion criteria"
                   :tooltip ["Define a relationship between this label and article inclusion."
                             "Users will be warned if their answers contradict the value selected for article inclusion."]}})
+   ; :entities     {:path [:definition :entities]
+   ;                :display "Entities To Annotate (i.e Person) (comma-separated)"
+   ;                :tooltip ["Entities that are able to be annotated."]
+   ;                :optional false}})
 
 (defn- label-setting-field-args
   "Creates map of standard arguments to field component function for a
@@ -521,6 +528,8 @@
         regex (r/cursor definition [:regex])
         ;; optional, vector of strings
         examples (r/cursor definition [:examples])
+        ;; for relationships
+        relationships (r/cursor definition [:relationships])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
         ;;
@@ -603,7 +612,7 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
-     (when (= @value-type "annotation")
+     (when (or (= @value-type "annotation") (= @value-type "relationship"))
        ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
@@ -618,7 +627,8 @@
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
 
-
+     (when (= @value-type "relationship")
+       (RelationshipBuilder @all-values relationships))
 
 
      ;; required
@@ -1116,6 +1126,7 @@
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "group" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [AddLabelButton "relationship" add-new-label!]]
            [:div.column [ImportLabelButton]]]
 
           :else
@@ -1124,6 +1135,7 @@
            [:div.column [AddLabelButton "categorical" add-new-label!]]
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [AddLabelButton "relationship" add-new-label!]]
            [:div.column [ImportLabelButton]]])
         (when-not group-labels-allowed?
           [UpgradeMessage])])

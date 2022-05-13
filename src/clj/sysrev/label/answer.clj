@@ -11,7 +11,6 @@
             [sysrev.util :as util :refer [in?]]))
 
 (defn label-answer-valid? [{:keys [label-id value-type definition] :as _label} answer]
-  (println value-type)
   (case value-type
     "boolean"
     ; (when (contains? #{true false nil} answer)
@@ -84,7 +83,6 @@
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
-  (println "_______TEST________")
   (with-transaction
     (let [project-id (q/get-article article-id :project-id
                                     :with [], :include-disabled true)
@@ -127,8 +125,6 @@
                                              :resolve (boolean resolve?)
                                              :inclusion inclusion}
                                       confirm? (merge {:confirm-time now}))))))]
-      (println project-labels)
-      (println label-values)
       (doseq [label-id existing-label-ids]
         (when (contains? valid-values label-id)
           (let [label (get project-labels label-id)
@@ -143,8 +139,6 @@
                                :resolve (boolean resolve?)
                                :inclusion inclusion}
                         confirm? (assoc :confirm-time now))))))
-      (println "__________TEST__________2")
-      ; (println new-entries)
       (q/create :article-label new-entries)
       (when change?
         (q/create :article-label-history current-entries))

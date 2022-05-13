@@ -83,6 +83,9 @@
    :entity     [[v/string
                  :message "[Error] Invalid value for \"Entity\""]]})
 
+(def relationship-definition-validations
+  {})
+
 (defn categorical-definition-validations
   [definition label-id global-label-id]
   {:multi?
@@ -137,6 +140,9 @@
   "Given a label, return a validation map for it"
   [{:keys [value-type required definition label-id global-label-id]
     :as label}]
+  ; (println value-type)
+  (println "---------")
+  (println definition)
   {:value-type
    [[v/required
      :message "[Error] Label type is not set"]
@@ -181,6 +187,7 @@
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id global-label-id)
                  "group" [[label-validations]]
+                 "relationship" relationship-definition-validations
                  {})})
 
 (defn split-labels-set

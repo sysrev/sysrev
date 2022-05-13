@@ -83,7 +83,7 @@
             (when-not (util/mobile?) [CloneProject])
             access-label
             [ProjectIssueModal]]]]
-         [brat/Brat {:text "ipsum lorem"}]
+         ; [brat/Brat {:text "ipsum lorem"}]
          [:div.ui.top.attached.segment.project-header.mobile
           [:div.row
            [:div.thirteen.wid.column]

@@ -33,7 +33,7 @@
 (declare user-article-confirmed? get-label)
 
 (def valid-label-categories   ["inclusion criteria" "extra"])
-(def valid-label-value-types  ["boolean" "categorical" "string" "group" "annotation"])
+(def valid-label-value-types  ["boolean" "categorical" "string" "group" "annotation" "relationship"])
 
 (defn-spec get-label (s/nilable ::sl/label)
   [label-id ::sl/label-id, & args (s/? any?)]
@@ -601,7 +601,7 @@
                              (-> (select :label-id)
                                  (from :label)
                                  (where [:= :root-label-id-local (:label-id-local label)])
-                                 do-query)) 
+                                 do-query))
         cloned-label (q/create :label (-> label
                                           (dissoc :label-id :label-id-local)
                                           (assoc :project-id target-project-id
