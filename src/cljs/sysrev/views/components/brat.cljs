@@ -1,5 +1,6 @@
 (ns sysrev.views.components.brat
   (:require [reagent.core :as r]
+            [goog.string :as gstring]
             [reagent.dom :as rdom]
             [sysrev.util :as util]
             [sysrev.action.core :refer [def-action]]
@@ -93,7 +94,77 @@
       :label-values {#uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8" (.stringify js/JSON data)}
       :confirm? true
       :resolve? true}]]))
-      ; :on-success #(print "hello")}]]))
+
+(defn generate-arcs [relationships]
+  (map
+    (fn [relation]
+      #js{:color "black"
+          :arrowHead "triangle,5"
+          :labels #js[(:value relation)]
+          :type (:value relation)
+          :targets #js[(gstring/trim (:to relation))]})
+    relationships))
+
+(defn generate-entity-types [labels]
+  (map
+    (fn [label]
+      (let [relationships (-> labels :definition :relationships)
+            entity-relations (filter #(= (gstring/trim (:from %)) (gstring/trim label)) relationships)
+            arcs (into [] (generate-arcs entity-relations))]
+        (print arcs)
+        #js{:bgColor "#ffccaa"
+                              :attributes  #js[]
+                              :children #js[]
+                              :type (gstring/trim label)
+                              :fgColor "black"
+                              :borderColor "darken",
+                              :normalizations #js[],
+                              :name (gstring/trim label)
+                              :arcs (clj->js arcs)}))
+    (:all-values (:definition labels))))
+
+;; leaving here in case we need - this doesn't seem to control
+;; relationships so Im not sure why it's there
+; (defn generate-relation-types [relationships]
+;   (map
+;     (fn [relation]
+;       #js{:args #js[
+;                     #js{:role "Arg1"
+;                         :targets #js[(gstring/trim (:from relation))]}
+;                     #js{:role "Arg2"
+;                         :targets #js[(gstring/trim (:to relation))]}]
+;           :arrowHead "triangle,5"
+;           :name (gstring/trim (:value relation))
+;           :color "black"
+;           :labels nil
+;           :children #js[]
+;           :unused false
+;           :attributes #js[]
+;           :type (gstring/trim (:value relation))
+;           :properties #js{}})
+;     relationships))
+
+
+(defn generate-collection-vals [relationship-label]
+  (let [entity_types (into [] (generate-entity-types relationship-label))]
+    #js{:action "getCollectionInformation"
+        :entity_types (clj->js entity_types)
+        :messages #js[]
+        :event_types #js[]
+        :items #js[]
+        :disambiguator_config #js[]
+        :unconfigured_types #js[]
+        :relation_attribute_types #js[]
+        :search_config #js[
+                           #js["Google" "http://www.google.com/search?q=%s"]
+                           #js["Wikipedia" "http://en.wikipedia.org/wiki/Special:Search?search=%s"]]
+
+
+        :ui_names #js{
+                       :entities "entities",
+                       :events "events",
+                       :relations "relations",
+                       :attributes "attributes"}}))
 
   ; on success
   ; on fail
@@ -107,11 +178,13 @@
                   :action "getDocument"
                   :text (:text opts ""))))
 
-(defn ajax-callback [opts-atom request]
+(defn ajax-callback [opts-atom relationship-labels request]
   (let [data (.-data request)
         action (.-action data)
         success #(.success request %)]
+    (js/console.log request)
     (case action
+      "getCollectionInformation" (success (generate-collection-vals relationship-labels))
       "createSpan" (success (create-span-response data))
       "getDocument" (success (get-doc-response @opts-atom))
       "loadConf" (success loadConf-response)
@@ -122,16 +195,18 @@
       (js/console.warn "Unhandled brat action:" action
                        (.-data request)))))
 
-(defn Brat [opts]
+(defn Brat [opts labels]
   (let [iframe (atom nil)
-        opts-atom (atom opts)]
+        opts-atom (atom opts)
+        relationship-label (filter #(= (:value-type %) "relationship") labels)]
     (r/create-class
      {:display-name "Brat"
       :component-did-mount
       (fn [this]
         (reset! iframe (rdom/dom-node this))
         (set! (.-ajaxCallback ^js (.-contentWindow ^js @iframe))
-              (partial ajax-callback opts-atom)))
+              ; TODO the second here is just for testing fix
+              (partial ajax-callback opts-atom (first relationship-label))))
       :component-did-update
       (fn [this [_ old-opts]]
         (let [[_ {:keys [text] :as new-opts}] (r/argv this)]

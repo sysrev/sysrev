@@ -260,7 +260,6 @@ var AnnotatorUI = (function($, window, undefined) {
       var getValidArcTypesForDrag = function(targetId, targetType) {
         var arcType = stripNumericSuffix(arcOptions && arcOptions.type);
         if (!arcDragOrigin || targetId == arcDragOrigin) return null;
-
         var originType = data.spans[arcDragOrigin].type;
         var spanType = spanTypes[originType];
         var result = [];
@@ -273,6 +272,7 @@ var AnnotatorUI = (function($, window, undefined) {
             }
           });
         }
+        // console.log(result)
         return result;
       };
 
@@ -646,6 +646,7 @@ var AnnotatorUI = (function($, window, undefined) {
 
         $('#span_selected').text(spanText);
         var encodedText = encodeURIComponent(spanText);
+        console.log(searchConfig)
         $.each(searchConfig, function(searchNo, search) {
           $('#span_'+search[0]).attr('href', search[1].replace('%s', encodedText));
         });
@@ -1777,7 +1778,6 @@ var AnnotatorUI = (function($, window, undefined) {
 
       var addSpanTypesToDivInner = function($parent, types, category) {
         if (!types) return;
-
         $.each(types, function(typeNo, type) {
           if (type === null) {
             $parent.append('<hr/>');
@@ -2221,7 +2221,6 @@ var AnnotatorUI = (function($, window, undefined) {
           }
 
           var sourceData = response.annotations;
-                  console.log(sourceData)
           sourceData.document = doc;
           sourceData.collection = coll;
           // this "prevent" is to protect against reloading (from the
