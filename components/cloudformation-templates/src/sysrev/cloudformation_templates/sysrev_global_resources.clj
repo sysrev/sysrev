@@ -97,17 +97,29 @@
     {:HostedZoneId (ref :InsilicaHostedZone)
      :RecordSets
      (concat
-      [{:Name (ref :InsilicaZoneApex)
-        :ResourceRecords ["198.185.159.144" "198.185.159.145" "198.49.23.144" "198.49.23.145"]
-        :TTL "900"
-        :Type "A"}
-       (fn-if
+      [(fn-if
         :IsProd
         {:Name (ref :InsilicaZoneApex)
-         :ResourceRecords ["\"v=spf1 -all\""]
+         :ResourceRecords ["\"v=spf1 include:_spf.google.com ~all\""]
          :TTL "900"
          :Type "TXT"}
-        no-value)]
+        no-value)
+       {:AliasTarget {:DNSName "dalp9pupkphmg.cloudfront.net."
+                      :HostedZoneId "Z2FDTNDATAQYW2"}
+        :Name (ref :InsilicaZoneApex)
+        :Type "A"}
+       {:AliasTarget {:DNSName "dalp9pupkphmg.cloudfront.net."
+                      :HostedZoneId "Z2FDTNDATAQYW2"}
+        :Name (ref :InsilicaZoneApex)
+        :Type "AAAA"}
+       {:AliasTarget {:DNSName "s3-website-us-east-1.amazonaws.com."
+                      :HostedZoneId "Z3AQBSTGFYJSTF"}
+        :Name (join "." ["www" (ref :InsilicaZoneApex)])
+        :Type "A"}
+       {:AliasTarget {:DNSName "s3-website-us-east-1.amazonaws.com."
+                      :HostedZoneId "Z3AQBSTGFYJSTF"}
+        :Name (join "." ["www" (ref :InsilicaZoneApex)])
+        :Type "AAAA"}]
       (simple-records
        (ref :InsilicaZoneApex) 900 "A"
        {"api" "52.203.104.249"
@@ -119,15 +131,10 @@
         "db3" "52.89.182.113"
         "jenkins" "18.233.186.220"
         "k8s" "34.230.43.8"
-        "oldat" "52.1.46.20"
-        "oldwww" "52.1.46.20"
-        "ws1" "71.114.106.111"
-        "ws2" "71.114.106.111"
-        "ws3" "173.69.192.8"})
+        "oldat" "52.1.46.20"})
       (simple-records
        (ref :InsilicaZoneApex) 900 "CNAME"
-       {"www" "ext-cust.squarespace.com."
-        "yysm3rhf2z7tazxrhxkc" "verify.squarespace.com."}))}}
+       {"*.ws1" "insilica-ws-1.ddns.net"}))}}
 
    :InsilicaEmailRecordSetGroup
    {:Type "AWS::Route53::RecordSetGroup"

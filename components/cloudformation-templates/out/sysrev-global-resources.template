@@ -97,7 +97,6 @@
       }
     },
     "InsilicaHostedZoneId" : {
-      "Condition" : "HasInsilicaZone",
       "Export" : {
         "Name" : {
           "Fn::Sub" : "${AWS::StackName}-InsilicaHostedZoneId"
@@ -523,23 +522,56 @@
           "Ref" : "InsilicaHostedZone"
         },
         "RecordSets" : [ {
-          "Name" : {
-            "Ref" : "InsilicaZoneApex"
-          },
-          "ResourceRecords" : [ "198.185.159.144", "198.185.159.145", "198.49.23.144", "198.49.23.145" ],
-          "TTL" : "900",
-          "Type" : "A"
-        }, {
           "Fn::If" : [ "IsProd", {
             "Name" : {
               "Ref" : "InsilicaZoneApex"
             },
-            "ResourceRecords" : [ "\"v=spf1 -all\"" ],
+            "ResourceRecords" : [ "\"v=spf1 include:_spf.google.com ~all\"" ],
             "TTL" : "900",
             "Type" : "TXT"
           }, {
             "Ref" : "AWS::NoValue"
           } ]
+        }, {
+          "AliasTarget" : {
+            "DNSName" : "dalp9pupkphmg.cloudfront.net.",
+            "HostedZoneId" : "Z2FDTNDATAQYW2"
+          },
+          "Name" : {
+            "Ref" : "InsilicaZoneApex"
+          },
+          "Type" : "A"
+        }, {
+          "AliasTarget" : {
+            "DNSName" : "dalp9pupkphmg.cloudfront.net.",
+            "HostedZoneId" : "Z2FDTNDATAQYW2"
+          },
+          "Name" : {
+            "Ref" : "InsilicaZoneApex"
+          },
+          "Type" : "AAAA"
+        }, {
+          "AliasTarget" : {
+            "DNSName" : "s3-website-us-east-1.amazonaws.com.",
+            "HostedZoneId" : "Z3AQBSTGFYJSTF"
+          },
+          "Name" : {
+            "Fn::Join" : [ ".", [ "www", {
+              "Ref" : "InsilicaZoneApex"
+            } ] ]
+          },
+          "Type" : "A"
+        }, {
+          "AliasTarget" : {
+            "DNSName" : "s3-website-us-east-1.amazonaws.com.",
+            "HostedZoneId" : "Z3AQBSTGFYJSTF"
+          },
+          "Name" : {
+            "Fn::Join" : [ ".", [ "www", {
+              "Ref" : "InsilicaZoneApex"
+            } ] ]
+          },
+          "Type" : "AAAA"
         }, {
           "Name" : {
             "Fn::Join" : [ ".", [ "api", {
@@ -632,56 +664,11 @@
           "Type" : "A"
         }, {
           "Name" : {
-            "Fn::Join" : [ ".", [ "oldwww", {
+            "Fn::Join" : [ ".", [ "*.ws1", {
               "Ref" : "InsilicaZoneApex"
             } ] ]
           },
-          "ResourceRecords" : [ "52.1.46.20" ],
-          "TTL" : "900",
-          "Type" : "A"
-        }, {
-          "Name" : {
-            "Fn::Join" : [ ".", [ "ws1", {
-              "Ref" : "InsilicaZoneApex"
-            } ] ]
-          },
-          "ResourceRecords" : [ "71.114.106.111" ],
-          "TTL" : "900",
-          "Type" : "A"
-        }, {
-          "Name" : {
-            "Fn::Join" : [ ".", [ "ws2", {
-              "Ref" : "InsilicaZoneApex"
-            } ] ]
-          },
-          "ResourceRecords" : [ "71.114.106.111" ],
-          "TTL" : "900",
-          "Type" : "A"
-        }, {
-          "Name" : {
-            "Fn::Join" : [ ".", [ "ws3", {
-              "Ref" : "InsilicaZoneApex"
-            } ] ]
-          },
-          "ResourceRecords" : [ "173.69.192.8" ],
-          "TTL" : "900",
-          "Type" : "A"
-        }, {
-          "Name" : {
-            "Fn::Join" : [ ".", [ "www", {
-              "Ref" : "InsilicaZoneApex"
-            } ] ]
-          },
-          "ResourceRecords" : [ "ext-cust.squarespace.com." ],
-          "TTL" : "900",
-          "Type" : "CNAME"
-        }, {
-          "Name" : {
-            "Fn::Join" : [ ".", [ "yysm3rhf2z7tazxrhxkc", {
-              "Ref" : "InsilicaZoneApex"
-            } ] ]
-          },
-          "ResourceRecords" : [ "verify.squarespace.com." ],
+          "ResourceRecords" : [ "insilica-ws-1.ddns.net" ],
           "TTL" : "900",
           "Type" : "CNAME"
         } ]
