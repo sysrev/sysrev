@@ -20,7 +20,7 @@
    [:div.field.relationship-field-values
     [:label [:span "Entity Relationships"]]
     [:div
-     [:p {:on-click #(add-row relationships)} "+"]
+     [:p.ui.tiny.positive.button {:on-click #(add-row relationships)} "+"]
      (for [row @relationships]
        [:div.flex-between {:style {:padding "4px 0"} :key (:key row)}
         [:div

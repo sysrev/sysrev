@@ -2690,11 +2690,6 @@ Util.profileReport();
             setSourceDataDefaults(sourceData);
           }
 
-          console.log("TEST")
-          // console.log(coll)
-          // console.log(doc)
-          // console.log(args)
-
           dispatcher.post('startedRendering', [coll, doc, args]);
           dispatcher.post('spin');
           setTimeout(function() {
@@ -3045,7 +3040,6 @@ Util.profileStart('before render');
       }
 
       var collectionLoaded = function(response) {
-        console.log(response)
         if (!response.exception) {
           setCollectionDefaults(response);
           eventAttributeTypes = loadAttributeTypes(response.event_attribute_types);

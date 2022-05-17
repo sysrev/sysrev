@@ -1,6 +1,198 @@
 // -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; -*-
 // vim:set ft=javascript ts=2 sw=2 sts=2 cindent:
 
+// a single EVENT type
+// {
+//     "borderColor": "darken",
+//     "normalizations": [],
+//     "name": "Life",
+//     "labels": null,
+//     "children": [
+//         {
+//             "borderColor": "darken",
+//             "normalizations": [],
+//             "name": "Be born",
+//             "arcs": [
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Person"
+//                     ],
+//                     "type": "Person-Arg",
+//                     "targets": [
+//                         "Person"
+//                     ]
+//                 },
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Place"
+//                     ],
+//                     "type": "Place-Arg",
+//                     "targets": [
+//                         "GPE"
+//                     ]
+//                 }
+//             ],
+//             "labels": [
+//                 "Be born"
+//             ],
+//             "children": [],
+//             "unused": false,
+//             "bgColor": "lightgreen",
+//             "attributes": [
+//                 "Negation",
+//                 "Confidence"
+//             ],
+//             "type": "Be-born",
+//             "fgColor": "black"
+//         },
+//
+//
+//
+//         {
+//             "borderColor": "darken",
+//             "normalizations": [],
+//             "name": "Marry",
+//             "arcs": [
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Person"
+//                     ],
+//                     "type": "Person-Arg",
+//                     "targets": [
+//                         "Person"
+//                     ]
+//                 },
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Place"
+//                     ],
+//                     "type": "Place-Arg",
+//                     "targets": [
+//                         "GPE"
+//                     ]
+//                 }
+//             ],
+//             "labels": null,
+//             "children": [],
+//             "unused": false,
+//             "bgColor": "lightgreen",
+//             "attributes": [
+//                 "Negation",
+//                 "Confidence"
+//             ],
+//             "type": "Marry",
+//             "fgColor": "black"
+//         },
+//         {
+//             "borderColor": "darken",
+//             "normalizations": [],
+//             "name": "Divorce",
+//             "arcs": [
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Person"
+//                     ],
+//                     "type": "Person-Arg",
+//                     "targets": [
+//                         "Person"
+//                     ]
+//                 },
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Place"
+//                     ],
+//                     "type": "Place-Arg",
+//                     "targets": [
+//                         "GPE"
+//                     ]
+//                 }
+//             ],
+//             "labels": null,
+//             "children": [],
+//             "unused": false,
+//             "bgColor": "lightgreen",
+//             "attributes": [
+//                 "Negation",
+//                 "Confidence"
+//             ],
+//             "type": "Divorce",
+//             "fgColor": "black"
+//         },
+//         {
+//             "borderColor": "darken",
+//             "normalizations": [],
+//             "name": "Die",
+//             "arcs": [
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Person"
+//                     ],
+//                     "type": "Person-Arg",
+//                     "targets": [
+//                         "Person"
+//                     ]
+//                 },
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Agent"
+//                     ],
+//                     "type": "Agent-Arg",
+//                     "targets": [
+//                         "Person",
+//                         "Organization",
+//                         "GPE"
+//                     ]
+//                 },
+//                 {
+//                     "color": "black",
+//                     "arrowHead": "triangle,5",
+//                     "labels": [
+//                         "Place"
+//                     ],
+//                     "type": "Place-Arg",
+//                     "targets": [
+//                         "GPE"
+//                     ]
+//                 }
+//             ],
+//             "labels": null,
+//             "children": [],
+//             "unused": false,
+//             "bgColor": "lightgreen",
+//             "attributes": [
+//                 "Negation",
+//                 "Confidence"
+//             ],
+//             "type": "Die",
+//             "fgColor": "black"
+//         }
+//     ],
+//     "unused": true,
+//     "bgColor": "lightgreen",
+//     "attributes": [
+//         "Negation",
+//         "Confidence"
+//     ],
+//     "type": "Life",
+//     "fgColor": "black"
+// },
+
 var dummyReturn = {
     "protocol": 1,
     "description": null,

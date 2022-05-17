@@ -111,7 +111,6 @@
       (let [relationships (-> labels :definition :relationships)
             entity-relations (filter #(= (gstring/trim (:from %)) (gstring/trim label)) relationships)
             arcs (into [] (generate-arcs entity-relations))]
-        (print arcs)
         #js{:bgColor "#ffccaa"
                               :attributes  #js[]
                               :children #js[]
@@ -123,6 +122,32 @@
                               :arcs (clj->js arcs)}))
     (:all-values (:definition labels))))
 
+(defn generate-event-types [relationship-label]
+  (map
+    (fn [label]
+      (let [entity-relations (filter #(= (gstring/trim (:from %)) (gstring/trim label)) (-> relationship-label :definition :relationships))
+            arcs (into [] (generate-arcs entity-relations))]
+        #js{:borderColor "darken"
+            :normalizations #js[]
+            :name (gstring/trim label)
+            :type (gstring/trim label)
+            :labels nil
+            :unused true
+            :bgColor "lightgreen"
+            :attributes #js[]
+            :fgColor "black"
+            :children #js[#js{:borderColor "darken"
+                              :normalizations #js[]
+                              :name (gstring/trim label)
+                              :type (gstring/trim label),
+                              :fgColor "black"
+                              :children #js[]
+                              :arcs (clj->js arcs)}]}))
+    (-> relationship-label :definition :event-types)))
+      ; {
+      ;     "borderColor": "darken",
+      ;     "normalizations": [],
+      ;     "name": "Be born",}})
 ;; leaving here in case we need - this doesn't seem to control
 ;; relationships so Im not sure why it's there
 ; (defn generate-relation-types [relationships]
@@ -146,11 +171,12 @@
 
 
 (defn generate-collection-vals [relationship-label]
-  (let [entity_types (into [] (generate-entity-types relationship-label))]
+  (let [entity_types (into [] (generate-entity-types relationship-label))
+        event_types (into [] (generate-event-types relationship-label))]
     #js{:action "getCollectionInformation"
         :entity_types (clj->js entity_types)
         :messages #js[]
-        :event_types #js[]
+        :event_types (clj->js event_types)
         :items #js[]
         :disambiguator_config #js[]
         :unconfigured_types #js[]

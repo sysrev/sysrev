@@ -465,6 +465,10 @@
                   :tooltip ["List of values allowed for label."
                             "Reviewers may select multiple values in their answers."]
                   :placeholder "one,two,three"}
+   :event-types   {:path [:definition :event-types]
+                   :display "Events (comma-separated options)"
+                   :tooltip ["List of events for annotations"]
+                   :placeholder "one,two,three"}
    :multi?       {:path [:definition :multi?]
                   :display "Allow multiple values"
                   :tooltip ["Allow answers to contain multiple string values."]}
@@ -528,8 +532,10 @@
         regex (r/cursor definition [:regex])
         ;; optional, vector of strings
         examples (r/cursor definition [:examples])
-        ;; for relationships
+        ;; for relationships - brat
         relationships (r/cursor definition [:relationships])
+        ;; event types - brat
+        event-types (r/cursor definition [:event-types])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
         ;;
@@ -626,9 +632,23 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
+                   
+     (when (= @value-type "relationship")
+       ;; FIX: whitespace not trimmed from input strings;
+       ;; need to run db migration to fix all existing values
+       [ui/TextInputField
+        (make-args :event-types
+                   {:value (str/join "," @event-types)
+                    :label "Events (comma-separated options)"
+                    :tooltip ["Events to annotate."]
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! event-types nil)
+                                    (reset! event-types (str/split value #"," -1))))}
+                   errors)])
 
      (when (= @value-type "relationship")
-       (RelationshipBuilder @all-values relationships))
+       (RelationshipBuilder (concat @all-values @event-types) relationships))
 
 
      ;; required

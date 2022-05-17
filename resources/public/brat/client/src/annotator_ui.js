@@ -646,7 +646,6 @@ var AnnotatorUI = (function($, window, undefined) {
 
         $('#span_selected').text(spanText);
         var encodedText = encodeURIComponent(spanText);
-        console.log(searchConfig)
         $.each(searchConfig, function(searchNo, search) {
           $('#span_'+search[0]).attr('href', search[1].replace('%s', encodedText));
         });
