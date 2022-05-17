@@ -4,7 +4,7 @@
             [reagent.dom :as rdom]
             [sysrev.util :as util]
             [sysrev.action.core :refer [def-action]]
-            [re-frame.core :refer [dispatch]]))
+            [re-frame.core :refer [dispatch subscribe]]))
 
 (let [now (js/Date.now)]
   (def empty-doc
@@ -84,16 +84,18 @@
             {:dispatch-n (concat success-events [[:review/reset-saving]
                                                  [:review/reset-ui-labels]])}))))
 ; [:action [:org/get-share-code org-id]]
-(defn save-doc [data]
-  (dispatch
-   [:action
-    [:save-brat-annotation
-     1200001
-     {
-      :article-id 36900004
-      :label-values {#uuid "c4f5481e-6008-4011-8210-ce6d3bc0f1e8" (.stringify js/JSON data)}
-      :confirm? true
-      :resolve? true}]]))
+(defn save-doc [data article-id]
+  (let [relationship-label (first (vals @(subscribe [:project/labels-raw])))
+        project-id @(subscribe [:active-project-id])]
+    (dispatch
+     [:action
+      [:save-brat-annotation
+       project-id
+       {
+        :article-id article-id
+        :label-values {(:global-label-id relationship-label) (.stringify js/JSON data)}
+        :confirm? true
+        :resolve? true}]])))
 
 (defn generate-arcs [relationships]
   (map
@@ -204,7 +206,7 @@
                   :action "getDocument"
                   :text (:text opts ""))))
 
-(defn ajax-callback [opts-atom relationship-labels request]
+(defn ajax-callback [opts-atom relationship-labels article-id request]
   (let [data (.-data request)
         action (.-action data)
         success #(.success request %)]
@@ -217,11 +219,11 @@
       "logout" nil
       "saveConf" nil
       "createArc" (success (create-arc-response data))
-      "saveDoc" (save-doc data)
+      "saveDoc" (save-doc data article-id)
       (js/console.warn "Unhandled brat action:" action
                        (.-data request)))))
 
-(defn Brat [opts labels]
+(defn Brat [opts labels article-id]
   (let [iframe (atom nil)
         opts-atom (atom opts)
         relationship-label (filter #(= (:value-type %) "relationship") labels)]
@@ -232,7 +234,7 @@
         (reset! iframe (rdom/dom-node this))
         (set! (.-ajaxCallback ^js (.-contentWindow ^js @iframe))
               ; TODO the second here is just for testing fix
-              (partial ajax-callback opts-atom (first relationship-label))))
+              (partial ajax-callback opts-atom (first relationship-label) article-id)))
       :component-did-update
       (fn [this [_ old-opts]]
         (let [[_ {:keys [text] :as new-opts}] (r/argv this)]

@@ -81,4 +81,3 @@
       :get-articles pubmed-get-articles}
      1))
   {:source-id source-id})
-

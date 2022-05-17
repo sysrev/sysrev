@@ -91,7 +91,7 @@
                         :hoverable true :inverted true
                         :trigger (r/as-element item)
                         :content (r/as-element [:div {:style {:min-width "10em"}}
-                                                tooltip])}]
+                                                tooltip])} ]
               item)))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (css menu-class [mobile? "tiny"])}
@@ -390,9 +390,8 @@
   [{:keys [error value on-change on-mouse-up on-mouse-down
            placeholder default-value label autofocus disabled read-only
            field-class tooltip optional]}]
-  ; (print label)
-  ; (if (= (first tooltip) "Events to annotate.")
-  ;   (print on-change))
+  (if (= (first tooltip) "Events to annotate.")
+    (print label))
   [:div.field {:class (css field-class [error "error"])}
    [FormLabelInfo label :tooltip tooltip :optional optional]
    [:input.ui.input
@@ -548,10 +547,10 @@
                   :data-dz-uploadprogress ""}]
        [:div.label {:id (str id "-progress-label")}]]
       #_ [:div.dz-progress
-          [:span.dz-upload {:data-dz-uploadprogress ""}]]]]]])
+          [:span.dz-upload {:data-dz-uploadprogress ""}]]
       ;[:div.dz-error-message
       ; [:span {:data-dz-errormessage ""}]]
-
+      ]]]])
 
 (defn UploadButton [upload-url on-success text & [class style & {:keys [post-error-text]}]]
   [UploadContainer UploadButtonImpl upload-url on-success text

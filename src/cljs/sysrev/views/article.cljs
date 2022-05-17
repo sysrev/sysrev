@@ -26,7 +26,6 @@
             [sysrev.views.reagent-json-view :refer [ReactJSONView]]
             [sysrev.views.semantic :refer [Checkbox]]
             ["xml2js" :as xml2js]))
-            ; [sysrev.views.components.brat :as brat]))
 
 (def XMLViewerComponent (r/adapt-react-class XMLViewer))
 
@@ -164,7 +163,7 @@
 (defn BratFrame [article-id]
   (let [{:keys [abstract]} @(subscribe [:article/raw article-id])]
     (when (seq abstract)
-      [brat/Brat {:text abstract}])))
+      [brat/Brat {:text abstract} (vals @(subscribe [:project/labels-raw])) article-id])))
 
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -561,6 +560,7 @@
                     (filter #(:enabled %))
                     (sort-by #(count (get-in % [:definition :all-values]))))]
     [:div.article-info-top
+     ; (print (filter #(= (:value-type %) "relationship") (vals @(subscribe [:project/labels-raw]))))
      ; [brat/Brat {:text "ipsum lorem"} (vals @(subscribe [:project/labels-raw]))]
      (dispatch [:require (annotator/annotator-data-item ann-context)])
      (dispatch [:require [:annotator/status project-id]])
