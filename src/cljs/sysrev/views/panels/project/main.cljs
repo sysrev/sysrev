@@ -12,8 +12,7 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.user.projects :refer [MakePublic]]
             [sysrev.views.project :refer [ProjectName]]
-            [sysrev.macros :refer-macros [with-loader]]
-            [sysrev.views.components.brat :as brat]))
+            [sysrev.macros :refer-macros [with-loader]]))
 
 (defn ProjectTitle [project-id]
   (let [project-owner @(subscribe [:project/owner project-id])
@@ -83,7 +82,6 @@
             (when-not (util/mobile?) [CloneProject])
             access-label
             [ProjectIssueModal]]]]
-         ; [brat/Brat {:text "ipsum lorem"}]
          [:div.ui.top.attached.segment.project-header.mobile
           [:div.row
            [:div.thirteen.wid.column]
