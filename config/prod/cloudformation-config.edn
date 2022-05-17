@@ -1,0 +1,4 @@
+{:datapub-zone-apex "datapub.dev"
+ :env "prod"
+ :insilica-zone-apex "insilica.co"
+ :sysrev-zone-apex "sysrev.com"}

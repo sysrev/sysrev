@@ -8,22 +8,50 @@ on:
       - production
     paths:
       - '.github/workflows/cloudformation.yml'
-      - 'components/cloudformation-templates/out/sysrev-global-resources.template'
-      - 'components/cloudformation-templates/out/sysrev-regional-resources.template'
+      - 'components/cloudformation-templates/**'
 
 jobs:
-  deploy-global-resources:
-    outputs:
-      cloudfront-oai: ${{ steps.deploy.outputs.CloudFrontOAI }}
-      code-bucket: ${{ steps.deploy.outputs.CodeBucket }}
-      datapub-hosted-zone-id: ${{ steps.deploy.outputs.DatapubHostedZoneId }}
-      datapub-zone-apex: ${{ steps.deploy.outputs.DatapubZoneApex }}
-      service-role-arn: ${{ steps.deploy.outputs.AdminAccessCloudFormationServiceRoleArn }}
-      sysrev-hosted-zone-id: ${{ steps.deploy.outputs.SysrevHostedZoneId }}
-      sysrev-zone-apex: ${{ steps.deploy.outputs.SysrevZoneApex }}
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Cache Clojure dependencies
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          key: clj-sysrev-${{ hashFiles('**/deps.edn') }}
+          restore-keys: clj-sysrev-
+          path: |
+            ~/.gitlibs
+            ~/.m2/repository
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+        timeout-minutes: 5
+        with:
+          nix_path: nixpkgs=channel:nixos-21.11
+
+      - name: Cache Nix store
+        id: nix-cache
+        uses: john-shaffer/cache@sudo-tar
+        timeout-minutes: 10
+        with:
+          key: nix-sysrev-${{ hashFiles('**.nix') }}
+          restore-keys: nix-sysrev-
+          path: |
+            ~/nix-db-dump
+            /nix/store
+            /nix/var/nix/profiles
+
+      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump || true
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+
+      - name: Build Nix derivation
+        run: |
+          mkdir -p ~/.config/nixpkgs
+          echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
+          nix-build -A inputDerivation -o gcroots
 
       - name: Configure AWS staging credentials
         if: github.ref_name == 'staging'
@@ -43,78 +71,20 @@ jobs:
           aws-region: us-east-1
           mask-aws-account-id: no
 
-      - name: Set staging parameters
+      - name: Deploy CloudFormation stacks to staging
         if: github.ref_name == 'staging'
         run: |
-          echo "GLOBAL_PARAMS=DatapubZoneApex=datapubdev.net,Env=staging,InsilicaZoneApex=,SysrevZoneApex=sysrevdev.net" >> $GITHUB_ENV
+          nix-shell --run "clojure -X:dev sysrev.cloudformation-templates.core/deploy!"
 
-      - name: Set production parameters
+      - name: Deploy CloudFormation stacks to production
         if: github.ref_name == 'production'
         run: |
-          echo "GLOBAL_PARAMS=DatapubZoneApex=datapub.dev,Env=prod,InsilicaZoneApex=insilica.co,SysrevZoneApex=sysrev.com" >> $GITHUB_ENV
+          nix-shell --run "clojure -X:prod:dev sysrev.cloudformation-templates.core/deploy!"
 
-      - name: Deploy Sysrev-Global-Resources template
-        id: deploy
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
-        with:
-          name: Sysrev-Global-Resources
-          capabilities: "CAPABILITY_IAM,CAPABILITY_NAMED_IAM"
-          no-fail-on-empty-changeset: '1'
-          parameter-overrides: ${{ env.GLOBAL_PARAMS }}
-          template: components/cloudformation-templates/out/sysrev-global-resources.template
-
-      - name: Echo template outputs
+      - name: Prepare nix cache
+        if: steps.nix-cache.outputs.cache-hit != 'true'
         run: |
-          echo "Developers Group ARN: ${{ steps.deploy.outputs.DevelopersGroupArn }}"
-
-      - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.13.0
-        if: always()
-        with:
-          status: custom
-          fields: workflow,job,commit,repo,ref,author,took
-          custom_payload: |
-            {
-              attachments: [{
-                color: '${{ job.status }}' === 'success' ? 'good' : '${{ job.status }}' === 'failure' ? 'danger' : 'warning',
-                text: `${process.env.AS_WORKFLOW}\n${process.env.AS_JOB} (${process.env.AS_COMMIT}) of ${process.env.AS_REPO}@${process.env.AS_REF} by ${process.env.AS_AUTHOR} ${{ job.status }} in ${process.env.AS_TOOK}`,
-              }]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-  deploy-regional-resources:
-    needs: deploy-global-resources
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Configure AWS staging credentials
-        if: github.ref_name == 'staging'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: us-east-1
-          mask-aws-account-id: no
-
-      - name: Configure AWS prod credentials
-        if: github.ref_name == 'production'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: us-east-1
-          mask-aws-account-id: no
-
-      - name: Deploy Sysrev-Regional-Resources template
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
-        with:
-          name: Sysrev-Regional-Resources
-          no-fail-on-empty-changeset: '1'
-          parameter-overrides: CloudFrontOAI=${{ needs.deploy-global-resources.outputs.cloudfront-oai }},CodeBucket=${{ needs.deploy-global-resources.outputs.code-bucket }},DatapubZoneApex=${{ needs.deploy-global-resources.outputs.datapub-zone-apex }},DatapubHostedZoneId=${{ needs.deploy-global-resources.outputs.datapub-hosted-zone-id }},NumberOfAZs=6,SysrevHostedZoneId=${{ needs.deploy-global-resources.outputs.sysrev-hosted-zone-id }},SysrevZoneApex=${{ needs.deploy-global-resources.outputs.sysrev-zone-apex }}
-          role-arn: ${{ needs.deploy-global-resources.outputs.service-role-arn }}
-          template: components/cloudformation-templates/out/sysrev-regional-resources.template
+          nix-store --dump-db > ~/nix-db-dump
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.13.0

@@ -394,7 +394,3 @@
     :SysrevZoneApex [(ref :SysrevZoneApex)]
     :VpcId [(ref :Vpc)]
     :VpcSubnetIds [(join "," subnets)]}))
-
-(comment
-  (write-template "components/cloudformation-templates/out/sysrev-regional-resources.template"
-                  template))

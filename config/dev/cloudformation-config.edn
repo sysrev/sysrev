@@ -1,0 +1,4 @@
+{:datapub-zone-apex "datapubdev.net"
+ :env "staging"
+ :insilica-zone-apex ""
+ :sysrev-zone-apex "sysrevdev.net"}

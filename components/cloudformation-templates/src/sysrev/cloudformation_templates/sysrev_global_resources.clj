@@ -484,10 +484,6 @@
     :DatapubHostedZoneId [(ref :DatapubHostedZone)]
     :DatapubZoneApex [(ref :DatapubZoneApex)]
     :DevelopersGroupArn [(arn :DevelopersGroup)]
-    :InsilicaHostedZoneId [(ref :InsilicaHostedZone) nil :HasInsilicaZone]
+    :InsilicaHostedZoneId [(fn-if :HasInsilicaZone (ref :InsilicaHostedZone) "nil")]
     :SysrevHostedZoneId [(ref :SysrevHostedZone)]
     :SysrevZoneApex [(ref :SysrevZoneApex)]}))
-
-(comment
-  (write-template "components/cloudformation-templates/out/sysrev-global-resources.template"
-                  template))

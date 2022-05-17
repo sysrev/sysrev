@@ -75,6 +75,8 @@
         org.clojure/core.async {:mvn/version "1.5.648"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
+        rs.shaffe/salmon {:git/url "https://github.com/john-shaffer/salmon.git"
+                          :sha "385b4799f2dbc56ee9b7cc52cd1effdbebd9eda4"}
 
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
@@ -103,7 +105,6 @@
           :main-opts ["-m" "carve.main"]}
   :dev {:extra-paths ["config/dev" "development/src"]
         :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
-                     rs.shaffe/salmon {:mvn/version "0.2.0"}
 
                      poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
