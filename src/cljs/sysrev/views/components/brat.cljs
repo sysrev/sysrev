@@ -67,6 +67,7 @@
 
 
 (defn save-doc [data article-id]
+  ; TODO we probably don't need to save the whole data object - just pull out the few elemnts we need
   (let [labels (vals @(subscribe [:project/labels-raw]))
         relationship-label (first (filter #(= (:value-type %) "relationship") labels))]
     (dispatch [:review/set-label-value
@@ -179,7 +180,9 @@
 (defn get-doc-response [opts]
   (clj->js (assoc empty-doc
                   :action "getDocument"
-                  :text (:text opts ""))))
+                  :text (:text opts "")
+                  :entities (or (:entities opts) [])
+                  :relations (or (:relations opts) []))))
 
 (defn ajax-callback [opts-atom relationship-labels article-id request]
   (let [data (.-data request)
@@ -195,7 +198,8 @@
       "createArc" (success (create-arc-response data))
       (js/console.warn "Unhandled brat action:" action
                        (.-data request)))
-    (save-doc data article-id))) ; every request we save it back to the local label state
+    (when (some #(= % action) ["createSpan" "createArc"])
+      (save-doc data article-id)))) ; every request we save it back to the local label state
 
 (defn Brat [opts labels article-id]
   (let [iframe (atom nil)

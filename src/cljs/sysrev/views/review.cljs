@@ -241,10 +241,6 @@
              (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
-  (print article-id)
-  (print root-label-id)
-  (print label-id)
-  (print ith)
   (let [answer (subscribe [:review/active-labels
                            article-id root-label-id label-id ith])]
     [ui/ThreeStateSelection
@@ -423,6 +419,11 @@
                    [:i.external.alternate.icon]
                    " Identifier info"]])])))))])))
 
+(defn RelationshipLabelInput []
+  [:div [:p "This project has an annotator label configured. If applicable to the document type,
+             you'll see an annotator in the right hand pane."]])
+
+
 (defn- inclusion-tag [article-id root-label-id label-id ith]
   (let [criteria? @(subscribe [:label/inclusion-criteria? root-label-id label-id])
         answer @(subscribe [:review/active-labels article-id root-label-id label-id ith])
@@ -557,6 +558,7 @@
                        "categorical" [CategoricalLabelInput ["na" label-id "na"] article-id]
                        "annotation" [AnnotationLabelInput ["na" label-id "na"] article-id]
                        "string" [StringLabelInput ["na" label-id "na"] article-id]
+                       "relationship" [RelationshipLabelInput]
                        [:div "unknown label - label-column"])]]]
        (when (missing-answer? label answer)
          [:div {:style {:text-align "center"
