@@ -28,7 +28,8 @@
       (catch Exception e
         (log/error "Exception during shutdown hook" e)))))
 
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var
+                      :redundant-fn-wrapper]}
 (defonce add-global-hook!
   (->> #(run-hooks!)  ;; Wrap in #() to allow redefining by the REPL
        Thread.

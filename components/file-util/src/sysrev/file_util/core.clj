@@ -8,7 +8,7 @@
 (defn get-path [^String first & more]
   (Paths/get first (into-array String more)))
 
-(defn ^Path create-temp-file! [prefix suffix]
+(defn create-temp-file! ^Path [prefix suffix]
   (Files/createTempFile prefix suffix (make-array FileAttribute 0)))
 
 (defmacro with-temp-file [[name-sym {:keys [prefix suffix]}] & body]
@@ -43,7 +43,7 @@
          ^"[Ljava.nio.file.CopyOption;" (into-array CopyOption)
          f)))
 
-(defn ^Path create-directories! [^Path dir]
+(defn create-directories! ^Path [^Path dir]
   (Files/createDirectories dir (make-array FileAttribute 0)))
 
 ; We use ZipFile instead of ZipInputstream because zips have a central

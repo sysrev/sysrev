@@ -13,9 +13,9 @@
   [is-or-path ^Path path copy-options]
   (core/copy! is-or-path path copy-options))
 
-(defn ^Path create-directories!
+(defn create-directories!
   "Creates a directory by creating all nonexistent parent directories first."
-  [^Path dir]
+  ^Path [^Path dir]
   (core/create-directories! dir))
 
 (defn get-path

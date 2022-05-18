@@ -14,12 +14,3 @@
 (s/def ::project-role keyword?)
 (s/def ::handler fn?)
 (s/def ::method (s/and keyword? (in? [:get :post])))
-
-(s/def ::pmid integer?)
-(s/def ::nct (s/and string? #(str/starts-with? % "NCT")))
-(s/def ::arm-name string?)
-(s/def ::arm-desc string?)
-(s/def ::nct-arm-import
-  (s/keys :req-un [::pmid ::nct ::arm-name ::arm-desc]))
-(s/def ::nct-arm-imports
-  (s/coll-of ::nct-arm-import))

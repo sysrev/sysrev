@@ -31,12 +31,16 @@
 ;; The :fn/* entries are implicitly checked by s/keys.
 ;; https://github.com/igrishaev/etaoin/blob/master/src/etaoin/xpath.clj
 
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (s/def :fn/disabled string?)
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (s/def :fn/enabled string?)
 (s/def :fn/has-class string?)
 (s/def :fn/has-classes string?)
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (s/def :fn/has-string string?)
 (s/def :fn/has-text string?)
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
 (s/def :fn/link string?)
 (s/def :fn/text string?)
 (s/def ::css string?)

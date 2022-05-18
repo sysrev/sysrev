@@ -37,11 +37,11 @@
   [schema-filenames & {:keys [resolvers streamers] :as opts}]
   (core/load-schema schema-filenames opts))
 
-(defn ^Long parse-int-id
+(defn parse-int-id
   "Returns parsed Long value if the string represents a normalized integer
   value (one that begins with a digit 1-9, not a zero or +/-).
   Returns nil otherwise."
-  [^String id]
+  ^Long [^String id]
   (core/parse-int-id id))
 
 (defn remap-keys

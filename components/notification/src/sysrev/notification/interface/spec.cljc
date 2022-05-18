@@ -16,7 +16,6 @@
 
 (s/def ::adding-user-id ::sc/user-id)
 (s/def ::adding-user-name non-blank)
-(s/def ::article-count pos-int?)
 (s/def ::article-data-title non-blank)
 (s/def ::description non-blank)
 (s/def ::group-name non-blank)
@@ -25,29 +24,11 @@
 (s/def ::inviter-name non-blank)
 (s/def ::new-user-id ::sc/user-id)
 (s/def ::new-user-name non-blank)
-(s/def ::new-user-names (s/coll-of ::new-user-name))
 (s/def ::project-name non-blank)
 (s/def ::source-id int?)
 (s/def ::type (s/and keyword? (set types)))
 (s/def ::text non-blank)
 (s/def ::uri non-blank)
-
-(s/def ::content
-  (s/keys
-   :req-un [::type]
-   :opt-un
-   [::adding-user-name ::sc/article-id ::article-count ::article-data-title
-    ::group-name ::image-uri ::inviter-name ::new-user-id ::new-user-name
-    ::new-user-names ::sc/project-id ::project-name ::text ::uri ::sc/user-id]))
-
-(s/def ::created inst?)
-(s/def ::notification-id ::sc/sql-serial-id)
-(s/def ::publisher-id ::sc/sql-serial-id)
-(s/def ::topic-id ::sc/sql-serial-id)
-
-(s/def ::notification
-  (s/keys
-   :req-un [::content ::created ::notification-id ::publisher-id ::topic-id]))
 
 (s/def ::create-article-reviewed-notification-request
   (s/and

@@ -27,7 +27,6 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.spec.keywords :as skw]
-            [sysrev.shared.spec.notes :as snt]
             [sysrev.user.interface.spec :as su]
             [sysrev.macros :refer-macros [import-vars]]))
 

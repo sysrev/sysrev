@@ -5,7 +5,6 @@
             [clojure.spec.alpha :as s]
             [ajax.core :refer [GET POST PUT]]
             [reagent.core :as r]
-            [reagent.ratom :as ratom]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [sysrev.action.core :as action :refer [def-action]]
             [sysrev.data.core :as data :refer [def-data]]
@@ -28,9 +27,6 @@
 
 (setup-panel-state panel [:user :profile]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
-
-(s/def ::ratom #(or (instance? ratom/RAtom %)
-                    (instance? ratom/RCursor %)))
 
 (defn get-project-invitations!
   "Get all of the invitations that have been sent by the project for which user-id is the admin of"
@@ -336,13 +332,6 @@
     [:a {:id "edit-introduction"
          :href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
      "Edit"]))
-
-(s/def ::introduction (s/nilable string?))
-(s/def ::mutable? boolean?)
-(s/def ::user-id integer?)
-
-#_(s/fdef Introduction
-    :args (s/keys :req-un [::mutable? ::introduction ::user-id]))
 
 (defn- Introduction
   "Display introduction and edit if mutable? is true"

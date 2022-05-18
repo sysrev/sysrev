@@ -18,7 +18,7 @@
   (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
 
 ;; for clj-kondo
-(declare fetch-pubmed-articles fetch-nct-entities get-articles-content fetch-ris-articles-by-ids)
+(declare fetch-pubmed-articles get-articles-content fetch-ris-articles-by-ids)
 
 (defonce ds-host-override (atom nil))
 (defonce ds-auth-key-override (atom nil))

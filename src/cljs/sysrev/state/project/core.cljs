@@ -12,10 +12,6 @@
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          #(:files %))
 
-(reg-sub :project/uuid
-         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
-         #(:project-uuid %))
-
 (reg-sub :project/invite-url
          (fn [[_ project-id]] (subscribe [:project/raw project-id]))
          (fn [{:keys [invite-code]}]

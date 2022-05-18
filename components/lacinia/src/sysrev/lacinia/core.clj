@@ -76,7 +76,7 @@ and https://lacinia.readthedocs.io/en/latest/custom-scalars.html"}
    {:parse identity
     :serialize (constantly nil)}})
 
-(defn ^Long parse-int-id [^String id]
+(defn parse-int-id ^Long [^String id]
   (case (first id)
     (\1 \2 \3 \4 \5 \6 \7 \8 \9) (parse-long id)
     nil))

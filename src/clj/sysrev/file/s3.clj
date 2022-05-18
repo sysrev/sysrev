@@ -12,11 +12,6 @@
 
 (s/def ::byte-array #(= (type %) byte-array-type))
 
-(s/def ::access-key string?)
-(s/def ::secret-key string?)
-(s/def ::endpoint string?)
-(s/def ::credentials (s/keys :req-un [::access-key ::secret-key ::endpoint]))
-
 (s/def ::file #(= (type %) java.io.File))
 (s/def ::file-bytes ::byte-array)
 (s/def ::file-key string?)

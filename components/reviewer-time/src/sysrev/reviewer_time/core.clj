@@ -17,22 +17,22 @@
   idle-duration
   (Duration/ofHours 1))
 
-(defn ^LocalDateTime Date->LocalDateTime [^java.util.Date date]
+(defn Date->LocalDateTime ^LocalDateTime [^java.util.Date date]
   (-> date
       .toInstant
       (LocalDateTime/ofInstant (ZoneId/systemDefault))))
 
-(defn ^LocalDateTime Long->LocalDateTime [^Long long]
+(defn Long->LocalDateTime ^LocalDateTime [^Long long]
   (-> long
       Instant/ofEpochMilli
       (LocalDateTime/ofInstant (ZoneId/of "UTC"))))
 
-(defn ^LocalDateTime Timestamp->LocalDateTime [^Timestamp ts]
+(defn Timestamp->LocalDateTime ^LocalDateTime [^Timestamp ts]
   (-> ts
       .toInstant
       (LocalDateTime/ofInstant (ZoneId/of "UTC"))))
 
-(defn ^LocalDateTime ->LocalDateTime [x]
+(defn ->LocalDateTime ^LocalDateTime [x]
   (cond
     (instance? LocalDateTime x) x
     (instance? java.util.Date x)
@@ -80,7 +80,7 @@
               (recur (assoc current :last-event-time created)
                      more intervals))))))))
 
-(defn ^Duration intervals->total-duration [intervals]
+(defn intervals->total-duration ^Duration [intervals]
   (->> intervals
        (map #(Duration/between (:start %) (:end %)))
        (reduce #(.plus ^Duration % %2) Duration/ZERO)))

@@ -46,10 +46,3 @@
            ::year ::authors ::urls ::document-ids ::project-id ::raw
            ::article-uuid ::enabled ::duplicate-of
            ::score ::locations ::flags]))
-
-(s/def ::article-or-id (s/or :id ::sc/article-id
-                             :map ::article))
-
-(s/def ::flag-name string?)
-(s/def ::disable boolean?)
-(s/def ::meta map?)

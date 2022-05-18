@@ -15,7 +15,6 @@
 ;; for clj-kondo
 (declare create-project-compensation! read-project-compensations)
 
-(s/def ::time any?)
 (s/def ::cents int?)
 
 (s/def ::compensation map?)

@@ -21,18 +21,8 @@
   ([query & {:keys [ignore] :as args}]
    (apply-keyargs #'loading/data-loading? query args)))
 
-;; re-frame db value
-(s/def ::db map?)
-
 ;; data item vector
 (s/def ::item-name keyword?) ; keyword name for item
-(s/def ::item-arg (constantly true)) ; any value
-;; ex: [:project 100]
-(s/def ::item (s/and vector? (s/cat :name ::item-name :args (s/* ::item-arg))))
-
-;; item value formats
-(s/def ::item-args (s/coll-of ::item-arg))
-(s/def ::db-item-args (s/cat :db ::db :args (s/* ::item-arg)))
 
 ;; def-data arguments
 (doseq [arg [::loaded? ::process ::prereqs ::content ::on-error]]

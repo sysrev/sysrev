@@ -15,10 +15,6 @@
   (s/keys :req-un
           [::keyword-id ::project-id ::user-id ::label-id ::label-value
            ::value ::category ::color]))
-(s/def ::project-keyword-partial
-  (s/keys :opt-un
-          [::keyword-id ::project-id ::user-id ::label-id ::label-value
-           ::value ::category ::color]))
 
 (s/def ::toks (s/coll-of string?))
 

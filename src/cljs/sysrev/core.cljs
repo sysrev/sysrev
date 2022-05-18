@@ -16,7 +16,6 @@
             [sysrev.shared.spec.core]
             [sysrev.shared.spec.keywords]
             [sysrev.shared.spec.labels]
-            [sysrev.shared.spec.notes]
             [sysrev.shared.spec.project]
             [sysrev.state.all]
             sysrev.user.interface.spec
@@ -128,7 +127,9 @@
       (dispatch [:action [::record-ui-errors new-errors]])
       (reset! recorded-errors errors))))
 
+#_{:clj-kondo/ignore [:redundant-fn-wrapper]}
 (defn start-send-errors-interval []
+  ;; Wrap in fn to allow runtime redef
   (js/setInterval #(send-errors-to-server!) 1000))
 
 (defn ^:export spec-instrument []

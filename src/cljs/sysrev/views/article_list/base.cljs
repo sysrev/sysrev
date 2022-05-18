@@ -332,15 +332,9 @@
                        @(subscribe [:have? data-item])
                        (not (data-loading? context)))))))
 
-(defn reload-list-count [context]
-  (let [item @(subscribe [::count-query context])]
-    (dispatch [:reload item])))
-(reg-fx ::reload-list-count reload-list-count)
-
 (defn reload-list-data [context]
   (let [item @(subscribe [::articles-query context])]
     (dispatch [:reload item])))
-(reg-fx ::reload-list-data reload-list-data)
 
 (defn reload-list [context & [nav-action]]
   (when nav-action

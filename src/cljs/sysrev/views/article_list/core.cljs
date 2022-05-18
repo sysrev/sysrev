@@ -17,16 +17,6 @@
                                                       UserPublicProfileLink]]
             [sysrev.views.review :as review]))
 
-(reg-sub-raw ::prev-next-article-ids
-             (fn [_ [_ context]]
-               (reaction
-                (let [articles @(al/sub-articles context)
-                      active-id @(subscribe [::al/get context [:active-article]])
-                      visible-ids (map :article-id articles)]
-                  (when (in? visible-ids active-id)
-                    {:prev-id (->> visible-ids (take-while #(not= % active-id)) last)
-                     :next-id (->> visible-ids (drop-while #(not= % active-id)) (drop 1) first)})))))
-
 (reg-sub ::resolving-allowed?
          (fn [[_ context article-id]]
            [(subscribe [::al/get context [:active-article]])

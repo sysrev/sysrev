@@ -38,7 +38,3 @@
   (s/keys :req-un
           [::project-id ::user-id ::join-date ::permissions
            ::enabled ::membership-id]))
-(s/def ::project-member-partial
-  (s/keys :opt-un
-          [::project-id ::user-id ::join-date ::permissions
-           ::enabled ::membership-id]))

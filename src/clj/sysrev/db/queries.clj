@@ -589,7 +589,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; ++ def-find-type table definitions (find-*, find-*-1, get-*)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(declare find-project find-project-1 get-project)
+(declare find-project get-project)
 (def-find-type [:project :p]
   {:id-field       project-id
    :join-default   []
@@ -601,7 +601,7 @@
   {:custom-opts [include-disabled]
    :-match-by match-by :-fields fields :-opts opts :-with with})
 
-(declare find-user find-user-1 get-user)
+(declare get-user)
 (def-find-type [:web-user :u]
   {:id-field       user-id
    :table-name     "user"
@@ -610,7 +610,7 @@
                     :project         [[:project :p]          :pm.project-id]}}
   {:-match-by match-by :-fields fields :-opts opts :-with with})
 
-(declare find-label find-label-1 get-label)
+(declare find-label find-label-1)
 (def-find-type [:label :l]
   {:id-field       label-id
    :join-default   []
@@ -621,7 +621,7 @@
   {:custom-opts [include-disabled]
    :-match-by match-by :-fields fields :-opts opts :-with with})
 
-(declare find-article find-article-1 get-article)
+(declare find-article get-article)
 (def-find-type [:article :a]
   {:id-field      article-id
    :join-default  [:article-data]
@@ -658,7 +658,7 @@
 (defn filter-valid-article-label [m confirmed?]
   (merge-where m (where-valid-article-label confirmed?)))
 
-(declare find-article-label find-article-label-1)
+(declare find-article-label)
 (def-find-type [:article-label :al]
   {:join-default  []
    :join-specs    {:article       [[:article :a]        :al.article-id]

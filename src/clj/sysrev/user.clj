@@ -96,7 +96,6 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.labels :as sl]
-            [sysrev.shared.spec.notes :as snt]
             [sysrev.shared.spec.project :as sp]
             [sysrev.test.core :as test]
             [sysrev.user.interface.spec :as su]))

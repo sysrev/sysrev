@@ -2,10 +2,8 @@
   (:require [clojure.string :as str]
             ["showdown" :as showdown]
             ["dompurify" :as DOMPurify]
-            [clojure.spec.alpha :as s]
             [goog.dom :as gdom]
             [reagent.core :as r]
-            [reagent.ratom :as ratom]
             [sysrev.views.semantic :refer [TextArea]]
             [sysrev.util :as util :refer [css]]))
 
@@ -45,18 +43,6 @@
   [:div {:class "markdown-content"
          :style {:word-wrap "break-word"}
          :dangerouslySetInnerHTML {:__html (create-markdown-html markdown)}}])
-
-(s/def ::ratom #(or (instance? ratom/RAtom %)
-                    (instance? ratom/RCursor %)))
-
-(s/def ::content string?)
-(s/def ::set-content! fn?)
-(s/def ::loading? (s/nilable boolean?))
-(s/def ::mutable? (s/nilable boolean?))
-(s/def ::editing? ::ratom)
-
-#_(s/fdef MarkdownComponent
-    :args (s/keys :req-un [::content ::set-content! ::loading? ::mutable? ::editing?]))
 
 ;; refactor to use semantic js components to make it easier to read
 (defn MarkdownComponent

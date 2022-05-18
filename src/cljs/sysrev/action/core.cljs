@@ -19,17 +19,8 @@
   ([query & {:keys [ignore] :as args}]
    (apply-keyargs #'loading/action-running? query args)))
 
-;; re-frame db value
-(s/def ::db map?)
-
 ;; action item vector
 (s/def ::item-name keyword?) ; keyword name for item
-(s/def ::item-arg (constantly true)) ; any value
-;; ex: [:join-project "JZl_s2akOwcsn4CxhDAKGvY1qHjHJFdR"]
-(s/def ::item (s/and vector? (s/cat :name ::item-name :args (s/* ::item-arg))))
-
-;; item value formats
-(s/def ::item-args (s/coll-of ::item-arg))
 
 ;; def-action arguments
 (doseq [arg [::content ::process ::on-error]]
