@@ -128,14 +128,14 @@
 (defn update-project-predictions [project-id]
   (let [{:keys [reviewed]} (label/project-article-status-counts project-id)]
     (when (and reviewed (>= reviewed 10))
-      (send predict-api
-            (fn [_] (try (db/with-transaction
-                           (create-predict-model project-id)
-                           (store-model-predictions project-id)
-                           true)
-                         (catch Throwable e
-                           (util/log-exception e)
-                           false))))
+      (send-off predict-api
+                (fn [_] (try (db/with-transaction
+                               (create-predict-model project-id)
+                               (store-model-predictions project-id)
+                               true)
+                             (catch Throwable e
+                               (util/log-exception e)
+                               false))))
       (await predict-api)
       (when (true? @predict-api)
         (q/project-latest-predict-run-id project-id)))))
