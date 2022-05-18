@@ -66,36 +66,11 @@
        :protocol 1})))
 
 
-(def-action :save-brat-annotation
-  :uri (constantly "/api/set-labels")
-  :content (fn [project-id {:keys [article-id label-values change? confirm? resolve?]}]
-             {:project-id project-id
-              :article-id article-id
-              :label-values label-values
-              :confirm? (boolean confirm?)
-              :resolve? (boolean resolve?)
-              :change? (boolean change?)})
-   :process
-      (fn [_ [_ {:keys [on-success]}] _]
-        (when on-success
-          (let [success-fns    (->> on-success (remove nil?) (filter fn?))
-                success-events (->> on-success (remove nil?) (remove fn?))]
-            (doseq [f success-fns] (f))
-            {:dispatch-n (concat success-events [[:review/reset-saving]
-                                                 [:review/reset-ui-labels]])}))))
-; [:action [:org/get-share-code org-id]]
 (defn save-doc [data article-id]
-  (let [relationship-label (first (vals @(subscribe [:project/labels-raw])))
-        project-id @(subscribe [:active-project-id])]
-    (dispatch
-     [:action
-      [:save-brat-annotation
-       project-id
-       {
-        :article-id article-id
-        :label-values {(:global-label-id relationship-label) (.stringify js/JSON data)}
-        :confirm? true
-        :resolve? true}]])))
+  (let [labels (vals @(subscribe [:project/labels-raw]))
+        relationship-label (first (filter #(= (:value-type %) "relationship") labels))]
+    (dispatch [:review/set-label-value
+                            article-id "na" (:global-label-id relationship-label) "na" (.stringify js/JSON data)])))
 
 (defn generate-arcs [relationships]
   (map
@@ -210,7 +185,6 @@
   (let [data (.-data request)
         action (.-action data)
         success #(.success request %)]
-    (js/console.log request)
     (case action
       "getCollectionInformation" (success (generate-collection-vals relationship-labels))
       "createSpan" (success (create-span-response data))
@@ -219,9 +193,9 @@
       "logout" nil
       "saveConf" nil
       "createArc" (success (create-arc-response data))
-      "saveDoc" (save-doc data article-id)
       (js/console.warn "Unhandled brat action:" action
-                       (.-data request)))))
+                       (.-data request)))
+    (save-doc data article-id))) ; every request we save it back to the local label state
 
 (defn Brat [opts labels article-id]
   (let [iframe (atom nil)

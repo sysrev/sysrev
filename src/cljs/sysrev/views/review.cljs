@@ -191,7 +191,8 @@
     "string"
     (or (empty? answer)
         (valid-string-value? definition answer))
-    "group" (empty? answer)))
+    "group" (empty? answer)
+    "relationship" true))
 
 (defn valid-answer-id? [definition root-label-id label-id identifier-validations]
   (or (not (-> definition :validatable-label?))
@@ -240,6 +241,10 @@
              (or (nil? identifier-validation) identifier-validation))))
 
 (defn BooleanLabelInput [[root-label-id label-id ith] article-id]
+  (print article-id)
+  (print root-label-id)
+  (print label-id)
+  (print ith)
   (let [answer (subscribe [:review/active-labels
                            article-id root-label-id label-id ith])]
     [ui/ThreeStateSelection

@@ -632,7 +632,7 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
-                   
+
      (when (= @value-type "relationship")
        ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
