@@ -85,31 +85,33 @@
    & [{:keys [user-id] :as _opts}]]
   (assert (map? sr-context))
   (letfn [(import-group [articles]
-            (db/with-long-transaction [_ (:postgres sr-context)]
-              (let [{:keys [new-articles existing-article-ids]}
-                    (match-existing-articles project-id articles types)
-                    new-article-ids (add-articles project-id new-articles types prepare-article)
-                    new-articles-map (apply merge new-article-ids)
-                    new-locations
-                    (->> (keys new-articles-map)
-                         (map (fn [article-id]
-                                (let [article (get new-articles-map article-id)]
-                                  (->> (:locations article)
-                                       (mapv #(assoc % :article-id article-id))))))
-                         (apply concat)
-                         vec)]
-                (source/add-articles-to-source
-                 (concat existing-article-ids (keys new-articles-map))
-                 source-id)
-                (q/create :article-location new-locations)
-                (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
-                  (when on-article-added
-                    (try
-                      (on-article-added (get new-articles-map article-id))
-                      (catch Exception e
-                        (log/error "import-articles-impl: exception in on-article-added")
-                        (log/error (with-out-str (strace/print-cause-trace-custom e)))
-                        (throw e))))))))]
+                        (db/retry-serial
+                         {}
+                         (db/with-long-transaction [_ (:postgres sr-context)]
+                           (let [{:keys [new-articles existing-article-ids]}
+                                 (match-existing-articles project-id articles types)
+                                 new-article-ids (add-articles project-id new-articles types prepare-article)
+                                 new-articles-map (apply merge new-article-ids)
+                                 new-locations
+                                 (->> (keys new-articles-map)
+                                      (map (fn [article-id]
+                                             (let [article (get new-articles-map article-id)]
+                                               (->> (:locations article)
+                                                    (mapv #(assoc % :article-id article-id))))))
+                                      (apply concat)
+                                      vec)]
+                             (source/add-articles-to-source
+                              (concat existing-article-ids (keys new-articles-map))
+                              source-id)
+                             (q/create :article-location new-locations)
+                             (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
+                               (when on-article-added
+                                 (try
+                                   (on-article-added (get new-articles-map article-id))
+                                   (catch Exception e
+                                     (log/error "import-articles-impl: exception in on-article-added")
+                                     (log/error (with-out-str (strace/print-cause-trace-custom e)))
+                                     (throw e)))))))))]
     (try (doseq [articles (partition-all 10 (get-articles article-refs))]
            (try (import-group articles)
                 (catch Exception e
@@ -152,25 +154,27 @@
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
   [sr-context project-id source-id user-id success?]
-  (db/with-long-transaction [_ (:postgres sr-context)]
+  (db/retry-serial
+   {}
+   (db/with-long-transaction [_ (:postgres sr-context)]
     ;; update source metadata
-    (if success?
-      (source/alter-source-meta source-id #(assoc % :importing-articles? false))
-      (source/fail-source-import source-id))
+     (if success?
+       (source/alter-source-meta source-id #(assoc % :importing-articles? false))
+       (source/fail-source-import source-id))
     ;; log errors
-    (try (let [source (q/find-one :project-source {:source-id source-id})]
-           (cond (not success?)
-                 (log-slack-custom ["*Article source import failed*"
-                                    (format "*Source*:\n```%s```" (pp-str {:source source}))]
-                                   "Article source import failed")
-                 (and success? (zero? (q/find-count :article-source {:source-id source-id})))
-                 (log-slack-custom ["*Article source import - 0 articles loaded*"
-                                    (format "*Source*:\n```%s```" (pp-str {:source source}))]
-                                   "Article source import - 0 articles loaded")))
-         (catch Throwable _
-           (log/error "after-source-import - logging error to slack failed")))
+     (try (let [source (q/find-one :project-source {:source-id source-id})]
+            (cond (not success?)
+                  (log-slack-custom ["*Article source import failed*"
+                                     (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                                    "Article source import failed")
+                  (and success? (zero? (q/find-count :article-source {:source-id source-id})))
+                  (log-slack-custom ["*Article source import - 0 articles loaded*"
+                                     (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                                    "Article source import - 0 articles loaded")))
+          (catch Throwable _
+            (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles
-    (source/update-project-articles-enabled project-id))
+     (source/update-project-articles-enabled project-id)))
   (when (and success? user-id)
     (future (create-notification {:type :project-source-added
                                   :project-id project-id
