@@ -1,10 +1,9 @@
 (ns sysrev.views.components.brat
-  (:require [reagent.core :as r]
-            [goog.string :as gstring]
+  (:require [goog.string :as gstr]
+            [re-frame.core :refer [dispatch subscribe]]
+            [reagent.core :as r]
             [reagent.dom :as rdom]
-            [sysrev.util :as util]
-            [sysrev.action.core :refer [def-action]]
-            [re-frame.core :refer [dispatch subscribe]]))
+            [sysrev.util :as util]))
 
 (let [now (js/Date.now)]
   (def empty-doc
@@ -80,35 +79,35 @@
           :arrowHead "triangle,5"
           :labels #js[(:value relation)]
           :type (:value relation)
-          :targets #js[(gstring/trim (:to relation))]})
+          :targets #js[(gstr/trim (:to relation))]})
     relationships))
 
 (defn generate-entity-types [labels]
   (map
     (fn [label]
       (let [relationships (-> labels :definition :relationships)
-            entity-relations (filter #(= (gstring/trim (:from %)) (gstring/trim label)) relationships)
+            entity-relations (filter #(= (gstr/trim (:from %)) (gstr/trim label)) relationships)
             arcs (into [] (generate-arcs entity-relations))]
         #js{:bgColor "#ffccaa"
                               :attributes  #js[]
                               :children #js[]
-                              :type (gstring/trim label)
+                              :type (gstr/trim label)
                               :fgColor "black"
                               :borderColor "darken",
                               :normalizations #js[],
-                              :name (gstring/trim label)
+                              :name (gstr/trim label)
                               :arcs (clj->js arcs)}))
     (:all-values (:definition labels))))
 
 (defn generate-event-types [relationship-label]
   (map
     (fn [label]
-      (let [entity-relations (filter #(= (gstring/trim (:from %)) (gstring/trim label)) (-> relationship-label :definition :relationships))
+      (let [entity-relations (filter #(= (gstr/trim (:from %)) (gstr/trim label)) (-> relationship-label :definition :relationships))
             arcs (into [] (generate-arcs entity-relations))]
         #js{:borderColor "darken"
             :normalizations #js[]
-            :name (gstring/trim label)
-            :type (gstring/trim label)
+            :name (gstr/trim label)
+            :type (gstr/trim label)
             :labels nil
             :unused true
             :bgColor "lightgreen"
@@ -116,8 +115,8 @@
             :fgColor "black"
             :children #js[#js{:borderColor "darken"
                               :normalizations #js[]
-                              :name (gstring/trim label)
-                              :type (gstring/trim label),
+                              :name (gstr/trim label)
+                              :type (gstr/trim label),
                               :fgColor "black"
                               :children #js[]
                               :arcs (clj->js arcs)}]}))
@@ -133,17 +132,17 @@
 ;     (fn [relation]
 ;       #js{:args #js[
 ;                     #js{:role "Arg1"
-;                         :targets #js[(gstring/trim (:from relation))]}
+;                         :targets #js[(gstr/trim (:from relation))]}
 ;                     #js{:role "Arg2"
-;                         :targets #js[(gstring/trim (:to relation))]}]
+;                         :targets #js[(gstr/trim (:to relation))]}]
 ;           :arrowHead "triangle,5"
-;           :name (gstring/trim (:value relation))
+;           :name (gstr/trim (:value relation))
 ;           :color "black"
 ;           :labels nil
 ;           :children #js[]
 ;           :unused false
 ;           :attributes #js[]
-;           :type (gstring/trim (:value relation))
+;           :type (gstr/trim (:value relation))
 ;           :properties #js{}})
 ;     relationships))
 

@@ -390,8 +390,6 @@
   [{:keys [error value on-change on-mouse-up on-mouse-down
            placeholder default-value label autofocus disabled read-only
            field-class tooltip optional]}]
-  (if (= (first tooltip) "Events to annotate.")
-    (print label))
   [:div.field {:class (css field-class [error "error"])}
    [FormLabelInfo label :tooltip tooltip :optional optional]
    [:input.ui.input

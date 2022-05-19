@@ -552,13 +552,7 @@
         helper-text @(subscribe [:article/helper-text article-id])
         ann-context {:class "abstract" :project-id project-id :article-id article-id}
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])
-        {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])
-        label->type #(deref (subscribe [:label/value-type "na" (:label-id %)]))
-        labels (->> @(subscribe [:project/labels-raw])
-                    vals
-                    (filter #(contains? predictable-label-types (label->type %)))
-                    (filter #(:enabled %))
-                    (sort-by #(count (get-in % [:definition :all-values]))))]
+        {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
     [:div.article-info-top
      (dispatch [:require (annotator/annotator-data-item ann-context)])
      (dispatch [:require [:annotator/status project-id]])
