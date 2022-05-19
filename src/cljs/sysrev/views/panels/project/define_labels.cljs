@@ -417,7 +417,6 @@
   :uri (fn [] "/api/sync-project-labels")
   :content (fn [project-id labels] {:project-id project-id :labels labels})
   :process (fn [_ _ {:keys [valid? labels]}]
-             (print valid?)
              (if valid? ;; update successful?
                ;; update (1) app-wide project data and (2) local namespace state
                (do (set-app-db-labels! labels)

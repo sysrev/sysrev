@@ -560,8 +560,6 @@
                     (filter #(:enabled %))
                     (sort-by #(count (get-in % [:definition :all-values]))))]
     [:div.article-info-top
-     ; (print (filter #(= (:value-type %) "relationship") (vals @(subscribe [:project/labels-raw]))))
-     ; [brat/Brat {:text "ipsum lorem"} (vals @(subscribe [:project/labels-raw]))]
      (dispatch [:require (annotator/annotator-data-item ann-context)])
      (dispatch [:require [:annotator/status project-id]])
      (with-loader [[:article project-id article-id]]
