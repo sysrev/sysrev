@@ -19,6 +19,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.util :as util :refer [css filter-values format nbsp]]
             [sysrev.views.annotator :as annotator]
+            [sysrev.views.components.brat :as brat]
             [sysrev.views.components.core :as ui]
             [sysrev.views.keywords :refer [render-abstract render-keywords]]
             [sysrev.views.labels :refer [ArticleLabelsView]]
@@ -159,6 +160,11 @@
                      "dark" "light")
             :url url}]]))
 
+(defn BratFrame [article-id]
+  (let [{:keys [abstract]} @(subscribe [:article/raw article-id])]
+    (when (seq abstract)
+      [brat/Brat {:text abstract} (vals @(subscribe [:project/labels-raw])) article-id])))
+
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
@@ -212,17 +218,17 @@
          (when-not (or pdf-only? (empty? authors))
            [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
          ;; show pdf
-         (if visible-url
-           [PDFAnnotator
-            {:article-id article-id
-             :document-id (:filename pdf)
-             :project-id project-id
-             :url visible-url}]
-           (when (seq abstract)
-             (if annotator?
-               [ArticleAnnotatedField article-id "abstract" abstract
-                :reader-error-render [render-abstract article-id]]
-               [render-abstract article-id])))
+         (cond
+           visible-url [PDFAnnotator
+                        {:article-id article-id
+                         :document-id (:filename pdf)
+                         :project-id project-id
+                         :url visible-url}]
+           (empty? abstract) nil
+           annotator? [ArticleAnnotatedField article-id "abstract" abstract
+                       :reader-error-render [render-abstract article-id]]
+           (= context :review) [BratFrame article-id]
+           :else [render-abstract article-id])
          ;; article links
          [:div.ui.grid.article-links {:style {:margin "0"}}
           [:div.twelve.wide.left.aligned.middle.aligned.column

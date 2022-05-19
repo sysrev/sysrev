@@ -13,8 +13,9 @@
 (defn label-answer-valid? [{:keys [label-id value-type definition] :as _label} answer]
   (case value-type
     "boolean"
-    (when (contains? #{true false nil} answer)
-      {label-id answer})
+    ; (when (contains? #{true false nil} answer)
+      (when true
+        {label-id answer})
     "categorical"
     (cond (nil? answer) {label-id answer}
           (sequential? answer) (let [allowed (set (:all-values definition))]

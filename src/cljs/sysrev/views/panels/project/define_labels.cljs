@@ -15,6 +15,7 @@
             [sysrev.util :as util :refer [css in? parse-integer]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components.core :as ui]
+            [sysrev.views.components.relationship-builder :refer [RelationshipBuilder]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.semantic :as S :refer [Button Divider Form FormField Modal
                                                  ModalContent ModalDescription
@@ -148,6 +149,7 @@
                      "string"       {:multi? false :max-length 100}
                      "categorical"  {:inclusion-values [] :multi? true}
                      "annotation"  {}
+                     "relationship" {:entities []}
                      {})
        :inclusion false
        :category "extra"
@@ -462,12 +464,20 @@
                   :tooltip ["List of values allowed for label."
                             "Reviewers may select multiple values in their answers."]
                   :placeholder "one,two,three"}
+   :event-types   {:path [:definition :event-types]
+                   :display "Events (comma-separated options)"
+                   :tooltip ["List of events for annotations"]
+                   :placeholder "one,two,three"}
    :multi?       {:path [:definition :multi?]
                   :display "Allow multiple values"
                   :tooltip ["Allow answers to contain multiple string values."]}
    :inclusion    {:display "Inclusion criteria"
                   :tooltip ["Define a relationship between this label and article inclusion."
                             "Users will be warned if their answers contradict the value selected for article inclusion."]}})
+   ; :entities     {:path [:definition :entities]
+   ;                :display "Entities To Annotate (i.e Person) (comma-separated)"
+   ;                :tooltip ["Entities that are able to be annotated."]
+   ;                :optional false}})
 
 (defn- label-setting-field-args
   "Creates map of standard arguments to field component function for a
@@ -521,6 +531,10 @@
         regex (r/cursor definition [:regex])
         ;; optional, vector of strings
         examples (r/cursor definition [:examples])
+        ;; for relationships - brat
+        relationships (r/cursor definition [:relationships])
+        ;; event types - brat
+        event-types (r/cursor definition [:event-types])
         ;; required, integer
         max-length (r/cursor definition [:max-length])
         ;;
@@ -603,7 +617,7 @@
                                     (reset! all-values nil)
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
-     (when (= @value-type "annotation")
+     (when (or (= @value-type "annotation") (= @value-type "relationship"))
        ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
@@ -618,7 +632,22 @@
                                     (reset! all-values (str/split value #"," -1))))}
                    errors)])
 
+     (when (= @value-type "relationship")
+       ;; FIX: whitespace not trimmed from input strings;
+       ;; need to run db migration to fix all existing values
+       [ui/TextInputField
+        (make-args :event-types
+                   {:value (str/join "," @event-types)
+                    :label "Events (comma-separated options)"
+                    :tooltip ["Events to annotate."]
+                    :on-change #(let [value (-> % .-target .-value)]
+                                  (if (empty? value)
+                                    (reset! event-types nil)
+                                    (reset! event-types (str/split value #"," -1))))}
+                   errors)])
 
+     (when (= @value-type "relationship")
+       (RelationshipBuilder (concat @all-values @event-types) relationships))
 
 
      ;; required
@@ -1116,6 +1145,7 @@
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "group" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [AddLabelButton "relationship" add-new-label!]]
            [:div.column [ImportLabelButton]]]
 
           :else
@@ -1124,6 +1154,7 @@
            [:div.column [AddLabelButton "categorical" add-new-label!]]
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
+           [:div.column [AddLabelButton "relationship" add-new-label!]]
            [:div.column [ImportLabelButton]]])
         (when-not group-labels-allowed?
           [UpgradeMessage])])

@@ -13,7 +13,8 @@
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
             [sysrev.macros :refer-macros [with-loader]]
-            ["@john-shaffer/data-grid" :as data-grid]))
+            ["@john-shaffer/data-grid" :as data-grid]
+            [sysrev.views.components.brat :as brat]))
 
 ;; I forked @material-ui/data-grid to remove ECMAScript 2018 code.
 ;; Don't try to use Editable grids! They probably won't work well.
@@ -131,10 +132,10 @@
         answer-value (fn [answer label-id]
                        (let [v (if (contains? answer label-id)
                                  (get answer label-id)
-                                 (get answer (keyword (str label-id))))
+                                 (get answer (keyword (str label-id))))]
                              ;; In the articles list view answers keys are
                              ;; keywords, not UUIDs.
-                             ]
+
                          (if (and (string? v) (str/blank? v))
                            nil
                            v)))
@@ -176,7 +177,8 @@
      (doall ;; basic labels
       (for [[label-id answer] (->> all-label-ids
                                    (remove #(or (= "group" (value-type %))
-                                                (= "annotation" (value-type %))))
+                                                (= "annotation" (value-type %))
+                                                (= "relationship" (value-type %))))
                                    (map #(list % (get-in labels [% :answer]))))]
         (when (real-answer? answer)
           ^{:key (str label-id)} [LabelAnswerTag "na" label-id answer])))
@@ -194,6 +196,15 @@
         ^{:key (str group-label-id)}
         [GroupLabelAnswerTag {:group-label-id group-label-id
                               :answers (:labels answer)}]))
+
+     (doall ;; relationship labels - Brat
+      (for [[annotation-label-id answer] (->> all-label-ids
+                                              (filter #(= "relationship" (value-type %)))
+                                              (map #(list % (get-in labels [% :answer]))))]
+
+        [:div {:key (str annotation-label-id)} "TEST"
+         (let [data (:sourceData (js->clj (.parse js/JSON answer) :keywordize-keys true))]
+           [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) 1])]))
 
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
