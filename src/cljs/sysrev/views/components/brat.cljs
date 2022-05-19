@@ -219,6 +219,6 @@
           (when (not= text (:text old-opts))
             (send-message @iframe {:document (assoc empty-doc :text text)}))))
       :reagent-render
-      (fn []
+      (fn [_ _ article-id]
         [:iframe {:height 600 :width 800
-                  :src "/brat/index.xhtml#/doc"}])})))
+                  :src (str "/brat/index.xhtml#/article/" article-id)}])})))
