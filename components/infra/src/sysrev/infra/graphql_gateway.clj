@@ -1,4 +1,4 @@
-(ns sysrev.cloudformation-templates.graphql-gateway
+(ns sysrev.infra.graphql-gateway
   (:refer-clojure :exclude [ref])
   (:require [donut.system :as ds]
             [io.staticweb.cloudformation-templating :refer :all :exclude [template]]
@@ -80,6 +80,6 @@
 
 (comment
   (do (sig/pre-validate! (system))
-      (write-template "components/cloudformation-templates/out/graphql-gateway.template"
+      (write-template "components/infra/out/graphql-gateway.template"
                       template)))
 

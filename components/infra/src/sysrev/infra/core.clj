@@ -1,13 +1,13 @@
-(ns sysrev.cloudformation-templates.core
+(ns sysrev.infra.core
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [donut.system :as ds]
             [salmon.cloudformation.interface :as cfn]
             [salmon.signal.interface :as sig]
-            [sysrev.cloudformation-templates.sysrev-global-resources :as global]
-            [sysrev.cloudformation-templates.sysrev-regional-resources :as regional]
-            [sysrev.cloudformation-templates.sysrev :as sysrev]))
+            [sysrev.infra.sysrev-global-resources :as global]
+            [sysrev.infra.sysrev-regional-resources :as regional]
+            [sysrev.infra.sysrev :as sysrev]))
 
 (defonce system (atom nil))
 

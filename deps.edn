@@ -109,9 +109,9 @@
   :dev {:extra-paths ["config/dev" "development/src"]
         :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
 
-                     poly/cloudformation-templates {:local/root "components/cloudformation-templates"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
+                     poly/infra {:local/root "components/infra"}
                      poly/sqlite {:local/root "components/sqlite"}
                      clj-kondo/clj-kondo {:mvn/version "2022.04.25"}}}
   :dev-embedded {:extra-paths ["config/dev-embedded"]}

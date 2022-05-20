@@ -37,7 +37,7 @@
           "test"
         ]
       },
-      "afterCLJReplJackInCode": "(require 'sysrev.main 'sysrev.cloudformation-templates.core)",
+      "afterCLJReplJackInCode": "(require 'sysrev.main 'sysrev.infra.core)",
       "cljsType": "none"
     }
   ]

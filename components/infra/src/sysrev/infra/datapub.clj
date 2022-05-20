@@ -1,4 +1,4 @@
-(ns sysrev.cloudformation-templates.datapub
+(ns sysrev.infra.datapub
   (:refer-clojure :exclude [ref])
   (:require [clojure.java.io :as io]
             [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
@@ -80,7 +80,7 @@
      :Runtime "nodejs12.x"
      :Code
      {:ZipFile
-      (slurp (io/resource "sysrev/cloudformation-templates/lambda/log-to-slack.js"))}}}
+      (slurp (io/resource "sysrev/infra/lambda/log-to-slack.js"))}}}
 
    :ErrorFunctionPermission
    {:Type "AWS::Lambda::Permission"
@@ -418,5 +418,5 @@
       :TargetValue 50.0}}}})
 
 (comment
-  (write-template "components/cloudformation-templates/out/datapub.template"
+  (write-template "components/infra/out/datapub.template"
                   template))

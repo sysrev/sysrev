@@ -8,7 +8,7 @@ on:
       - production
     paths:
       - '.github/workflows/cloudformation.yml'
-      - 'components/cloudformation-templates/**'
+      - 'components/infra/**'
 
 jobs:
   deploy:
@@ -74,12 +74,12 @@ jobs:
       - name: Deploy CloudFormation stacks to staging
         if: github.ref_name == 'staging'
         run: |
-          nix-shell --run "clojure -X:dev sysrev.cloudformation-templates.core/deploy!"
+          nix-shell --run "clojure -X:dev sysrev.infra.core/deploy!"
 
       - name: Deploy CloudFormation stacks to production
         if: github.ref_name == 'production'
         run: |
-          nix-shell --run "clojure -X:prod:dev sysrev.cloudformation-templates.core/deploy!"
+          nix-shell --run "clojure -X:prod:dev sysrev.infra.core/deploy!"
 
       - name: Prepare nix cache
         if: steps.nix-cache.outputs.cache-hit != 'true'

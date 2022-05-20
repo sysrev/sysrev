@@ -118,7 +118,7 @@
                                         sysrev.test.core               test
                                         sysrev.test.etaoin.core        e
                                         sysrev.test.fixtures           test-fixtures}}}
- :output {:exclude-files ["^components/cloudformation-templates"
+ :output {:exclude-files ["^components/infra"
                           "src/clj/sysrev/user.clj"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
