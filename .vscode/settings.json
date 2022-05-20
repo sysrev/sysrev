@@ -26,6 +26,19 @@
       },
       "afterCLJReplJackInCode": "((requiring-resolve 'sysrev.main/reload-with-fixtures!))",
       "cljsType": "none"
+    },
+    {
+      "name": "Sysrev REPL",
+      "projectType": "deps.edn",
+      "menuSelections": {
+        "cljAliases": [
+          "dev-embedded",
+          "dev",
+          "test"
+        ]
+      },
+      "afterCLJReplJackInCode": "(require 'sysrev.main 'sysrev.cloudformation-templates.core)",
+      "cljsType": "none"
     }
   ]
 }
