@@ -203,7 +203,7 @@
                                               (map #(list % (get-in labels [% :answer]))))]
 
         [:div {:key (str annotation-label-id)}
-         (let [data (:sourceData (js->clj (.parse js/JSON answer) :keywordize-keys true))]
+         (let [data (js->clj (.parse js/JSON answer) :keywordize-keys true)]
            [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) article-id])]))
 
      (when (and (some #(contains? % :confirm-time) (vals labels))

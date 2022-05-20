@@ -65,12 +65,19 @@
        :protocol 1})))
 
 
-(defn save-doc [data article-id]
-  ; TODO we probably don't need to save the whole data object - just pull out the few elemnts we need
+(defn generate-save-data [^js data]
+  (let [save-data #js{}] ; This bit builds a new js object with just the fields needed to repopulate the annotator
+    (set! (.-text save-data) (-> data .-sourceData .-text))
+    (set! (.-entities save-data) (-> data .-sourceData .-entities))
+    (set! (.-relations save-data) (-> data .-sourceData .-relations))
+    save-data))
+
+(defn save-doc [^js data article-id]
   (let [labels (vals @(subscribe [:project/labels-raw]))
-        relationship-label (first (filter #(= (:value-type %) "relationship") labels))]
+        relationship-label (first (filter #(= (:value-type %) "relationship") labels))
+        save-data (generate-save-data data)]
     (dispatch [:review/set-label-value
-                            article-id "na" (:global-label-id relationship-label) "na" (.stringify js/JSON data)])))
+                          article-id "na" (:global-label-id relationship-label) "na" (.stringify js/JSON save-data)])))
 
 (defn generate-arcs [relationships]
   (map
