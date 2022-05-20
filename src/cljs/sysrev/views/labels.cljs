@@ -165,7 +165,7 @@
           [:div.ui.basic.label
            (->> values (filter some?) (str/join ", "))]]))]))
 
-(defn LabelValuesView [labels & {:keys [note user-name resolved?]}]
+(defn LabelValuesView [labels article-id & {:keys [note user-name resolved?]}]
   (let [all-label-ids (->> @(subscribe [:project/label-ids])
                            (filter #(contains? labels %)))
         value-type #(deref (subscribe [:label/value-type "na" %]))
@@ -202,9 +202,9 @@
                                               (filter #(= "relationship" (value-type %)))
                                               (map #(list % (get-in labels [% :answer]))))]
 
-        [:div {:key (str annotation-label-id)} "TEST"
+        [:div {:key (str annotation-label-id)}
          (let [data (:sourceData (js->clj (.parse js/JSON answer) :keywordize-keys true))]
-           [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) 1])]))
+           [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) article-id])]))
 
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
@@ -216,7 +216,7 @@
 (defn- ArticleLabelValuesView [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])
         resolved? (= user-id @(subscribe [:article/resolve-user-id article-id]))]
-    [LabelValuesView labels :resolved? resolved?]))
+    [LabelValuesView labels article-id :resolved? resolved?]))
 
 (defn- copy-user-answers [project-id article-id user-id]
   (let [label-ids (set @(subscribe [:project/label-ids project-id]))

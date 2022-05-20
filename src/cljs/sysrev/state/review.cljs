@@ -86,7 +86,6 @@
 (def-action :review/send-labels
   :uri (constantly "/api/set-labels")
   :content (fn [project-id {:keys [article-id label-values change? confirm? resolve?]}]
-             (print label-values)
              {:project-id project-id
               :article-id article-id
               :label-values label-values
