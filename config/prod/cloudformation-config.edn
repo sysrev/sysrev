@@ -1,4 +1,10 @@
 {:datapub-zone-apex "datapub.dev"
  :env "prod"
  :insilica-zone-apex "insilica.co"
- :sysrev-zone-apex "sysrev.com"}
+ :sysrev-zone-apex "sysrev.com"
+
+ :sysrev
+ {:RDSAllocatedStorage 200
+  :RDSInstanceClass "db.t3.large"
+  :RDSIops 3000
+  :RDSStorageType "io1"}}

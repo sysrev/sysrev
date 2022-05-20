@@ -2,9 +2,6 @@
   (:refer-clojure :exclude [ref])
   (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
-(defn import-regional [export-name]
-  (import-value (str "Sysrev-Regional-Resources-" export-name)))
-
 (defn public-port [port]
   [{:CidrIp "0.0.0.0/0"
     :IpProtocol "tcp"
@@ -20,7 +17,8 @@
   "This template creates the Sysrev AutoScalingGroup."
 
   :Parameters
-  {:RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
+  {:CredentialsKeyId {:Type "String"}
+   :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
                          :Description "Minimum allocated storage in GB. Must be at least 20."
                          :Type "String"}
    :RDSInstanceClass {:Type "String"}
@@ -29,14 +27,28 @@
              :MinValue 1000
              :Type "Number"}
    :RDSStorageType {:AllowedPattern "(gp2)|(io1)"
-                    :Type "String"}}
+                    :Type "String"}
+   :RDSSubnetGroupName {:Type "String"}
+   :VpcId {:Type "String"}}
 
   :Conditions
   {:RDSIo1Storage
    (equals "io1" (ref :RDSStorageType))}
 
   :Resources
-  {:RDSMasterCredentials
+  {:DatasourceCredentials
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:KmsKeyId (ref :CredentialsKeyId)
+     :SecretString "{\"token\":\"\"}"}}
+
+   :PayPalCredentials
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:KmsKeyId (ref :CredentialsKeyId)
+     :SecretString "{\"client-id\":\"\",\"secret\":\"\",\"url\":\"\"}"}}
+
+   :RDSMasterCredentials
    {:Type "AWS::SecretsManager::Secret"
     :Properties
     {:GenerateSecretString
@@ -44,7 +56,41 @@
       :GenerateStringKey "password"
       :PasswordLength 32
       :SecretStringTemplate "{\"username\": \"postgres\"}"}
-     :KmsKeyId (import-regional "CredentialsKeyId")}}
+     :KmsKeyId (ref :CredentialsKeyId)}}
+
+   :StripeCredentials
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:KmsKeyId (ref :CredentialsKeyId)
+     :SecretString "{\"public-key\":\"\",\"secret-key\":\"\"}"}}
+
+   :SysrevDevKey
+   {:Type "AWS::SecretsManager::Secret"
+    :Properties
+    {:KmsKeyId (ref :CredentialsKeyId)
+     :SecretString "{\"token\":\"\"}"}}
+
+   :CredentialsPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :DatasourceCredentials)}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :PayPalCredentials)}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :RDSMasterCredentials)}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :StripeCredentials)}
+       {:Action ["secretsmanager:GetSecretValue"]
+        :Effect "Allow"
+        :Resource (ref :SysrevDevKey)}]}}}
 
    :SysrevSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"
@@ -52,7 +98,7 @@
     {:GroupDescription "Sysrev Servers"
      :SecurityGroupIngress
      (mapcat public-port [22 80 443])
-     :VpcId (import-regional "VpcId")}}
+     :VpcId (ref :VpcId)}}
 
    :RDSSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"
@@ -63,7 +109,7 @@
        :FromPort 5432
        :ToPort 5432
        :SourceSecurityGroupId (ref :SysrevSecurityGroup)}]
-     :VpcId (import-regional "VpcId")}}
+     :VpcId (ref :VpcId)}}
 
    :RDSInstance
    {:Type "AWS::RDS::DBInstance"
@@ -78,7 +124,7 @@
      :DBInstanceClass (ref :RDSInstanceClass)
      :DBInstanceIdentifier "sysrev"
      :DBName "sysrev"
-     :DBSubnetGroupName (import-regional "RDSSubnetGroupName")
+     :DBSubnetGroupName (ref :RDSSubnetGroupName)
      :DeletionProtection true
      :EnablePerformanceInsights true
      :Engine "postgres"
@@ -94,7 +140,3 @@
      :StorageEncrypted true
      :StorageType (ref :RDSStorageType)
      :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}})
-
-(comment
-  (write-template "components/cloudformation-templates/out/sysrev.template"
-                  template))

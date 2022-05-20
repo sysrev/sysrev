@@ -1,4 +1,9 @@
 {:datapub-zone-apex "datapubdev.net"
  :env "staging"
  :insilica-zone-apex ""
- :sysrev-zone-apex "sysrevdev.net"}
+ :sysrev-zone-apex "sysrevdev.net"
+
+ :sysrev
+ {:RDSAllocatedStorage 100
+  :RDSInstanceClass "db.t3.micro"
+  :RDSStorageType "gp2"}}
