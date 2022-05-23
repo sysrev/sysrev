@@ -132,6 +132,16 @@
                                               label-id ith label-value]]
                           record-fx]}))))
 
+(defn is-annotatable?
+  "Checks that an article is annotatable to properly ignore relationship labels on unsupported articles
+   Looks at the dom for an instance of the brat annotator - alternative is to pass in article ID Which is messy"
+  []
+  (let [elem (.getElementById js/document "Brat_Renderer")]
+    (if elem
+      true
+      false)))
+
+
 (defn missing-answer? [{:keys [enabled required value-type]} answer]
   (and enabled required
        (case value-type
@@ -139,7 +149,8 @@
          "categorical" (empty? answer)
          "string" (str/blank? answer)
          "annotation" (empty? answer)
-         "group" (empty? answer))))
+         "group" (empty? answer)
+         "relationship" (and (not answer) (is-annotatable?)))))
 
 (defn missing-group-answer? [labels answers]
   (boolean

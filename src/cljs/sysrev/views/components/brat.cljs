@@ -227,5 +227,5 @@
             (send-message @iframe {:document (assoc empty-doc :text text)}))))
       :reagent-render
       (fn [_ _ article-id]
-        [:iframe {:height 600 :width 800
+        [:iframe {:height 600 :width 800 :id "Brat_Renderer"
                   :src (str "/brat/index.xhtml#/article/" article-id)}])})))
