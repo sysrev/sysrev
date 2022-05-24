@@ -169,7 +169,8 @@
   (let [all-label-ids (->> @(subscribe [:project/label-ids])
                            (filter #(contains? labels %)))
         value-type #(deref (subscribe [:label/value-type "na" %]))
-        dark-theme? @(subscribe [:self/dark-theme?])]
+        dark-theme? @(subscribe [:self/dark-theme?])
+        editing? (subscribe [:article-list/editing? nil article-id])]
     [:div.label-values
      (when user-name
        [:div.ui.label.user-name {:class (css [(not dark-theme?) "basic"])}
@@ -204,7 +205,7 @@
 
         [:div {:key (str annotation-label-id)}
          (let [data (js->clj (.parse js/JSON answer) :keywordize-keys true)]
-           [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) article-id])]))
+           [brat/Brat {:text (:text data ) :entities (:entities data) :relations (:relations data)} (vals @(subscribe [:project/labels-raw])) article-id editing?])]))
 
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))

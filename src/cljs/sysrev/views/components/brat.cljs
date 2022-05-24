@@ -207,7 +207,7 @@
     (when (some #(= % action) ["createSpan" "createArc"])
       (save-doc data article-id)))) ; every request we save it back to the local label state
 
-(defn Brat [opts labels article-id]
+(defn Brat [opts labels article-id & [editing?]]
   (let [iframe (atom nil)
         opts-atom (atom opts)
         relationship-label (filter #(= (:value-type %) "relationship") labels)]
@@ -227,5 +227,5 @@
             (send-message @iframe {:document (assoc empty-doc :text text)}))))
       :reagent-render
       (fn [_ _ article-id]
-        [:iframe {:height 600 :width 800 :id "Brat_Renderer"
+        [:iframe {:height 600 :width 800 :id "Brat_Renderer" :style {:pointerEvents (if @editing? "inherit" "none")}
                   :src (str "/brat/index.xhtml#/article/" article-id)}])})))

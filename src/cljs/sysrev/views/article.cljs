@@ -163,7 +163,7 @@
 (defn BratFrame [article-id]
   (let [{:keys [abstract]} @(subscribe [:article/raw article-id])]
     (when (seq abstract)
-      [brat/Brat {:text abstract} (vals @(subscribe [:project/labels-raw])) article-id])))
+      [brat/Brat {:text abstract} (vals @(subscribe [:project/labels-raw])) article-id (r/atom true)])))
 
 (defn- ArticleInfoMain [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
