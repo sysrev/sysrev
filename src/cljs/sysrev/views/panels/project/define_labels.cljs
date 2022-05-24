@@ -972,8 +972,12 @@
                    (into {}))))
     (sync-to-server)))
 
+(defn has-relationship-label? [labels]
+  (> (count (filter #(and (:enabled %) (= (:value-type %) "relationship")) (vals labels))) 0))
+
 (defn LabelsTable [labels-atom]
   (let [project-id @(subscribe [:active-project-id])
+        has-relationsip-label? (has-relationship-label? @labels-atom)
         is-editing-label? @(subscribe [::is-editing-label?])
         label-filters @(subscribe [::get :label-filters])
         self-email @(subscribe [:self/email])
@@ -1099,15 +1103,16 @@
                                       (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
                                       (sync-to-server))})
-                         (clj->js
-                          {:icon "check_circle"
-                           :tooltip "Enable label"
-                           :disabled (= (.-valueType ^js rowData) "group")
-                           :onClick (fn [event rowData]
-                                      (.stopPropagation event)
-                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                      (sync-to-server))})))])
+
+                        (clj->js
+                         {:icon "check_circle"
+                          :tooltip "Enable label"
+                          :disabled (or (= (.-valueType ^js rowData) "group") (and has-relationsip-label? (= (.-valueType ^js rowData) "relationship")))
+                          :onClick (fn [event rowData]
+                                     (.stopPropagation event)
+                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                     (sync-to-server))})))])
          :onRowClick (fn [_event rowData]
                        (when self-email
                          (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])
@@ -1118,6 +1123,7 @@
 (defn- Panel []
   (let [admin? @(subscribe [:member/admin? true])
         labels (r/cursor state [:labels])
+        has-relationsip-label? (has-relationship-label? @labels)
         read-only-message-closed? (r/cursor state [:read-only-message-closed?])
         project-id    @(subscribe [:active-project-id])
         project-plan  @(subscribe [:project/plan project-id])
@@ -1145,7 +1151,9 @@
            [:div.column [AddLabelButton "string" add-new-label!]]
            [:div.column [AddLabelButton "group" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
-           [:div.column [AddLabelButton "relationship" add-new-label!]]
+           (if-not has-relationsip-label?
+            [:div.column [AddLabelButton "relationship" add-new-label!]]
+            [:div.column [:p "A project can only have 1 relationship label."]])
            [:div.column [ImportLabelButton]]]
 
           :else

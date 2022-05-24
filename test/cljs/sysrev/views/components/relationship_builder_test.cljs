@@ -9,10 +9,10 @@
       (is (= generated-values `({:text "test1" :value "test1"} {:text "test2" :value "test2"}))))))
 
 (deftest filter-rows
-  (testing "filter-rows")
-  (let [rows [{:key 1} {:key 2} {:key 3} {:key 4}]
-        filtered-rows (rlb/filter-rows rows 3)]
-    (is (= filtered-rows [{:key 1} {:key 2} {:key 4}]))))
+  (testing "filter-rows"
+    (let [rows [{:key 1} {:key 2} {:key 3} {:key 4}]
+          filtered-rows (rlb/filter-rows rows 3)]
+      (is (= filtered-rows [{:key 1} {:key 2} {:key 4}])))))
 
 (deftest add-row
   (testing "add-rows"
