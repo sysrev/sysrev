@@ -8,6 +8,10 @@
           generated-values (rlb/generate-select-values label-vals)]
       (is (= generated-values `({:text "test1" :value "test1"} {:text "test2" :value "test2"}))))))
 
+(deftest add-catch-all-row
+  (testing "add-catch-all-row"
+    (is (= [{:text "*" :value "*"}] (rlb/add-catch-all-row [])))))
+
 (deftest filter-rows
   (testing "filter-rows"
     (let [rows [{:key 1} {:key 2} {:key 3} {:key 4}]
