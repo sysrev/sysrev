@@ -79,14 +79,19 @@
     (dispatch [:review/set-label-value
                           article-id "na" (:global-label-id relationship-label) "na" (.stringify js/JSON save-data)])))
 
-(defn generate-arcs [relationships]
+(defn generate-targets [relation all-entities]
+  (if (= (:to relation) "*")
+    (into [] (map #(gstr/trim  %) all-entities))
+    [(gstr/trim (:to relation))]))
+
+(defn generate-arcs [relationships all-entities]
   (map
     (fn [relation]
       #js{:color "black"
           :arrowHead "triangle,5"
           :labels #js[(:value relation)]
           :type (:value relation)
-          :targets #js[(gstr/trim (:to relation))]})
+          :targets (clj->js (generate-targets relation all-entities))})
     relationships))
 
 (defn generate-entity-types [labels]
@@ -94,7 +99,8 @@
     (fn [label]
       (let [relationships (-> labels :definition :relationships)
             entity-relations (filter #(= (gstr/trim (:from %)) (gstr/trim label)) relationships)
-            arcs (into [] (generate-arcs entity-relations))]
+            arcs (into [] (generate-arcs entity-relations (concat (-> labels :definition :all-values) (-> labels :definition :event-types))))]
+        (print arcs)
         #js{:bgColor "#ffccaa"
                               :attributes  #js[]
                               :children #js[]
@@ -110,7 +116,7 @@
   (map
     (fn [label]
       (let [entity-relations (filter #(= (gstr/trim (:from %)) (gstr/trim label)) (-> relationship-label :definition :relationships))
-            arcs (into [] (generate-arcs entity-relations))]
+            arcs (into [] (generate-arcs entity-relations (concat (-> relationship-label :definition :all-values) (-> relationship-label :definition :event-types))))]
         #js{:borderColor "darken"
             :normalizations #js[]
             :name (gstr/trim label)

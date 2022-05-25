@@ -10,6 +10,9 @@
 (defn remove-row [relationships key]
   (swap! relationships filter-rows key))
 
+(defn add-catch-all-row [values]
+  (conj values {:text "*" :value "*"}))
+
 (defn generate-select-values [values]
   (map #(hash-map :text % :value %) values))
 
@@ -38,7 +41,7 @@
         [:div
          [:label "To"]
          [:div
-          [Select {:options options
+          [Select {:options (add-catch-all-row  options)
                    :on-change (fn [_e ^js f] (update-relationship-val (.-value f) :to (:key row) relationships))
                    :size "tiny"
                    :value (:to row)
