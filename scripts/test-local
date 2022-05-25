@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eu
 
-source vars.sh
-
 test_id=''
 
 # https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172

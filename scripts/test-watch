@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eu
 
-source vars.sh
-
 scripts/rebuild-changed-files
 
 ENV=test clj -T:build run-tests :aliases "[:dev-embedded :dev :test]" :fail-fast? true :randomize? false :watch? true

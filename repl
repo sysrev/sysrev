@@ -2,8 +2,6 @@
 
 set -eu
 
-source vars.sh
-
 scripts/rebuild-changed-files
 
 ENV=dev lein with-profile +dev,+repl,+local-repl repl

@@ -62,9 +62,4 @@ echo ; copy_client_semantic
 echo ; time install_client
 echo ; install_flyway
 echo ; install_clj_kondo
-
-echo
-echo "You will need to create file vars.sh (see vars.sh.template)
-and manually add the required private values." |
-  prefix-lines - " * "
 echo

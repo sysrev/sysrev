@@ -28,10 +28,12 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
   - The Clojure server needs to be able to start Docker containers. One way to allow this is to add its user to the `docker` group:
     - `sudo groupadd docker`
     - `sudo usermod −aG docker $USER`
-- Get a copy of `vars.sh` from a developer and place it in the root of the repository
+- Get AWS testing credentials and save them in [aws-vault](https://github.com/99designs/aws-vault)
 - Optionally install [direnv](https://direnv.net/) and [nix-direnv](https://github.com/nix-community/nix-direnv) (or [lorri](https://github.com/nix-community/lorri) for macOS). This allows you to leave out the `nix-shell --run` portion of commands.
 
 ## Usage
+
+- If you need credentials, prefix the command with an aws-vault exec invocation. E.g., `AWS_REGION=us-east-1 aws-vault exec sysrev-test -- nix-shell --run "bin/code"`
 
 - Run VSCode with `nix-shell --run "bin/code"`
   - For emacs keybindings, first run `ln -s nix/vscode-emacs.nix local.nix`

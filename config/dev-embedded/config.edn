@@ -4,10 +4,18 @@
                            :hostname "localhost"}
        :region "us-east-1"}
  :datapub-embedded "true"
+ :datasource-auth-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:DatasourceCredentials-NBSdwu62sZeN-pvN6dt"
+                       :secrets-manager/key :token}
  :filestore
  {:bucket-name "test.sysrev.us"
   :create? true
   :endpoint "us-east-1"}
+ :paypal-client-id {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+                    :secrets-manager/key :client-id}
+ :paypal-secret {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+                 :secrets-manager/key :secret}
+ :paypal-url {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+              :secrets-manager/key :url}
  :postgres
  {:create-if-not-exists? true
   :dbname "sysrev"
@@ -17,12 +25,18 @@
   :user "postgres"}
  :server
  {:port 4061}
+ :stripe-public-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:StripeCredentials-WEBumjkSU0tk-MSfIJD"
+                     :secrets-manager/key :public-key}
+ :stripe-secret-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:StripeCredentials-WEBumjkSU0tk-MSfIJD"
+                     :secrets-manager/key :secret-key}
+ :sysrev-dev-key {:secrets-manager/arn "***REMOVED***"
+                  :secrets-manager/key :token}
  :max-import-articles 100000
  :max-bulk-invitations 100
  :mock-email true
  :e-util-api-key "***REMOVED***"
  :profile :dev
  :private-config "config.local.edn"
-  :sysrev-api-config {:env :dev
-                      :pedestal {:port 0}}
+ :sysrev-api-config {:env :dev
+                     :pedestal {:port 0}}
  :web-server {:web-asset-path "/out-dev"}}

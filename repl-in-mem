@@ -2,8 +2,6 @@
 
 set -eu
 
-source vars.sh
-
 scripts/rebuild-changed-files
 
 LOCAL_ONLY=t ENV=dev clj -M:dev-embedded:dev:test:repl

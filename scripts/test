@@ -3,8 +3,6 @@ set -eu
 
 export PATH=$PWD/scripts/:$PATH
 
-source vars.sh
-
 changes="$(find-client-changes)"
 if [ ! -z "$changes" ] ; then
   echo "Found client changes:"

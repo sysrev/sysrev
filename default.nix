@@ -60,7 +60,7 @@ mkShell {
   ] ++ (if target.isDarwin then [ ] else [ chromium ]);
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
-    echo "source vars.sh && ${vscode-with-extensions}/bin/code -a ." > bin/code
+    echo "${vscode-with-extensions}/bin/code -a ." > bin/code
     chmod +x bin/code
     rm -f scripts/clj-kondo
     ln -s ${clj-kondo}/bin/clj-kondo scripts/

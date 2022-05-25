@@ -15,6 +15,7 @@
             [sysrev.nrepl.interface :as nrepl]
             [sysrev.postgres.core :as pg]
             [sysrev.scheduler.core :as scheduler]
+            [sysrev.secrets-manager.interface :as secrets-manager]
             [sysrev.sente :as sente]
             [sysrev.sysrev-api.main]
             [sysrev.sysrev-api.pedestal]
@@ -46,50 +47,52 @@
 (defonce system (atom nil))
 
 (defn system-map [& {:keys [config postgres-overrides]}]
-  (component/system-map
-   :config (-> config :postgres
-               (merge postgres-overrides)
-               (->> (assoc config :postgres)))
-   :localstack (localstack config)
-   :memcached (component/using
-              (mem/temp-client)
-              {:server :memcached-server})
-   :memcached-server (mem/temp-server)
-   :postgres (component/using (pg/postgres) [:config])
-   :postgres-run-after-start (component/using
-                              (postgres-run-after-start)
-                              [:postgres])
-   :postgres-listener (component/using
-                       (listeners/listener)
-                       [:postgres :sente])
-   :s3 (component/using
-        (aws-client/aws-client
-         :after-start s3/create-s3-buckets!
-         :client-opts (assoc (:aws config) :api :s3))
-        [:localstack])
-   :scheduler (component/using
-               (if (#{:test :remote-test} (:profile env))
-                 (scheduler/mock-scheduler)
-                 (scheduler/scheduler))
-               [:config :postgres :sr-context])
-   :sente (component/using
-           (sente/sente :receive-f sente/receive-sente-channel!)
-           [:config :postgres])
-   ;; The :sr-context (Sysrev context) holds components that many functions need
-   :sr-context (component/using
-                {}
-                [:config :memcached :postgres :s3 :sysrev-api-pedestal])
-   :sysrev-api-config (or (:sysrev-api-config config)
-                          (sysrev.sysrev-api.main/get-config))
-   :sysrev-api-pedestal (component/using
-                         (sysrev.sysrev-api.pedestal/pedestal)
-                         {:config :sysrev-api-config
-                          :postgres :postgres})
-   :web-server (component/using
-                (web/web-server
-                 :handler-f web/sysrev-handler
-                 :port (-> config :server :port))
-                [:sente :sr-context])))
+  (let [config (-> config :postgres
+                   (merge postgres-overrides)
+                   (->> (assoc config :postgres))
+                   secrets-manager/transform-secrets)]
+    (component/system-map
+     :config config
+     :localstack (localstack config)
+     :memcached (component/using
+                 (mem/temp-client)
+                 {:server :memcached-server})
+     :memcached-server (mem/temp-server)
+     :postgres (component/using (pg/postgres) [:config])
+     :postgres-run-after-start (component/using
+                                (postgres-run-after-start)
+                                [:postgres])
+     :postgres-listener (component/using
+                         (listeners/listener)
+                         [:postgres :sente])
+     :s3 (component/using
+          (aws-client/aws-client
+           :after-start s3/create-s3-buckets!
+           :client-opts (assoc (:aws config) :api :s3))
+          [:localstack])
+     :scheduler (component/using
+                 (if (#{:test :remote-test} (:profile env))
+                   (scheduler/mock-scheduler)
+                   (scheduler/scheduler))
+                 [:config :postgres :sr-context])
+     :sente (component/using
+             (sente/sente :receive-f sente/receive-sente-channel!)
+             [:config :postgres])
+     ;; The :sr-context (Sysrev context) holds components that many functions need
+     :sr-context (component/using
+                  {}
+                  [:config :memcached :postgres :s3 :sysrev-api-pedestal])
+     :sysrev-api-config (or (:sysrev-api-config config)
+                            (sysrev.sysrev-api.main/get-config))
+     :sysrev-api-pedestal (component/using
+                           (sysrev.sysrev-api.pedestal/pedestal)
+                           {:config :sysrev-api-config
+                            :postgres :postgres})
+     :web-server (component/using
+                  (web/web-server
+                   :handler-f web/sysrev-handler
+                   :port (-> config :server :port))
+                  [:sente :sr-context]))))
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
