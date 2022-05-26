@@ -1,8 +1,8 @@
-{:datapub-zone-apex "datapubdev.net"
- :env "staging"
- :insilica-zone-apex ""
- :sysrev-zone-apex "sysrevdev.net"
-
+{:Env "staging"
+ :global {:DatapubZoneApex "datapubdev.net"
+          :InsilicaZoneApex ""
+          :SysrevZoneApex "sysrevdev.net"}
+ 
  :datapub
  {:AutoScalingMaxSize 2
   :AutoScalingMinSize 1

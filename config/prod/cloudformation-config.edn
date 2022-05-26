@@ -1,7 +1,7 @@
-{:datapub-zone-apex "datapub.dev"
- :env "prod"
- :insilica-zone-apex "insilica.co"
- :sysrev-zone-apex "sysrev.com"
+{:Env "prod"
+ :global {:DatapubZoneApex "datapub.dev"
+          :InsilicaZoneApex "insilica.co"
+          :SysrevZoneApex "sysrev.com"}
 
  :datapub
  {:AutoScalingMaxSize 2
