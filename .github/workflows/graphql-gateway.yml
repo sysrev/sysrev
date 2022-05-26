@@ -10,7 +10,42 @@ on:
       - '!**.md'
 
 jobs:
+  get-global-resources:
+    outputs:
+      code-bucket: ${{ steps.get-stack-outputs.outputs.CodeBucket }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS staging credentials
+        if: github.ref_name == 'staging'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Configure AWS prod credentials
+        if: github.ref_name == 'production'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: us-east-1
+          mask-aws-account-id: no
+
+      - name: Get Sysrev-Global-Resources stack outputs
+        if: github.ref_name == 'staging' || github.ref_name == 'production'
+        id: get-stack-outputs
+        uses: john-shaffer/aws-cloudformation-github-deploy@skip-deploy
+        with:
+          name: Sysrev-Global-Resources
+          skip-deploy: '1'
+          template: 'unused'
+
   graphql-gateway:
+    needs: get-global-resources
     runs-on: ubuntu-latest
 
     steps:
