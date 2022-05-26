@@ -44,10 +44,12 @@
     (localstack/localstack aws)
     {}))
 
-(defn aws-opts [{:keys [aws-access-key-id aws-secret-access-key aws-region]}]
+(defn aws-opts [{:keys [aws-access-key-id aws-region
+                        aws-secret-access-key aws-session-token]}]
   (cond-> {:region (or aws-region "us-east-1")}
     (seq aws-access-key-id) (assoc :access-key-id aws-access-key-id)
-    (seq aws-secret-access-key) (assoc :secret-access-key aws-secret-access-key)))
+    (seq aws-secret-access-key) (assoc :secret-access-key aws-secret-access-key)
+    (seq aws-session-token) (assoc :session-token aws-session-token)))
 
 (defonce system (atom nil))
 

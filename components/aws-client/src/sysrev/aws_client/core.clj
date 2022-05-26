@@ -4,11 +4,18 @@
             [cognitect.aws.credentials :as credentials]
             [com.stuartsierra.component :as component]))
 
+(defn basic-credentials-provider [{:keys [access-key-id secret-access-key session-token]}]
+  (reify credentials/CredentialsProvider
+    (fetch [_]
+      {:aws/access-key-id access-key-id
+       :aws/secret-access-key secret-access-key
+       :aws/session-token session-token})))
+
 (defn aws-api-client [opts]
-  (let [creds (select-keys opts [:access-key-id :secret-access-key])]
+  (let [creds (select-keys opts [:access-key-id :secret-access-key :session-token])]
     (-> (if (some seq (vals creds))
           (assoc opts :credentials-provider
-                 (credentials/basic-credentials-provider creds))
+                 (basic-credentials-provider creds))
           opts)
         aws/client)))
 
