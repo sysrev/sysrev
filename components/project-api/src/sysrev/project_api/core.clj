@@ -66,9 +66,9 @@
     (resolve/resolve-as nil {:message "Invalid API token"})))
 
 (defn dev-key-check [context]
-  (when-not (some-> (System/getenv "SYSREV_DEV_KEY")
-                    (= (bearer-token context)))
-    (resolve/resolve-as nil {:message "Restricted to internal use"})))
+   (when-not (some-> context :config :sysrev-dev-key
+                     (= (bearer-token context)))
+     (resolve/resolve-as nil {:message "Restricted to internal use"})))
 
 (defn project-admin-check [context ^Long project-id ^Long user-id]
   (when-not (and project-id

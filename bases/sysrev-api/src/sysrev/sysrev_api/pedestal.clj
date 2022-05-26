@@ -18,7 +18,7 @@
 (defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (sl/load-schema ["sysrev-api/schema.graphql"]
                                         :resolvers project-api/resolvers)
-        app-context {:opts opts :pedestal pedestal}
+        app-context {:config (:config pedestal) :opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
                                  slp/error-logging-interceptor]

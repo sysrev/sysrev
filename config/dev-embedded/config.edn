@@ -38,5 +38,7 @@
  :profile :dev
  :private-config "config.local.edn"
  :sysrev-api-config {:env :dev
-                     :pedestal {:port 0}}
+                     :pedestal {:port 0}
+                     :sysrev-dev-key {:secrets-manager/arn "***REMOVED***"
+                                      :secrets-manager/key :token}}
  :web-server {:web-asset-path "/out-dev"}}
