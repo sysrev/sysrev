@@ -17,6 +17,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 * [Browser Tests](#markdown-header-browser-tests)
 * [Database Restore](#markdown-header-db-restore)
 * [GraphQL API](#makedown-header-graphql-api)
+* [Infrastructure](doc/infra.md)
 
 ## Installation
 
