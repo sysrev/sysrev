@@ -3,9 +3,6 @@
   (:require [clojure.java.io :as io]
             [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
-(defn import-regional [export-name]
-  (import-value (str "Sysrev-Regional-Resources-" export-name)))
-
 (deftemplate template
   :Description
   "This template creates the Datapub AutoScalingGroup."
@@ -16,13 +13,23 @@
                         :Type "String"}
    :AutoScalingMinSize {:AllowedPattern "[1-9][0-9]*"
                         :Type "String"}
+   :CloudFrontOAI {:Type "String"}
+   :CredentialsKeyId {:Type "String"}
+   :CredentialsKeyUsePolicyArn {:Type "String"}
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
    :DatapubFilesDomainName {:Type "String"}
+   :DatapubHostedZoneId {:Type "String"}
+   :DatapubZoneApex {:Type "String"}
    :Env {:AllowedPattern "(dev)|(prod)|(staging)"
          :Type "String"}
    :InstanceType {:Type "String"}
+   :LoadBalancerCanonicalHostedZoneId {:Type "String"}
+   :LoadBalancerDNSName {:Type "String"}
+   :LoadBalancerHTTPSListenerArn {:Type "String"}
+   :LoadBalancerSecurityGroupId {:Type "String"}
+   :LogsKeyArn {:Type "String"}
    :KeyName {:Default ""
              :Type "String"}
    :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
@@ -35,9 +42,12 @@
              :Type "Number"}
    :RDSStorageType {:AllowedPattern "(gp2)|(io1)"
                     :Type "String"}
+   :RDSSubnetGroupName {:Type "String"}
    :SlackToken {:MinLength 10 ; Just make sure we actually pass a value in
                 :NoEcho true
-                :Type "String"}}
+                :Type "String"}
+   :VpcId {:Type "String"}
+   :VpcSubnetIds {:Type "String"}}
 
   :Conditions
   {:HasKeyName
@@ -49,7 +59,7 @@
   {:LogGroup
    {:Type "AWS::Logs::LogGroup"
     :Properties
-    {:KmsKeyId (import-regional "LogsKeyArn")
+    {:KmsKeyId (ref :LogsKeyArn)
      :LogGroupName "Datapub-Servers"
      :RetentionInDays 14}}
 
@@ -103,7 +113,7 @@
     {:DomainName (ref :DatapubFilesDomainName)
      :DomainValidationOptions
      [{:DomainName (ref :DatapubFilesDomainName)
-       :HostedZoneId (import-regional "DatapubHostedZoneId")}]
+       :HostedZoneId (ref :DatapubHostedZoneId)}]
      :ValidationMethod "DNS"}}
 
    :FileDistributionCachePolicy
@@ -146,7 +156,7 @@
         :Id "DatapubBucketOrigin"
         :S3OriginConfig
         {:OriginAccessIdentity (join "" ["origin-access-identity/cloudfront/"
-                                         (import-regional "CloudFrontOAI")])}}]
+                                         (ref :CloudFrontOAI)])}}]
       :ViewerCertificate
       {:AcmCertificateArn (ref :FileDistributionCertificate)
        :SslSupportMethod "sni-only"}}}}
@@ -154,7 +164,7 @@
    :FileDistributionRecordSetGroup
    {:Type "AWS::Route53::RecordSetGroup"
     :Properties
-    {:HostedZoneId (import-regional "DatapubHostedZoneId")
+    {:HostedZoneId (ref :DatapubHostedZoneId)
      :RecordSets
      [{:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
                      :DNSName (get-att :FileDistribution "DomainName")}
@@ -173,7 +183,7 @@
       :GenerateStringKey "password"
       :PasswordLength 32
       :SecretStringTemplate "{\"username\": \"postgres\"}"}
-     :KmsKeyId (import-regional "CredentialsKeyId")}}
+     :KmsKeyId (ref :CredentialsKeyId)}}
 
    :SysrevDevKey
    {:Type "AWS::SecretsManager::Secret"
@@ -182,7 +192,7 @@
      {:GenerateStringKey "key"
       :PasswordLength 32
       :SecretStringTemplate "{}"}
-     :KmsKeyId (import-regional "CredentialsKeyId")}}
+     :KmsKeyId (ref :CredentialsKeyId)}}
 
    :DatapubSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"
@@ -192,8 +202,8 @@
      [{:IpProtocol "tcp"
        :FromPort 8888
        :ToPort 8888
-       :SourceSecurityGroupId (import-regional "LoadBalancerSecurityGroupId")}]
-     :VpcId (import-regional "VpcId")}}
+       :SourceSecurityGroupId (ref :LoadBalancerSecurityGroupId)}]
+     :VpcId (ref :VpcId)}}
 
    :RDSSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"
@@ -204,7 +214,7 @@
        :FromPort 5432
        :ToPort 5432
        :SourceSecurityGroupId (ref :DatapubSecurityGroup)}]
-     :VpcId (import-regional "VpcId")}}
+     :VpcId (ref :VpcId)}}
 
    :RDSInstance
    {:Type "AWS::RDS::DBInstance"
@@ -219,7 +229,7 @@
      :DBInstanceClass (ref :RDSInstanceClass)
      :DBInstanceIdentifier "datapubio"
      :DBName "datapub"
-     :DBSubnetGroupName (import-regional "RDSSubnetGroupName")
+     :DBSubnetGroupName (ref :RDSSubnetGroupName)
      :DeletionProtection true
      :EnablePerformanceInsights true
      :Engine "postgres"
@@ -240,17 +250,17 @@
    :RecordSetGroup
    {:Type "AWS::Route53::RecordSetGroup"
     :Properties
-    {:HostedZoneId (import-regional "DatapubHostedZoneId")
+    {:HostedZoneId (ref :DatapubHostedZoneId)
      :RecordSets
      [{:AliasTarget
-       {:HostedZoneId (import-regional "LoadBalancerCanonicalHostedZoneId")
-        :DNSName (import-regional "LoadBalancerDNSName")}
-       :Name (join "." ["www" (import-regional "DatapubZoneApex")])
+       {:HostedZoneId (ref :LoadBalancerCanonicalHostedZoneId)
+        :DNSName (ref :LoadBalancerDNSName)}
+       :Name (join "." ["www" (ref :DatapubZoneApex)])
        :Type "A"}
       {:AliasTarget
-       {:HostedZoneId (import-regional "LoadBalancerCanonicalHostedZoneId")
-        :DNSName (import-regional "LoadBalancerDNSName")}
-       :Name (join "." ["www" (import-regional "DatapubZoneApex")])
+       {:HostedZoneId (ref :LoadBalancerCanonicalHostedZoneId)
+        :DNSName (ref :LoadBalancerDNSName)}
+       :Name (join "." ["www" (ref :DatapubZoneApex)])
        :Type "AAAA"}]}}
 
    :LoadBalancerTargetGroup
@@ -262,7 +272,7 @@
      :Port 8888
      :Protocol "HTTP"
      :TargetType "instance"
-     :VpcId (import-regional "VpcId")}}
+     :VpcId (ref :VpcId)}}
 
    :LoadBalancerListenerRule
    {:Type "AWS::ElasticLoadBalancingV2::ListenerRule"
@@ -272,8 +282,8 @@
        :Type "forward"}]
      :Conditions
      [{:Field "host-header"
-       :HostHeaderConfig {:Values [(join "." ["www" (import-regional "DatapubZoneApex")])]}}]
-     :ListenerArn (import-regional "LoadBalancerHTTPSListenerArn")
+       :HostHeaderConfig {:Values [(join "." ["www" (ref :DatapubZoneApex)])]}}]
+     :ListenerArn (ref :LoadBalancerHTTPSListenerArn)
      :Priority 200}}
 
    :DatapubBucketFullAccessPolicy
@@ -322,7 +332,7 @@
       "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       (ref :DatapubBucketFullAccessPolicy)
       (ref :InstancePolicy)
-      (import-regional "CredentialsKeyUsePolicyArn")]}}
+      (ref :CredentialsKeyUsePolicyArn)]}}
 
    :InstanceProfile
    {:Type "AWS::IAM::InstanceProfile"
@@ -405,7 +415,7 @@
        :Value "Datapub"}]
      :TargetGroupARNs [(ref :LoadBalancerTargetGroup)]
      :VPCZoneIdentifier
-     (split "," (import-regional "VpcSubnetIds"))}}
+     (split "," (ref :VpcSubnetIds))}}
 
    :AutoScalingPolicy
    {:Type "AWS::AutoScaling::ScalingPolicy"
@@ -416,7 +426,3 @@
      {:PredefinedMetricSpecification
       {:PredefinedMetricType "ASGAverageCPUUtilization"}
       :TargetValue 50.0}}}})
-
-(comment
-  (write-template "components/infra/out/datapub.template"
-                  template))

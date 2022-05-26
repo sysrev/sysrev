@@ -5,6 +5,7 @@
             [donut.system :as ds]
             [salmon.cloudformation.interface :as cfn]
             [salmon.signal.interface :as sig]
+            [sysrev.infra.datapub :as datapub]
             [sysrev.infra.graphql-gateway :as graphql-gateway]
             [sysrev.infra.sysrev-global-resources :as global]
             [sysrev.infra.sysrev-regional-resources :as regional]
@@ -54,6 +55,38 @@
                               :SysrevHostedZoneId (global-output :SysrevHostedZoneId)
                               :SysrevZoneApex (global-output :SysrevZoneApex)}
                  :template regional/template})}
+    :datapub
+    {:files-domain-name
+     {::ds/config {:apex (global-output :DatapubZoneApex)}
+      ::ds/start (fn [config]
+                   (str "files." (:apex config)))}
+     :params
+     (merge-maps
+      (ds/ref [:stacks :config :datapub])
+      {:AMI (System/getenv "DATAPUB_AMI")
+       :CloudFrontOAI (global-output :CloudFrontOAI)
+       :CredentialsKeyId (regional-output :CredentialsKeyId)
+       :CredentialsKeyUsePolicyArn (regional-output :CredentialsKeyUsePolicyArn)
+       :DatapubBucket (global-output :DatapubBucket)
+       :DatapubFilesDomainName (ds/ref [:datapub :files-domain-name])
+       :DatapubHostedZoneId (global-output :DatapubHostedZoneId)
+       :DatapubZoneApex (global-output :DatapubZoneApex)
+       :Env (config-val :env)
+       :LoadBalancerCanonicalHostedZoneId (regional-output :LoadBalancerCanonicalHostedZoneId)
+       :LoadBalancerDNSName (regional-output :LoadBalancerDNSName)
+       :LoadBalancerHTTPSListenerArn (regional-output :LoadBalancerHTTPSListenerArn)
+       :LoadBalancerSecurityGroupId (regional-output :LoadBalancerSecurityGroupId)
+       :LogsKeyArn (regional-output :LogsKeyArn)
+       :RDSSubnetGroupName (regional-output :RDSSubnetGroupName)
+       :SlackToken (System/getenv "DATAPUB_SLACK_TOKEN")
+       :VpcId (regional-output :VpcId)
+       :VpcSubnetIds (regional-output :VpcSubnetIds)})
+     :stack
+     (cfn/stack {:capabilities capabilities
+                 :lint? true
+                 :name "Datapub"
+                 :parameters (ds/ref [:datapub :params])
+                 :template datapub/template})}
     :graphql-gateway
     {:stack
      (cfn/stack {:capabilities capabilities
@@ -93,7 +126,7 @@
 
 (comment
   (do
-    (deploy! {:groups [:sysrevf]})
+    (deploy! {:groups [:sysrev]})
     nil)
   (->> @system ::ds/instances :stacks :global-resources :outputs)
   (->> @system ::ds/instances :stacks :regional-resources :outputs)

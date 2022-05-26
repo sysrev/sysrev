@@ -3,6 +3,14 @@
  :insilica-zone-apex ""
  :sysrev-zone-apex "sysrevdev.net"
 
+ :datapub
+ {:AutoScalingMaxSize 2
+  :AutoScalingMinSize 1
+  :InstanceType "t3a.small"
+  :KeyName "john-20.04"
+  :RDSAllocatedStorage 100
+  :RDSInstanceClass "db.t4g.micro"
+  :RDSStorageType "gp2"}
  :sysrev
  {:RDSAllocatedStorage 100
   :RDSInstanceClass "db.t3.micro"
