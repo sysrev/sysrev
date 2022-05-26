@@ -124,7 +124,7 @@
   (let [self-id @(subscribe [:self/user-id])
         {:keys [show-labels show-notes self-only show-unconfirmed]}
         @(subscribe [::al/display-options (al/cached context)])
-        {:keys [labels notes]} article
+        {:keys [article-id labels notes]} article
         notes (cond->> notes
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
@@ -133,7 +133,7 @@
                  (filterv #(not (in? [0 nil] (:confirm-time %)))))
         users-labels (group-by :user-id labels)
         users-notes (index-by :user-id notes)
-        resolver-id @(subscribe [:article/resolve-user-id (:article-id article)])]
+        resolver-id @(subscribe [:article/resolve-user-id article-id])]
     [:div.ui.segment.article-labels
      (doall
       (for [user-id (->> [(keys users-labels)
@@ -146,6 +146,7 @@
           (when (or user-note (seq user-labels))
             ^{:key [:user-labels user-id]}
             [labels/LabelValuesView user-labels
+             article-id
              :user-name user-name
              :note user-note
              :resolved? resolved?]))))]))
