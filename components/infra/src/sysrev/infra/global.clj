@@ -1,4 +1,4 @@
-(ns sysrev.infra.sysrev-global-resources
+(ns sysrev.infra.global
   (:refer-clojure :exclude [ref])
   (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 

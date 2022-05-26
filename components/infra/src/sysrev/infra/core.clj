@@ -7,8 +7,8 @@
             [salmon.signal.interface :as sig]
             [sysrev.infra.datapub :as datapub]
             [sysrev.infra.graphql-gateway :as graphql-gateway]
-            [sysrev.infra.sysrev-global-resources :as global]
-            [sysrev.infra.sysrev-regional-resources :as regional]
+            [sysrev.infra.global :as global]
+            [sysrev.infra.regional :as regional]
             [sysrev.infra.sysrev :as sysrev]))
 
 (defonce system (atom nil))
@@ -16,13 +16,13 @@
 (def capabilities #{"CAPABILITY_AUTO_EXPAND" "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"})
 
 (defn config-val [k]
-  (ds/ref [:stacks :config k]))
+  (ds/ref [:common :config k]))
 
 (defn global-output [k]
-  (ds/ref [:stacks :global-resources :outputs k]))
+  (ds/ref [:common :global-resources :outputs k]))
 
 (defn regional-output [k]
-  (ds/ref [:stacks :regional-resources :outputs k]))
+  (ds/ref [:common :regional-resources :outputs k]))
 
 (defn merge-maps [& maps]
   {::ds/config {:maps maps}
@@ -32,7 +32,7 @@
 (defn system-map []
   {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
    ::ds/defs
-   {:stacks
+   {:common
     {:config (-> "cloudformation-config.edn" io/resource slurp edn/read-string)
      :global-resources
      (cfn/stack {:capabilities capabilities
@@ -62,7 +62,7 @@
                    (str "files." (:apex config)))}
      :params
      (merge-maps
-      (ds/ref [:stacks :config :datapub])
+      (ds/ref [:common :config :datapub])
       {:AMI (System/getenv "DATAPUB_AMI")
        :CloudFrontOAI (global-output :CloudFrontOAI)
        :CredentialsKeyId (regional-output :CredentialsKeyId)
@@ -101,7 +101,7 @@
     :sysrev
     {:params
      (merge-maps
-      (ds/ref [:stacks :config :sysrev])
+      (ds/ref [:common :config :sysrev])
       {:CredentialsKeyId (regional-output :CredentialsKeyId)
        :RDSSubnetGroupName (regional-output :RDSSubnetGroupName)
        :VpcId (regional-output :VpcId)})
@@ -117,7 +117,7 @@
 (defn deploy! [{:keys [groups]}]
   (try
     (-> (system-map)
-        (update ::ds/defs select-keys (into #{:stacks} groups))
+        (update ::ds/defs select-keys (into #{:common} groups))
         sig/pre-validate!
         sig/start!
         (->> (reset! system)))
@@ -128,7 +128,7 @@
   (do
     (deploy! {:groups [:sysrev]})
     nil)
-  (->> @system ::ds/instances :stacks :global-resources :outputs)
-  (->> @system ::ds/instances :stacks :regional-resources :outputs)
+  (->> @system ::ds/instances :common :global-resources :outputs)
+  (->> @system ::ds/instances :common :regional-resources :outputs)
   (->> @system ::ds/instances :sysrev :params)
   (->> @system ::ds/instances :sysrev :stack :resources))
