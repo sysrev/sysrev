@@ -41,7 +41,7 @@ jobs:
             /nix/store
             /nix/var/nix/profiles
 
-      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump
+      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump || true
         if: steps.nix-cache.outputs.cache-hit == 'true'
 
       - name: Build Nix derivations
