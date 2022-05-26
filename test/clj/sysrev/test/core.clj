@@ -59,8 +59,23 @@
     (assoc config
            :url (str protocol "://" host (if port (str ":" port) "") "/"))))
 
+(defn init-db! [system db-name]
+  (let [{:keys [bound-port config]} (:postgres system)
+        ds (-> (:postgres config)
+               (assoc :dbname db-name
+                      :port bound-port)
+               jdbc/get-datasource)]
+    (test-fixtures/load-all-fixtures! ds)
+    (binding [db/*active-db* (atom {:datasource ds})
+              db/*conn* nil
+              db/*query-cache* (atom {})
+              db/*query-cache-enabled* (atom false)
+              db/*transaction-query-cache* nil
+              env (:config system)]
+      (migration/ensure-updated-db))))
+
 (defn start-test-system! []
-  (let [system
+  (let [{:keys [config] :as system}
         #__ (main/start-non-global!
              :config
              (medley/deep-merge
@@ -78,19 +93,8 @@
              :system-map-f
              #(-> (apply main/system-map %&)
                   (dissoc :scheduler)))]
-    (let [{:keys [bound-port config]} (:postgres system)
-          {:keys [template-dbname] :as opts} (-> (:postgres config)
-                                                 (assoc :port bound-port))
-          ds (jdbc/get-datasource (assoc opts :dbname template-dbname))]
-      (test-fixtures/load-all-fixtures! ds)
-      (binding [db/*active-db* (atom {:datasource ds})
-                db/*conn* nil
-                db/*query-cache* (atom {})
-                db/*query-cache-enabled* (atom false)
-                db/*transaction-query-cache* nil]
-        (migration/ensure-updated-db)))
-    (-> system :postgres :datasource-long-running test-fixtures/load-all-fixtures!)
-    (migration/ensure-updated-db)
+    (init-db! system (-> config :postgres :template-dbname))
+    (init-db! system (-> config :postgres :dbname))
     system))
 
 (defn refresh! [{:keys [memcached postgres postgres-listener] :as system}]

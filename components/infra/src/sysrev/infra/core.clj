@@ -50,8 +50,9 @@
      :regional-params
      (call (fn [outputs]
              (-> outputs
-                 (select-keys [:CloudFrontOAI :CodeBucket :DatapubHostedZoneId
-                               :DatapubZoneApex :SysrevHostedZoneId :SysrevZoneApex])
+                 (select-keys [:CloudFrontOAI :CodeBucket :CredentialsGroupName
+                               :DatapubHostedZoneId :DatapubZoneApex
+                               :SysrevHostedZoneId :SysrevZoneApex])
                  (assoc :NumberOfAZs 6)))
            global-outputs)
      :regional-resources
@@ -100,8 +101,13 @@
                  :template graphql-gateway/template})}
     :sysrev
     {:params
-     (call #(merge % (select-keys %2 [:CredentialsKeyId :RDSSubnetGroupName :VpcId]))
+     (call (fn [config global regional]
+             (merge
+              config
+              (select-keys global [:CredentialsGroupName])
+              (select-keys regional [:CredentialsKeyId :RDSSubnetGroupName :VpcId])))
            (config-val :sysrev)
+           global-outputs
            regional-outputs)
      :stack
      (cfn/stack {:capabilities capabilities
