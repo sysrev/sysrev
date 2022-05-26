@@ -5,55 +5,26 @@ on:
   push:
     paths:
       - '.github/workflows/graphql-gateway.yml'
-      - 'components/infra/out/graphql-gateway.template'
       - 'projects/graphql-gateway/**'
       - '**.graphql'
       - '!**.md'
 
 jobs:
-  get-global-resources:
-    outputs:
-      code-bucket: ${{ steps.get-stack-outputs.outputs.CodeBucket }}
-      sysrev-zone-apex: ${{ steps.get-stack-outputs.outputs.SysrevZoneApex }}
-      service-role-arn: ${{ steps.get-stack-outputs.outputs.AdminAccessCloudFormationServiceRoleArn }}
+  graphql-gateway:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Configure AWS staging credentials
-        if: github.ref_name == 'staging'
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Cache Clojure dependencies
+        uses: actions/cache@v3
+        timeout-minutes: 5
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: us-east-1
-          mask-aws-account-id: no
-
-      - name: Configure AWS prod credentials
-        if: github.ref_name == 'production'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: us-east-1
-          mask-aws-account-id: no
-
-      - name: Get Sysrev-Global-Resources stack outputs
-        if: github.ref_name == 'staging' || github.ref_name == 'production'
-        id: get-stack-outputs
-        uses: john-shaffer/aws-cloudformation-github-deploy@skip-deploy
-        with:
-          name: Sysrev-Global-Resources
-          skip-deploy: '1'
-          template: 'unused'
-
-  graphql-gateway:
-    needs: get-global-resources
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+          key: clj-sysrev-${{ hashFiles('**/deps.edn') }}
+          restore-keys: clj-sysrev-
+          path: |
+            ~/.gitlibs
+            ~/.m2/repository
 
       - name: Cache npm dependencies
         uses: actions/cache@v3
@@ -65,23 +36,23 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v17
+        timeout-minutes: 5
         with:
           nix_path: nixpkgs=channel:nixos-21.11
 
       - name: Cache Nix store
         id: nix-cache
         uses: john-shaffer/cache@sudo-tar
+        timeout-minutes: 10
         with:
-          key: nix-sysrev2-${{ hashFiles('**.nix') }}
-          restore-keys: |
-            nix-sysrev-
-            nix-
+          key: nix-sysrev-${{ hashFiles('**.nix') }}
+          restore-keys: nix-sysrev-
           path: |
             ~/nix-db-dump
             /nix/store
             /nix/var/nix/profiles
 
-      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump
+      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump || true
         if: steps.nix-cache.outputs.cache-hit == 'true'
 
       - name: Build Nix derivation
@@ -150,16 +121,15 @@ jobs:
         run:
           nix-shell --run "aws s3 cp projects/graphql-gateway/lambda.zip s3://${{ needs.get-global-resources.outputs.code-bucket }}/${{ env.LAMBDA_KEY }}"
 
-      - name: Deploy Sysrev-GraphQL-Gateway stack
-        uses: aws-actions/aws-cloudformation-github-deploy@v1.0.4
-        if: github.ref_name == 'staging' || github.ref_name == 'production'
-        with:
-          capabilities: CAPABILITY_AUTO_EXPAND,CAPABILITY_IAM
-          name: Sysrev-GraphQL-Gateway
-          no-fail-on-empty-changeset: '1'
-          parameter-overrides: ApolloKey=${{ env.APOLLO_KEY }},LambdaKey=${{ env.LAMBDA_KEY }}
-          role-arn: ${{ needs.get-global-resources.outputs.service-role-arn }}
-          template: components/infra/out/graphql-gateway.template
+      - name: Deploy CloudFormation stacks to staging
+        if: github.ref_name == 'staging'
+        run: |
+          nix-shell --run "clojure -X:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]"
+
+      - name: Deploy CloudFormation stacks to production
+        if: github.ref_name == 'production'
+        run: |
+          nix-shell --run "clojure -X:prod:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]"
 
       - run: |
           nix-store --dump-db > ~/nix-db-dump

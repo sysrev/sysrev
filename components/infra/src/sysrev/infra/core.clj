@@ -5,11 +5,14 @@
             [donut.system :as ds]
             [salmon.cloudformation.interface :as cfn]
             [salmon.signal.interface :as sig]
+            [sysrev.infra.graphql-gateway :as graphql-gateway]
             [sysrev.infra.sysrev-global-resources :as global]
             [sysrev.infra.sysrev-regional-resources :as regional]
             [sysrev.infra.sysrev :as sysrev]))
 
 (defonce system (atom nil))
+
+(def capabilities #{"CAPABILITY_AUTO_EXPAND" "CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"})
 
 (defn config-val [k]
   (ds/ref [:stacks :config k]))
@@ -31,7 +34,7 @@
    {:stacks
     {:config (-> "cloudformation-config.edn" io/resource slurp edn/read-string)
      :global-resources
-     (cfn/stack {:capabilities #{"CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"}
+     (cfn/stack {:capabilities capabilities
                  :lint? true
                  :name "Sysrev-Global-Resources"
                  :parameters {:DatapubZoneApex (config-val :datapub-zone-apex)
@@ -40,7 +43,7 @@
                               :SysrevZoneApex (config-val :sysrev-zone-apex)}
                  :template global/template})
      :regional-resources
-     (cfn/stack {:capabilities #{"CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"}
+     (cfn/stack {:capabilities capabilities
                  :lint? true
                  :name "Sysrev-Regional-Resources"
                  :parameters {:CloudFrontOAI (global-output :CloudFrontOAI)
@@ -51,6 +54,17 @@
                               :SysrevHostedZoneId (global-output :SysrevHostedZoneId)
                               :SysrevZoneApex (global-output :SysrevZoneApex)}
                  :template regional/template})}
+    :graphql-gateway
+    {:stack
+     (cfn/stack {:capabilities capabilities
+                 :lint? true
+                 :name "Sysrev-GraphQL-Gateway"
+                 :parameters {:ApolloKey (System/getenv "APOLLO_KEY")
+                              :CodeBucket (global-output :CodeBucket)
+                              :LambdaKey (System/getenv "LAMBDA_KEY")
+                              :SysrevHostedZoneId (global-output :SysrevHostedZoneId)
+                              :SysrevZoneApex (global-output :SysrevZoneApex)}
+                 :template graphql-gateway/template})}
     :sysrev
     {:params
      (merge-maps
@@ -59,7 +73,7 @@
        :RDSSubnetGroupName (regional-output :RDSSubnetGroupName)
        :VpcId (regional-output :VpcId)})
      :stack
-     (cfn/stack {:capabilities #{"CAPABILITY_IAM" "CAPABILITY_NAMED_IAM"}
+     (cfn/stack {:capabilities capabilities
                  :lint? true
                  :name "Sysrev"
                  :parameters (ds/ref [:sysrev :params])
@@ -75,14 +89,12 @@
         sig/start!
         (->> (reset! system)))
     (catch clojure.lang.ExceptionInfo e
-      (log/error e (ex-message e)))))
+      (log/error e (ex-message e) (ex-data e)))))
 
 (comment
-  (deploy! {})
-  (try
-    (deploy! {})
-    (catch clojure.lang.ExceptionInfo e
-      (ex-data e)))
+  (do
+    (deploy! {:groups [:sysrevf]})
+    nil)
   (->> @system ::ds/instances :stacks :global-resources :outputs)
   (->> @system ::ds/instances :stacks :regional-resources :outputs)
   (->> @system ::ds/instances :sysrev :params)

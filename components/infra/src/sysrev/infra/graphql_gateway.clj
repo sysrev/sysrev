@@ -1,12 +1,6 @@
 (ns sysrev.infra.graphql-gateway
   (:refer-clojure :exclude [ref])
-  (:require [donut.system :as ds]
-            [io.staticweb.cloudformation-templating :refer :all :exclude [template]]
-            [salmon.cloudformation.interface :as cfn]
-            [salmon.signal.interface :as sig]))
-
-(defn import-regional [export-name]
-  (import-value (str "Sysrev-Regional-Resources-" (full-name export-name))))
+  (:require [io.staticweb.cloudformation-templating :refer :all :exclude [template]]))
 
 (deftemplate template
   :Description
@@ -19,16 +13,19 @@
   {:ApolloKey {:Default ""
                :NoEcho true
                :Type "String"}
-   :LambdaKey {:Type "String"}}
+   :CodeBucket {:Type "String"}
+   :LambdaKey {:Type "String"}
+   :SysrevHostedZoneId {:Type "String"}
+   :SysrevZoneApex {:Type "String"}}
 
   :Resources
   {:ApiCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
-    {:DomainName (join "." ["api" (import-regional :SysrevZoneApex)])
+    {:DomainName (join "." ["api" (ref :SysrevZoneApex)])
      :DomainValidationOptions
-     [{:DomainName (join "." ["api" (import-regional :SysrevZoneApex)])
-       :HostedZoneId (import-regional :SysrevHostedZoneId)}]
+     [{:DomainName (join "." ["api" (ref :SysrevZoneApex)])
+       :HostedZoneId (ref :SysrevHostedZoneId)}]
      :ValidationMethod "DNS"}}
 
    :HttpApi
@@ -36,16 +33,16 @@
     :Properties
     {:Domain
      {:CertificateArn (ref :ApiCertificate)
-      :DomainName (join "." ["api" (import-regional :SysrevZoneApex)])
+      :DomainName (join "." ["api" (ref :SysrevZoneApex)])
       :IPV6 true
-      :Route53 {:HostedZoneId (import-regional :SysrevHostedZoneId)}}}}
+      :Route53 {:HostedZoneId (ref :SysrevHostedZoneId)}}}}
 
    :GatewayHandlerFunction
    {:Type "AWS::Serverless::Function"
     :Properties
     {:AutoPublishAlias "GraphQLGateway"
      :CodeUri
-     {:Bucket (import-regional :CodeBucket)
+     {:Bucket (ref :CodeBucket)
       :Key (ref :LambdaKey)}
      :Environment
      {:Variables
@@ -66,20 +63,3 @@
      ; The federated server can have long cold start times, so allow a
      ; timeout of at least 10 seconds.
      :Timeout 10}}})
-
-(defn system []
-  {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
-   ::ds/defs
-   {:services {:stack
-               (cfn/stack {:lint? true
-                           :name "stack"
-                           :template template})}}
-   ::ds/signals
-   {:salmon/pre-validate {:order :reverse-topsort}
-    :validate {:order :reverse-topsort}}})
-
-(comment
-  (do (sig/pre-validate! (system))
-      (write-template "components/infra/out/graphql-gateway.template"
-                      template)))
-
