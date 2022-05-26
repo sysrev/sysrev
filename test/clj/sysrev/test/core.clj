@@ -1,3 +1,6 @@
+#_:clj-kondo/ignore
+(require 'hashp.core)
+
 (ns sysrev.test.core
   (:require [clj-time.core :as time]
             [clojure.data.json :as json]
