@@ -27,6 +27,7 @@
    :CodeBucket {:MaxLength 63
                 :MinLength 3
                 :Type "String"}
+   :CredentialsGroupName {:Type "String"}
    :DatapubZoneApex {:Description "The DNS zone apex for Datapub with no final period, e.g., \"datapub.dev\""
                      :Type "String"}
    :DatapubHostedZoneId {:Type "AWS::Route53::HostedZone::Id"}
@@ -272,7 +273,8 @@
    :CredentialsKeyUsePolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
-    {:PolicyDocument
+    {:Groups [(ref :CredentialsGroupName)]
+     :PolicyDocument
      {:Version "2012-10-17"
       :Statement
       {:Effect "Allow"

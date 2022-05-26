@@ -17,7 +17,8 @@
   "This template creates the Sysrev AutoScalingGroup."
 
   :Parameters
-  {:CredentialsKeyId {:Type "String"}
+  {:CredentialsGroupName {:Type "String"}
+   :CredentialsKeyId {:Type "String"}
    :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
                          :Description "Minimum allocated storage in GB. Must be at least 20."
                          :Type "String"}
@@ -73,24 +74,17 @@
    :CredentialsPolicy
    {:Type "AWS::IAM::ManagedPolicy"
     :Properties
-    {:PolicyDocument
+    {:Groups [(ref :CredentialsGroupName)]
+     :PolicyDocument
      {:Version "2012-10-17"
       :Statement
       [{:Action ["secretsmanager:GetSecretValue"]
         :Effect "Allow"
-        :Resource (ref :DatasourceCredentials)}
-       {:Action ["secretsmanager:GetSecretValue"]
-        :Effect "Allow"
-        :Resource (ref :PayPalCredentials)}
-       {:Action ["secretsmanager:GetSecretValue"]
-        :Effect "Allow"
-        :Resource (ref :RDSMasterCredentials)}
-       {:Action ["secretsmanager:GetSecretValue"]
-        :Effect "Allow"
-        :Resource (ref :StripeCredentials)}
-       {:Action ["secretsmanager:GetSecretValue"]
-        :Effect "Allow"
-        :Resource (ref :SysrevDevKey)}]}}}
+        :Resource [(ref :DatasourceCredentials)
+                   (ref :PayPalCredentials)
+                   (ref :RDSMasterCredentials)
+                   (ref :StripeCredentials)
+                   (ref :SysrevDevKey)]}]}}}
 
    :SysrevSecurityGroup
    {:Type "AWS::EC2::SecurityGroup"

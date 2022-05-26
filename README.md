@@ -33,7 +33,9 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
 ## Usage
 
-- If you need credentials, prefix the command with an aws-vault exec invocation. E.g., `AWS_REGION=us-east-1 aws-vault exec sysrev-test -- nix-shell --run "bin/code"`
+- If you need credentials, prefix the command with an aws-vault exec invocation. E.g.,
+  - `AWS_REGION=us-east-1 aws-vault exec sysrev-test -- nix-shell --run "bin/code"`
+  - `AWS_REGION=us-east-1 aws-vault exec sysrev-test -- nix-shell --run "bash scripts/test-local"`
 
 - Run VSCode with `nix-shell --run "bin/code"`
   - For emacs keybindings, first run `ln -s nix/vscode-emacs.nix local.nix`

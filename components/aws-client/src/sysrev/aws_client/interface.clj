@@ -1,6 +1,14 @@
 (ns sysrev.aws-client.interface
   (:require [sysrev.aws-client.core :as core]))
 
+(defn aws-api-client
+  "Returns the result of `cognitect.aws.client.api`.
+   
+   Adds a credentials provider if :access-key-id
+   or :secret-access-key are provided."
+  [opts]
+  (core/aws-api-client opts))
+
 (defn aws-client
   "Returns an AWS Client record implementing
    `com.stuartsierra.component/Lifecycle`.

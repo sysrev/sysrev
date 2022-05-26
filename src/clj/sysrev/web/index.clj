@@ -85,10 +85,10 @@
            (get-in request [:sr-context :config :datapub-ws])}]
     [:div {:style "display: none;"
            :id "stripe-public-key"
-           :data-stripe-public-key stripe-public-key}]
+           :data-stripe-public-key (stripe-public-key)}]
     [:div {:style "display: none;"
            :id "stripe-client-id"
-           :data-stripe-client-id stripe-client-id}]
+           :data-stripe-client-id (stripe-client-id)}]
     [:div {:style "display: none;"
            :id "paypal-env"
            :data-paypal-env (paypal-env)}]

@@ -44,13 +44,18 @@
     (localstack/localstack aws)
     {}))
 
+(defn aws-opts [{:keys [aws-access-key-id aws-secret-access-key aws-region]}]
+  (cond-> {:region (or aws-region "us-east-1")}
+    (seq aws-access-key-id) (assoc :access-key-id aws-access-key-id)
+    (seq aws-secret-access-key) (assoc :secret-access-key aws-secret-access-key)))
+
 (defonce system (atom nil))
 
 (defn system-map [& {:keys [config postgres-overrides]}]
   (let [config (-> config :postgres
                    (merge postgres-overrides)
-                   (->> (assoc config :postgres))
-                   secrets-manager/transform-secrets)]
+                   (->> (assoc config :postgres)
+                        (secrets-manager/transform-secrets (aws-opts config))))]
     (component/system-map
      :config config
      :localstack (localstack config)

@@ -1,11 +1,11 @@
 (ns sysrev.secrets-manager.interface
   (:require [aws-api-failjure :as aaf]
-            [cognitect.aws.client.api :as aws]
             [com.rpl.specter :as sp]
+            [sysrev.aws-client.interface :as aws-client]
             [sysrev.json.interface :as json]))
 
-(defn- aws-client []
-  (aws/client {:api :secretsmanager}))
+(defn- aws-client [opts]
+  (aws-client/aws-api-client (assoc opts :api :secretsmanager)))
 
 (defn get-secret-value [client arn]
   (-> client
@@ -14,8 +14,8 @@
       :SecretString
       (json/read-str :key-fn keyword)))
 
-(defn transform-secrets [m]
-  (let [client (aws-client)
+(defn transform-secrets [client-opts m]
+  (let [client (aws-client client-opts)
         get-val (memoize (partial get-secret-value client))]
     (sp/transform
      (sp/walker :secrets-manager/arn)

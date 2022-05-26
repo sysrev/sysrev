@@ -415,17 +415,6 @@
         :Effect "Allow"
         :Resource "*"}]}}}
 
-   :GitHubActionsUser
-   {:Type "AWS::IAM::User"
-    :Properties
-    {:ManagedPolicyArns
-     [(ref :AdminAccessCloudFormationServicePassRolePolicy)
-      (ref :CloudFormationCreateUpdatePolicy)
-      (ref :CodeBucketFullAccessPolicy)
-      (ref :CacheBucketFullAccessPolicy)
-      (ref :PackerBuildPolicy)]
-     :UserName "github-actions"}}
-
    :CloudFrontOAI
    {:Type "AWS::CloudFront::CloudFrontOriginAccessIdentity"
     :Properties
@@ -464,6 +453,9 @@
         :Principal {:AWS (join "" ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity " (ref :CloudFrontOAI)])}
         :Resource (join "" ["arn:aws:s3:::" (ref :DatapubBucket) "/*"])}]}}}
 
+   :CredentialsGroup
+   {:Type "AWS::IAM::Group"}
+
    :DevelopersGroup
    {:Type "AWS::IAM::Group"
     :Properties
@@ -471,7 +463,24 @@
      :ManagedPolicyArns
      [(ref :CloudFormationReadPolicy)
       (ref :CloudWatchReadPolicy)
-      (ref :ListBucketsPolicy)]}}}
+      (ref :ListBucketsPolicy)]}}
+
+   :CredentialsUser
+   {:Type "AWS::IAM::User"
+    :Properties
+    {:Groups [(ref :CredentialsGroup)]}}
+
+   :GitHubActionsUser
+   {:Type "AWS::IAM::User"
+    :Properties
+    {:Groups [(ref :CredentialsGroup)]
+     :ManagedPolicyArns
+     [(ref :AdminAccessCloudFormationServicePassRolePolicy)
+      (ref :CloudFormationCreateUpdatePolicy)
+      (ref :CodeBucketFullAccessPolicy)
+      (ref :CacheBucketFullAccessPolicy)
+      (ref :PackerBuildPolicy)]
+     :UserName "github-actions"}}}
 
   :Outputs
   (prefixed-outputs
@@ -480,6 +489,7 @@
     :CacheBucket [(ref :CacheBucket)]
     :CloudFrontOAI [(ref :CloudFrontOAI)]
     :CodeBucket [(ref :CodeBucket)]
+    :CredentialsGroupName [(ref :CredentialsGroup)]
     :DatapubBucket [(ref :DatapubBucket)]
     :DatapubHostedZoneId [(ref :DatapubHostedZone)]
     :DatapubZoneApex [(ref :DatapubZoneApex)]

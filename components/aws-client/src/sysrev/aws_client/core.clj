@@ -4,6 +4,14 @@
             [cognitect.aws.credentials :as credentials]
             [com.stuartsierra.component :as component]))
 
+(defn aws-api-client [opts]
+  (let [creds (select-keys opts [:access-key-id :secret-access-key])]
+    (-> (if (some seq (vals creds))
+          (assoc opts :credentials-provider
+                 (credentials/basic-credentials-provider creds))
+          opts)
+        aws/client)))
+
 (defrecord AwsClient [after-start client client-opts localstack]
   component/Lifecycle
   (start [this]
@@ -11,15 +19,10 @@
       this
       (if (:disabled? client-opts)
         this
-        (let [creds (select-keys client-opts [:access-key-id :secret-access-key])
-              client-opts (if (some seq (vals creds))
-                            (assoc client-opts :credentials-provider
-                                   (credentials/basic-credentials-provider creds))
-                            client-opts)
-              localstack-port (some-> localstack :ports first val first)
+        (let [localstack-port (some-> localstack :ports first val first)
               client-opts (cond-> (select-keys client-opts [:api :credentials-provider :endpoint-override :region])
                             localstack-port (assoc-in [:endpoint-override :port] localstack-port))
-              this (assoc this :client (aws/client client-opts))]
+              this (assoc this :client (aws-api-client client-opts))]
           (if after-start
             (after-start this)
             this)))))

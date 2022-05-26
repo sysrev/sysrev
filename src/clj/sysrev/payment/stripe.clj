@@ -12,34 +12,35 @@
             [sysrev.shared.plans-info :as plans-info :refer [default-plan]]
             [sysrev.util :as util :refer [index-by current-function-name]]))
 
-(def stripe-secret-key (env :stripe-secret-key))
-
-(def stripe-public-key (env :stripe-public-key))
+(defn stripe-public-key []
+  (env :stripe-public-key))
 
 ;; https://dashboard.stripe.com/account/applications/settings
-(def stripe-client-id (env :stripe-client-id))
+(defn stripe-client-id []
+  (env :stripe-client-id))
 
 (def stripe-url "https://api.stripe.com/v1")
 
-(def default-req {:basic-auth stripe-secret-key
-                  :coerce :always
-                  :throw-exceptions false
-                  :as :json})
+(defn default-req []
+  {:basic-auth (env :stripe-secret-key)
+   :coerce :always
+   :throw-exceptions false
+   :as :json})
 
 (defn stripe-get [uri & [query-params]]
   (:body (http/get (str stripe-url uri)
-                   (cond-> default-req
+                   (cond-> (default-req)
                      query-params
                      (assoc :query-params (walk/stringify-keys query-params))))))
 
 (defn stripe-post [uri & [form-params]]
   (:body (http/post (str stripe-url uri)
-                    (assoc default-req
+                    (assoc (default-req)
                            :form-params
                            (walk/stringify-keys form-params)))))
 
 (defn stripe-delete [uri]
-  (:body (http/delete (str stripe-url uri) default-req)))
+  (:body (http/delete (str stripe-url uri) (default-req))))
 
 (defn create-customer!
   "Create a stripe customer"
@@ -70,13 +71,13 @@
   "Update a stripe customer with a payment-method id returned by stripe.js"
   [stripe-id payment-method]
   (let [response (http/post (str stripe-url "/payment_methods/" payment-method "/attach")
-                            (assoc default-req
+                            (assoc (default-req)
                                    :form-params {"customer"
                                                  stripe-id}))]
     (if (:error response)
       {:error (:error response)}
       (http/post (str stripe-url "/customers/" stripe-id)
-                 (assoc default-req
+                 (assoc (default-req)
                         :form-params {"invoice_settings[default_payment_method]"
                                       payment-method})))))
 
@@ -147,7 +148,7 @@
   [{:keys [user-id stripe-id] :as _user} project-id amount]
   (let [{:keys [body status]}
         (http/post (str stripe-url "/subscriptions")
-                   (assoc default-req
+                   (assoc (default-req)
                           :form-params
                           {"customer" stripe-id
                            "items[0][plan]" (:id (db-plans/stripe-support-project-plan))
@@ -190,7 +191,7 @@
 (defn cancel-subscription! [sub-id]
   (let [{:keys [project-id user-id]} (db-plans/lookup-support-subscription sub-id)
         {:keys [status body]} (http/delete (str stripe-url "/subscriptions/" sub-id)
-                                           default-req)]
+                                           (default-req))]
     (if (= status 200)
       ;; everything is ok, cancel this subscription
       (let [{:keys [id created customer quantity status]}

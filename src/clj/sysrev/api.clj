@@ -483,15 +483,6 @@
         (do (stripe/create-subscription-user! (user/user-by-id user-id))
             (plans/user-current-plan user-id)))))
 
-;; manually add:
-;; 1. connect to prod database
-;; 2. redefine keys in sysrev.payment.stripe
-;; (def stripe-secret-key "sk_live_________________________")
-;; then re-eval default-req
-;; 3. Check the plan id matches the one on stripe.com
-;; (stripe/get-plan-id "Unlimited_User")
-;; 4. subscribe the user
-;; (subscribe-user-to-plan <user-id> "Unlimited_User")
 (defn subscribe-user-to-plan [user-id plan]
   (with-transaction
     (let [{:keys [sub-id]} (get-or-create-user-plan! user-id)
