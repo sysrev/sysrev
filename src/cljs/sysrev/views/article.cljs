@@ -227,7 +227,9 @@
            (empty? abstract) nil
            annotator? [ArticleAnnotatedField article-id "abstract" abstract
                        :reader-error-render [render-abstract article-id]]
-           (= context :review) [BratFrame article-id]
+           (and (= context :review)
+                (some #(= "relationship" (:value-type %)) (vals @(subscribe [:project/labels-raw]))))
+           [BratFrame article-id]
            :else [render-abstract article-id])
          ;; article links
          [:div.ui.grid.article-links {:style {:margin "0"}}
