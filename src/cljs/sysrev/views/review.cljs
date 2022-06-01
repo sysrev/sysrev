@@ -610,63 +610,75 @@
        (zero? (-> ($ "div.view-pdf.updating") .-length))))
 
 (defn SaveButton [article-id & [small? fluid?]]
-  (let [project-id @(subscribe [:active-project-id])
-        resolving? @(subscribe [:review/resolving?])
-        on-review-task? (subscribe [:review/on-review-task?])
-        review-task-id @(subscribe [:review/task-id])
-        missing @(subscribe [:review/missing-labels project-id article-id])
-        invalid @(subscribe [:review/invalid-labels project-id article-id])
-        saving? (review-task-saving? article-id)
-        disabled? (or (seq missing) (seq invalid))
-        project-articles-id @(subscribe [:project-articles/article-id])
-        on-save (util/wrap-user-event
-                 (fn []
-                   (util/run-after-condition
-                    [:review-save article-id]
-                    review-task-ready-for-action?
-                    (fn []
-                      (when-not (action/running? :review/send-labels)
-                        (dispatch-sync [:review/mark-saving article-id])
-                        (sync-article-notes article-id)
-                        (dispatch
-                         [:review/send-labels
-                          {:project-id project-id
-                           :article-id article-id
-                           :confirm? true
-                           :resolve? (boolean resolving?)
-                           :on-success (concat
-                                        (when (or @on-review-task? (= article-id review-task-id))
-                                          [[:fetch [:review/task project-id]]])
-                                        (when (not @on-review-task?)
-                                          [[:fetch [:article project-id article-id]]
-                                           [:review/disable-change-labels article-id]])
-                                        (when project-articles-id
-                                          [[:project-articles/reload-list]
-                                           [:project-articles/hide-article]
-                                           [:scroll-top]]))}]))))))
-        button (fn [] [:button.ui.right.labeled.icon.button.save-labels
-                       {:class (css [(or disabled? saving?) "disabled"]
-                                    [saving? "loading"]
-                                    [small? "tiny"]
-                                    [fluid? "fluid"]
-                                    [resolving? "purple" :else "primary"])
-                        :on-click (when-not (or disabled? saving?) on-save)}
-                       (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
-                       [:i.check.circle.outline.icon]])]
-    (if disabled?
-      [ui/Tooltip
-       {:trigger [:div [button]]
-        :tooltip [:div {:style {:min-width "20em"}}
-                  [:ul {:style {:margin 0
-                                :padding "0.15em"
-                                :padding-left "1.25em"}}
-                   (when (seq missing)
-                     [:li "Answer missing for required label(s): "
-                      (->> missing vals (map :short-label) (str/join ", "))])
-                   (when (seq invalid)
-                     [:li "Invalid label answer(s): "
-                      (->> invalid vals (map :short-label) (str/join ", "))])]]}]
-      [button])))
+  (r/with-let [can-auto-save? (r/atom "NOT_SET")]
+    (let [project-id @(subscribe [:active-project-id])
+          resolving? @(subscribe [:review/resolving?])
+          on-review-task? (subscribe [:review/on-review-task?])
+          review-task-id @(subscribe [:review/task-id])
+          missing @(subscribe [:review/missing-labels project-id article-id])
+          invalid @(subscribe [:review/invalid-labels project-id article-id])
+          saving? (review-task-saving? article-id)
+          disabled? (or (seq missing) (seq invalid))
+          settings @(subscribe [:project/settings])
+          project-articles-id @(subscribe [:project-articles/article-id])
+          on-save (util/wrap-user-event
+                   (fn []
+                     (reset! can-auto-save? false) ; prevents infinite auto save loop if the server rejects the request
+                     (util/run-after-condition
+                      [:review-save article-id]
+                      review-task-ready-for-action?
+                      (fn []
+                        (when-not (action/running? :review/send-labels)
+                          (dispatch-sync [:review/mark-saving article-id])
+                          (sync-article-notes article-id)
+                          (dispatch
+                           [:review/send-labels
+                            {:project-id project-id
+                             :article-id article-id
+                             :confirm? true
+                             :resolve? (boolean resolving?)
+                             :on-success (do
+                                          (reset! can-auto-save? "RESET")
+                                          (concat
+                                           (when (or @on-review-task? (= article-id review-task-id))
+                                             [[:fetch [:review/task project-id]]])
+                                           (when (not @on-review-task?)
+                                             [[:fetch [:article project-id article-id]]
+                                              [:review/disable-change-labels article-id]])
+                                           (when project-articles-id
+                                             [[:project-articles/reload-list]
+                                              [:project-articles/hide-article]
+                                              [:scroll-top]])))}]))))))
+          button (fn [] [:button.ui.right.labeled.icon.button.save-labels
+                         {:class (css [(or disabled? saving?) "disabled"]
+                                      [saving? "loading"]
+                                      [small? "tiny"]
+                                      [fluid? "fluid"]
+                                      [resolving? "purple" :else "primary"])
+                          :on-click (when-not (or disabled? saving?) on-save)}
+                         (when (= @can-auto-save? "NOT_SET"); this bit prevents an infinite loop when editing already saved labels
+                           (reset! can-auto-save? (boolean disabled?)))
+                         (when (= @can-auto-save? "RESET") ; this properly handles the render immediately after a save where disabled? isn't populated yet - othewise you can get false negitives
+                           (reset! can-auto-save? "NOT_SET"))
+                         (when (and (not disabled?) (not saving?) @can-auto-save? (:auto-save-labels settings))
+                           ; automatically calls save when setting is true and the save button would be available
+                           (on-save))
+                         (str (if resolving? "Resolve" "Save") (when-not small? "Labels"))
+                         [:i.check.circle.outline.icon]])]
+      (if disabled?
+        [ui/Tooltip
+         {:trigger [:div [button]]
+          :tooltip [:div {:style {:min-width "20em"}}
+                    [:ul {:style {:margin 0
+                                  :padding "0.15em"
+                                  :padding-left "1.25em"}}
+                     (when (seq missing)
+                       [:li "Answer missing for required label(s): "
+                        (->> missing vals (map :short-label) (str/join ", "))])
+                     (when (seq invalid)
+                       [:li "Invalid label answer(s): "
+                        (->> invalid vals (map :short-label) (str/join ", "))])]]}]
+        [button]))))
 
 (defn SkipArticle [article-id & [small? fluid?]]
   (let [project-id @(subscribe [:active-project-id])
@@ -755,9 +767,12 @@
   (let [n-cols (or n-cols (cond (util/full-size?) 4
                                 (util/mobile?)    2
                                 :else             3))
-        label-ids @(subscribe [:project/label-ids])]
+        label-ids @(subscribe [:project/label-ids])
+        settings @(subscribe [:project/settings])]
     [:div.label-section
      {:class (css "ui" (util/num-to-english n-cols) "column celled grid" class)}
+     (when (:auto-save-labels settings)
+       [:p {:style {:fontSize "12px" :marginTop "1em"}} "This project has auto save enabled. Once all required labels are set it will save automatically. Set optional labels first to avoid missing data."])
      (when (some-> article-id (= @(subscribe [:review/editing-id])))
        (make-label-columns article-id label-ids n-cols))]))
 

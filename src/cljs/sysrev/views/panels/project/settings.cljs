@@ -180,6 +180,7 @@
     :public-access      (boolean value)
     :unlimited-reviews  (boolean value)
     :blind-reviewers    (boolean value)
+    :auto-save-labels   (boolean value)
     nil))
 
 (defn- render-setting [skey]
@@ -285,10 +286,25 @@
     :value true
     :tooltip "Users may be assigned any article they have not yet reviewed"}])
 
+(def auto-save-labels-buttons
+  [{:key :false
+    :label [:span "No"]
+    :value false
+    :tooltip "You must manually press save when reviewing"}
+   {:key :true
+    :label [:span "Yes"]
+    :value true
+    :tooltip "Once all labels are set they will automatically save"}])
+
 (defn- UnlimitedReviewsField []
   [SettingsField {:setting :unlimited-reviews
                   :label "Allow Unlimited Reviews"
                   :entries unlimited-reviews-buttons}])
+
+(defn- AutoSaveLabelsField []
+  [SettingsField {:setting :auto-save-labels
+                  :label "Automatically Save Review Labels?"
+                  :entries auto-save-labels-buttons}])
 
 (defn- BlindReviewersField [project-id]
   (let [self-id @(subscribe [:self/user-id])
@@ -417,6 +433,7 @@
           [PublicAccessField project-id]
           [DoubleReviewPriorityField]
           [UnlimitedReviewsField]
+          [AutoSaveLabelsField]
           [BlindReviewersField project-id]]
          (when (admin?)
            [:div
