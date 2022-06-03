@@ -340,3 +340,8 @@
  .darkmode .rightside p:hover, .darkmode .row_t .date a:hover, .darkmode .table p:hover {
      background: rgba(42, 44, 45, 0.997);
 }
+
+
+.darkmode a.darkModeOverride {
+  color: white !important;
+}

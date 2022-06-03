@@ -97,10 +97,10 @@ const Tab = (props: TabProps) => {
         {isAdmin &&
           <div className={styles.adminButtons}>
             {activeTab === TabType.Projects
-              ? <a className="ui positive button" href={`/new?project_owner=${props.orgId}`}>New</a>
+              ? <a className={`ui positive button ${styles.darkModeOverride}`} href={`/new?project_owner=${props.orgId}`}>New</a>
               :
               <div>
-                <a className="ui button positive" onClick={() => props.addMember?.()}>Add Member</a>
+                <a className={`ui positive button ${styles.darkModeOverride}`} onClick={() => props.addMember?.()}>Add Member</a>
                 <a className="ui button org-invite-url-button" onClick={() => props.inviteUrl?.()}>Invite URL</a>
               </div>
             }
