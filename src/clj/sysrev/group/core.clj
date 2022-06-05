@@ -194,4 +194,3 @@
 (defn get-share-hash [org-id]
   (enc/encrypt-wrap64 {:type "org-invite-hash"
                        :org-id org-id}))
-

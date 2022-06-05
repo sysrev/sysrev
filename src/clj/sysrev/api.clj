@@ -65,6 +65,7 @@
             [sysrev.sysrev-api-client.interface.queries :as sacq]
             [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.user.interface.spec :as su]
+            [sysrev.user.core :refer [user-by-username]]
             [sysrev.util
              :as
              util
@@ -1266,6 +1267,11 @@
         (group/group-name->id org-name)
         {:error {:status conflict
                  :message (str "An organization with the name '" org-name "' already exists."
+                               " Please try using another name.")}}
+
+        (user-by-username org-name)
+        {:error {:status conflict
+                 :message (str "A user with the name '" org-name "' already exists. Organizations cannt have the same name as users."
                                " Please try using another name.")}}
 
         :else {:valid true}))
