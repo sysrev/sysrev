@@ -2,11 +2,13 @@
   (:require [cljs.test :refer-macros [deftest is testing]]
             [sysrev.views.panels.project.common :as common]))
 
-(def email-params {:message "test message" :projectId 1 :user "userId"})
+(def email-params {:message "test message" :projectId 1 :user "userId" :email "test@test.com"})
 (def formatted-email
   (str "Project issue form from: " (:user email-params) "
     <br>
     For project: " (:projectId email-params)
+   "<br>
+    User Email: " (:email email-params)
    "<br>
     Message: " (:message email-params)))
 

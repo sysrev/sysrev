@@ -171,10 +171,12 @@
       [:div.header "Read-Only View"]
       [:p text]]]))
 
-(defn format-issue-email [{:keys [message projectId user]}]
+(defn format-issue-email [{:keys [message projectId user email]}]
   (str "Project issue form from: " user "
     <br>
     For project: " projectId
+   "<br>
+    User Email: " email
    "<br>
     Message: " message))
 
@@ -196,7 +198,8 @@
         email-failed (r/atom nil)]
     (fn []
       (let [project-id @(subscribe [:active-project-id])
-            self-id @(subscribe [:self/user-id])]
+            self-id @(subscribe [:self/user-id])
+            email @(subscribe [:self/email])]
         (when self-id
           [:div {:style {:display "inline-block" :margin-left "0.25rem"}}
            [:button.ui.tiny.button.red {:on-click #(reset! modal-open true)} "Report Issue"]
@@ -221,7 +224,8 @@
                             (reset! email-failed  "Message Can't Be Blank.")
                             (run-action :project/report-issue {:content (format-issue-email  {:message @email-content
                                                                                               :projectId project-id
-                                                                                              :user self-id})
+                                                                                              :user self-id
+                                                                                              :email email})
                                                                :on-success email-success
                                                                :on-fail email-failed}))}
                "Submit"]
