@@ -31,7 +31,7 @@
         offsets (js/JSON.parse (.-offsets data))
         ;; Find the next-highest id
         id (->> source-data .-entities
-                (keep (comp #(util/parse-integer %) first))
+                (keep (comp util/parse-integer first))
                 (reduce max 0)
                 inc str)]
     ;; Add the new span to the existing ones
@@ -50,7 +50,7 @@
 (defn create-arc-response [^js data]
   (let [source-data ^js (.-sourceData data)
         id (->> source-data .-relations
-                (keep (comp #(util/parse-integer %) first))
+                (keep (comp util/parse-integer first))
                 (reduce max 0)
                 inc str)]
     (->> source-data .-relations
