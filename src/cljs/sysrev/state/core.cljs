@@ -1,8 +1,8 @@
 (ns sysrev.state.core
   (:require [re-frame.core :refer
-             [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
+             [dispatch reg-sub reg-event-db reg-event-fx reg-fx]]
             [re-frame.db]
-            [sysrev.base :as base :refer [ga-event]]
+            [sysrev.base :as base]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :as util :refer [dissoc-in]]))
 
@@ -55,11 +55,6 @@
          :<- [:have-identity?] :<- [:active-panel]
          (fn [[have-identity? active-panel]]
            (boolean (and have-identity? active-panel))))
-
-(reg-event-db :ga-event [trim-v]
-              (fn [db [category action & [label value]]]
-                (ga-event category action label value)
-                db))
 
 (defn store-user-map [db umap]
   (let [{:keys [user-id]} umap]

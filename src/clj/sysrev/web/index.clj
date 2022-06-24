@@ -12,8 +12,6 @@
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [today-string]]))
 
-(defonce lucky-orange-enabled (atom (= (:profile env) :prod)))
-
 (defn- user-theme [{:keys [session] :as _request}]
   (if-let [user-id (-> session :identity :user-id)]
     (or (some-> (q/get-user user-id :settings) :ui-theme str/lower-case)
@@ -50,30 +48,21 @@
 
 (defn index [request & [maintainence-msg]]
   (page/html5
-   (into
-    [:head
-     [:title (text/uri-title (:uri request))]
-     [:meta {:charset "utf-8"}]
-     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
-     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-     [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
-     (when-not (util/should-robot-index? (:uri request))
-       [:meta {:name "robots" :content "noindex,nofollow"}])
-     (apply page/include-css (css-paths :theme (user-theme request)))
-     (favicon-headers)
-     [:script {:async true
-               :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
-                         "&currency=USD&disable-funding="
-                         (str/join "," ["credit" "card"]))
-               :type "text/javascript"}]]
-    (when-not (:local-only env)
-      [[:script {:async true
-                 :src "/ga.js"
-                 :type "text/javascript"}]
-       (when @lucky-orange-enabled
-         [:script {:async true
-                   :src "/lo.js"
-                   :type "text/javascript"}])]))
+   [:head
+    [:title (text/uri-title (:uri request))]
+    [:meta {:charset "utf-8"}]
+    [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
+    [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
+    [:meta {:name "Description" :content (text/uri-meta-description (:uri request))}]
+    (when-not (util/should-robot-index? (:uri request))
+      [:meta {:name "robots" :content "noindex,nofollow"}])
+    (apply page/include-css (css-paths :theme (user-theme request)))
+    (favicon-headers)
+    [:script {:async true
+              :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
+                        "&currency=USD&disable-funding="
+                        (str/join "," ["credit" "card"]))
+              :type "text/javascript"}]]
    [:body
     [:div {:style "display: none;"
            :id "graphql-endpoint"

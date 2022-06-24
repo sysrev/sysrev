@@ -3,9 +3,7 @@
             [clojure.string :as str]
             [pushy.core :as pushy]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-event-db trim-v
-                                   set-loggers!]]
-            [re-frame.db :refer [app-db]]
+            [re-frame.core :refer [subscribe dispatch set-loggers!]]
             [secretary.core :as secretary]))
 
 (defonce sysrev-hostname "sysrev.com")
@@ -91,32 +89,6 @@
     (doseq [entry (:error @console-logs)]
       (println (log-entry-string entry)))))
 
-(reg-event-db :toggle-analytics [trim-v]
-              (fn [db [enable?]]
-                (assoc db :disable-analytics (not enable?))))
-
-(defn ^:export toggle-analytics [enable?]
-  (dispatch [:toggle-analytics enable?]))
-
-(defn run-analytics? []
-  (and (aget js/window "ga")
-       (= js/window.location.host sysrev-hostname)
-       (not (:disable-analytics @app-db))))
-
-(defn ga
-  "google analytics (function loaded from ga.js)"
-  [& more]
-  (when (run-analytics?)
-    (.. (aget js/window "ga")
-        (apply nil (clj->js more)))))
-
-(defn ga-event
-  "Send a Google Analytics event."
-  [category action & [label]]
-  (let [user-uuid (subscribe [:user/uuid])]
-    (ga "set" "userId" (str @user-uuid))
-    (ga "send" "event" category action label)))
-
 (secretary/set-config! :prefix "")
 
 (defonce active-route (r/atom nil))
@@ -127,14 +99,7 @@
    (fn [url]
      (let [route (first (str/split url #"\?"))]
        (if (secretary/locate-route route)
-         (do (when (not= url @active-route)
-               (let [user-uuid (subscribe [:user/uuid])]
-                 (ga "set" "location" (str js/document.location))
-                 (ga "set" "page" (str route))
-                 (when @user-uuid
-                   (ga "set" "userId" (str @user-uuid)))
-                 (ga "send" "pageview")))
-             (reset! active-route url)
+         (do (reset! active-route url)
              url)
          (do (pushy/replace-token! history "/")
              nil))))))

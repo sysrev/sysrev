@@ -56,9 +56,7 @@
                           (panel-set :error-message nil)
                           (panel-set :redirecting? true)
                           (load-user-current-plan plan))
-                  :dispatch-n (list
-                               [:load-url nav-url]
-                               [:ga-event "stripe" "plan_subscribe" (:nickname plan)])})))
+                  :dispatch-n (list [:load-url nav-url])})))
   :on-error (fn [{:keys [db error]} _ _]
               (.error js/console ":user/subscribe-plan error:" (pr-str error))
               (let [msg (if (= (:type error) "invalid_request_error")

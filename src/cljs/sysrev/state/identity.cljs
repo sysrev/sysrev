@@ -46,12 +46,10 @@
   (fn [_ [_ _ redirect] {:keys [valid message]}]
     (if valid
       {:dispatch-n
-       (list [:ga-event "auth" "login_success"]
-             [:set-login-redirect-url redirect]
+       (list [:set-login-redirect-url redirect]
              [:do-login-redirect])}
       {:dispatch-n
-       (list [:ga-event "auth" "login_failure"]
-             [:set-login-error-msg message])})))
+       (list [:set-login-error-msg message])})))
 
 (def-action :auth/log-out
   :uri (fn [] "/api/auth/logout")
@@ -66,11 +64,9 @@
   (fn [_ [email password _project-id _org-id redirect] {:keys [success message]}]
     (if success
       {:dispatch-n
-       (list [:ga-event "auth" "register_success"]
-             [:action [:auth/log-in email password redirect]])}
+       (list [:action [:auth/log-in email password redirect]])}
       {:dispatch-n
-       (list [:ga-event "auth" "register_failure"]
-             [:set-login-error-msg message])})))
+       (list [:set-login-error-msg message])})))
 
 (reg-sub ::identity #(get-in % [:state :identity]))
 

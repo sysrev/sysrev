@@ -9,7 +9,6 @@
             [sysrev.base :as base]
             [sysrev.data.core :as data]
             [sysrev.loading]
-            [sysrev.luckyorange]
             [sysrev.nav]
             sysrev.sente
             [sysrev.shared.spec.article]

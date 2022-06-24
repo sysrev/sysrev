@@ -58,11 +58,9 @@
   :process
   (fn [_ _ {:keys [success message]}]
     (if success
-      {:dispatch-n (list [[:ga-event "auth" "password_reset_success"]
-                          [:reset-password/success? true]])
+      {:dispatch-n (list [:reset-password/success? true])
        :dispatch-later [{:ms 2000 :dispatch [:nav "/login"]}]}
-      {:dispatch-n (list [:ga-event "error" "password_reset_failure"]
-                         [:reset-password/error (or message "Request failed")])})))
+      {:dispatch-n (list [:reset-password/error (or message "Request failed")])})))
 
 (reg-event-db ::request-email [trim-v]
               (fn [db [email]]
