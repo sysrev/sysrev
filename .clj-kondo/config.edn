@@ -120,6 +120,8 @@
                                         sysrev.test.fixtures           test-fixtures}}}
  :output {:exclude-files ["^components/infra"
                           "src/clj/sysrev/user.clj"
+                          "src/cljs/sysrev/action/core.cljs"
+                          "src/cljs/sysrev/data/core.cljs"
                           "src/cljs/sysrev/user.cljs"
                           "src/scripts/repl.clj"]}
  :lint-as {datapub.test/with-test-system clojure.core/with-open
