@@ -4,17 +4,17 @@
                            :hostname "localhost"}
        :region "us-east-1"}
  :datapub-embedded "true"
- :datasource-auth-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:DatasourceCredentials-NBSdwu62sZeN-pvN6dt"
+ :datasource-auth-key {:secrets-manager/arn "***REMOVED***"
                        :secrets-manager/key :token}
  :filestore
  {:bucket-name "test.sysrev.us"
   :create? true
   :endpoint "us-east-1"}
- :paypal-client-id {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+ :paypal-client-id {:secrets-manager/arn "***REMOVED***"
                     :secrets-manager/key :client-id}
- :paypal-secret {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+ :paypal-secret {:secrets-manager/arn "***REMOVED***"
                  :secrets-manager/key :secret}
- :paypal-url {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:PayPalCredentials-tNEG7hueSPXS-jyVu2Y"
+ :paypal-url {:secrets-manager/arn "***REMOVED***"
               :secrets-manager/key :url}
  :postgres
  {:create-if-not-exists? true
@@ -24,9 +24,9 @@
   :port 0
   :user "postgres"}
  :server {:port 0}
- :stripe-public-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:StripeCredentials-WEBumjkSU0tk-MSfIJD"
+ :stripe-public-key {:secrets-manager/arn "***REMOVED***"
                      :secrets-manager/key :public-key}
- :stripe-secret-key {:secrets-manager/arn "arn:aws:secretsmanager:us-east-1:119623619549:secret:StripeCredentials-WEBumjkSU0tk-MSfIJD"
+ :stripe-secret-key {:secrets-manager/arn "***REMOVED***"
                      :secrets-manager/key :secret-key}
  :sysrev-dev-key {:secrets-manager/arn "***REMOVED***"
                   :secrets-manager/key :token}
