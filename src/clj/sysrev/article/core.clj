@@ -122,12 +122,13 @@
   (db/with-transaction
     (let [project-id (q/get-article article-id :project-id)
           predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))]
-      (q/find-one :label-predicts {:article-id article-id
-                                   :label-id (project-overall-label-id project-id)
-                                   :predict-run-id predict-run-id
-                                   :stage 1
-                                   :label-value "TRUE"}
-                  :val))))
+      (first
+       (q/find :label-predicts {:article-id article-id
+                                :label-id (project-overall-label-id project-id)
+                                :predict-run-id predict-run-id
+                                :stage 1
+                                :label-value "TRUE"}
+                   :val)))))
 
 (defn-spec article-predictions map?
   [article-id ::sa/article-id
