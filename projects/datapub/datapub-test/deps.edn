@@ -1,6 +1,6 @@
 {:paths ["resources"]
- :deps {clj-gatling/clj-gatling {:mvn/version "0.17.2"}
+ :deps {clj-gatling/clj-gatling {:mvn/version "0.17.5"}
         com.cognitect/test-runner
         {:git/url "https://github.com/cognitect-labs/test-runner.git"
-         :sha "cc75980b43011773162b485f46f939dc5fba91e4"}
-        http-kit/http-kit {:mvn/version "2.5.3"}}}
+         :sha "a85b3b02765fb68684ab9ee4a8598eacf7e471d2"}
+        http-kit/http-kit {:mvn/version "2.6.0"}}}
