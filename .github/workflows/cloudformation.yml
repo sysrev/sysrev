@@ -4,7 +4,6 @@ concurrency: sysrev-cloudformation-${{ github.ref_name }}
 on:
   push:
     branches:
-      - staging
       - production
     paths:
       - '.github/workflows/cloudformation.yml'
@@ -53,15 +52,6 @@ jobs:
           echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
           nix-build -A inputDerivation -o gcroots
 
-      - name: Configure AWS staging credentials
-        if: github.ref_name == 'staging'
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
-          aws-region: us-east-1
-          mask-aws-account-id: no
-
       - name: Configure AWS prod credentials
         if: github.ref_name == 'production'
         uses: aws-actions/configure-aws-credentials@v1
@@ -70,11 +60,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: us-east-1
           mask-aws-account-id: no
-
-      - name: Deploy CloudFormation stacks to staging
-        if: github.ref_name == 'staging'
-        run: |
-          nix-shell --run "clojure -X:dev sysrev.infra.core/deploy!"
 
       - name: Deploy CloudFormation stacks to production
         if: github.ref_name == 'production'
