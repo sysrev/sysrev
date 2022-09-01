@@ -69,7 +69,7 @@
   (fn [request]
     (let [route (web-api-route request)]
       (if (and route (in? (:required route) :project-id))
-        (let [project-id (-> request :body :project-id)
+        (let [project-id (some-> request :params :project-id parse-long)
               project (and project-id (q/query-project-by-id
                                        project-id [:*]))]
           (cond

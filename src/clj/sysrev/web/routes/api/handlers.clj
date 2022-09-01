@@ -175,7 +175,7 @@
 
 (def-webapi
   :project-annotations :get
-  {:require [:project-id]
+  {:required [:project-id]
    :require-token? false
    :allow-public? true
    :doc
