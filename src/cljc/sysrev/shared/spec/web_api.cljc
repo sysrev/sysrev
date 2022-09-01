@@ -8,6 +8,7 @@
 (s/def ::required (s/coll-of ::arg))
 (s/def ::optional (s/coll-of ::arg))
 (s/def ::doc (s/nilable string?))
+(s/def ::allow-public? boolean?)
 (s/def ::require-token? boolean?)
 (s/def ::check-answers? boolean?)
 (s/def ::require-admin? boolean?)

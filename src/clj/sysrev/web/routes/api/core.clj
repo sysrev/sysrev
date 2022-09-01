@@ -15,15 +15,14 @@
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))
 
-;; TODO: handle anonymous read access to public projects.
-;;       use :allow-public key
 (defn-spec def-webapi any?
   [name ::swa/name
    method ::swa/method
    opts (s/keys :opt-un [::swa/required ::swa/optional ::swa/doc ::swa/require-token?
+                         ::swa/allow-public?
                          ::swa/check-answers? ::swa/require-admin? ::swa/project-role])
    handler ::swa/handler]
-  (let [opts (merge {:require-token? true} opts)
+  (let [opts (merge {:require-token? (not (:allow-public? opts))} opts)
         opts (cond-> opts
                (:require-token? opts)
                (update :required #(vec (concat [:api-token] %)))
