@@ -277,14 +277,15 @@
            (map #(assoc % :owner (get owners (:project-id %))))))))
 
 (defn last-active
-  "Returns the last time an article-label was updated for project-id,
-   or the creation date of the project if there are no updates."
+  "Returns the <disabled: last time an article-label was updated for project-id,
+   or> the creation date of the project if there are no updates."
   [project-id]
-  (or (first (q/find [:article :a] {:a.project-id project-id} :al.updated-time
-                     :join [[:article-label :al] :a.article-id]
-                     :order-by [[:al.updated-time :desc] [:al.article-id :desc]]
-                     :limit 1))
-      (q/find-one :project {:project-id project-id} :date-created)))
+  ;; Disabled due to performance issues
+  #_(or (first (q/find [:article :a] {:a.project-id project-id} :al.updated-time
+                       :join [[:article-label :al] :a.article-id]
+                       :order-by [[:al.updated-time :desc] [:al.article-id :desc]]
+                       :limit 1)))
+  (q/find-one :project {:project-id project-id} :date-created))
 
 (defn search-projects-important-terms
   "Return a list of projects containing important terms in the given query"
