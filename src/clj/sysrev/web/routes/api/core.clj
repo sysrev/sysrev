@@ -66,10 +66,12 @@
       (handler request))))
 
 (defn wrap-check-project-id [handler]
-  (fn [request]
+  (fn [{:keys [body params request-method] :as request}]
     (let [route (web-api-route request)]
       (if (and route (in? (:required route) :project-id))
-        (let [project-id (some-> request :params :project-id parse-long)
+        (let [project-id (or (:project-id body)
+                             (when (= :get request-method)
+                               (some-> params :project-id parse-long)))
               project (and project-id (q/query-project-by-id
                                        project-id [:*]))]
           (cond
