@@ -21,6 +21,7 @@
             [sysrev.web.routes.api.core :refer [api-routes wrap-web-api]]
             [sysrev.web.routes.graphql :refer [graphql-routes]]
             sysrev.web.routes.api.handlers
+            sysrev.web.routes.api.srvc
             [sysrev.web.app :as app]
             [sysrev.util :as util :refer [in?]])
   (:import (java.io Closeable)
