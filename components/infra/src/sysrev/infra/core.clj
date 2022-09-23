@@ -33,7 +33,7 @@
                 (apply f args))})
 
 (defn system-map []
-  {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
+  {::ds/base {:salmon/early-validate sig/early-validate-conf}
    ::ds/defs
    {:common
     {:config (call #(-> % io/resource slurp edn/read-string)
@@ -116,13 +116,13 @@
                  :parameters (ds/ref [:sysrev :params])
                  :template sysrev/template})}}
    ::ds/signals
-   {:salmon/pre-validate {:order :reverse-topsort}}})
+   {:salmon/early-validate {:order :reverse-topsort}}})
 
 (defn deploy! [{:keys [groups]}]
   (try
     (-> (system-map)
         (update ::ds/defs select-keys (into #{:common} groups))
-        sig/pre-validate!
+        sig/early-validate!
         sig/start!
         (->> (reset! system)))
     (catch clojure.lang.ExceptionInfo e
