@@ -5,7 +5,6 @@ clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.9.867"} org.slf
         --directory=components/* \
         --directory=projects/* \
         --exclude=clojure-csv/clojure-csv \
-        --exclude=club.donutpower/system \
         --exclude=com.google.api-client/google-api-client \
         --exclude=honeysql/honeysql \
         --exclude=javax.servlet/javax.servlet-api \
@@ -24,5 +23,4 @@ clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.9.867"} org.slf
         --exclude=org.eclipse.jetty.websocket/websocket-api \
         --exclude=org.eclipse.jetty.websocket/websocket-server \
         --exclude=org.eclipse.jetty.websocket/websocket-servlet \
-        --exclude=rs.shaffe/salmon \
         "$@"

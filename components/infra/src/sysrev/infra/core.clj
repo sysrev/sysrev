@@ -29,7 +29,7 @@
 
 (defn call [f & args]
   {::ds/config {:args args :f f}
-   ::ds/start (fn [{:keys [args f]}]
+   ::ds/start (fn [{{:keys [args f]} ::ds/config}]
                 (apply f args))})
 
 (defn system-map []

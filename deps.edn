@@ -76,10 +76,8 @@
         org.clojure/core.async {:mvn/version "1.5.648"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
-        club.donutpower/system {:git/url "https://github.com/insilica/system.git"
-                                :sha "4b57132e2cbac117715f2c7eb97a031d30c191c2"}
-        rs.shaffe/salmon {:git/url "https://github.com/john-shaffer/salmon.git"
-                          :sha "385b4799f2dbc56ee9b7cc52cd1effdbebd9eda4"}
+        club.donutpower/system {:mvn/version "0.0.165"}
+        rs.shaffe/salmon {:mvn/version "0.8.0"}
 
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
