@@ -2,5 +2,5 @@
  :deps {clj-gatling/clj-gatling {:mvn/version "0.17.5"}
         com.cognitect/test-runner
         {:git/url "https://github.com/cognitect-labs/test-runner.git"
-         :sha "a85b3b02765fb68684ab9ee4a8598eacf7e471d2"}
+         :sha "a522ab2851a2aa5bf9c22a942b45287a3a019310"}
         http-kit/http-kit {:mvn/version "2.6.0"}}}

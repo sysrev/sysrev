@@ -110,10 +110,8 @@ jobs:
 
       - run: |
           nix-store --dump-db > ~/nix-db-dump
-        if: steps.nix-cache.outputs.cache-hit != 'true'
-
       - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.13.0
+        uses: 8398a7/action-slack@v3.13.2
         if: always()
         with:
           status: custom

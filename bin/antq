@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.9.867"} org.slf4j/slf4j-nop {:mvn/version "1.7.32"}}}' -M -m antq.core \
+clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "2.1.927"} org.slf4j/slf4j-nop {:mvn/version "1.7.32"}}}' -M -m antq.core \
         --directory=bases/* \
         --directory=components/* \
         --directory=projects/* \
@@ -23,4 +23,5 @@ clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version "1.9.867"} org.slf
         --exclude=org.eclipse.jetty.websocket/websocket-api \
         --exclude=org.eclipse.jetty.websocket/websocket-server \
         --exclude=org.eclipse.jetty.websocket/websocket-servlet \
+        --exclude=org.flywaydb/flyway-core \
         "$@"

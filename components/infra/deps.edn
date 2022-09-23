@@ -1,4 +1,2 @@
 {:paths ["src" "resources"]
- :deps {io.staticweb/cloudformation-templating
-        {:sha "b918409494952021f25fea4da1a2ba17bcaad9bd"
-         :git/url "https://github.com/staticweb-io/cloudformation-templating.git"}}}
+ :deps {io.staticweb/cloudformation-templating {:mvn/version "1.1.0"}}}
