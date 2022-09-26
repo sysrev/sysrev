@@ -1,2 +1,2 @@
 {:paths ["src" "resources"]
- :deps {org.flywaydb/flyway-core {:mvn/version "8.5.13"}}}
+ :deps {org.flywaydb/flyway-core {:mvn/version "8.5.10"}}}

@@ -18,7 +18,7 @@ in let
 in with pkgs;
 let
   local = if builtins.pathExists ./local.nix then import ./local.nix else { };
-  jdk = openjdk17;
+  jdk = openjdk8;
   extensions = (with vscode-extensions; [
     bbenoist.nix
     betterthantomorrow.calva

@@ -12,7 +12,6 @@
             [sysrev.util :as util])
   (:import (clojure.lang ExceptionInfo)
            (java.net URL)
-           (java.text SimpleDateFormat)
            (java.util Date)))
 
 (defn bytes->base64
@@ -149,7 +148,7 @@
 (defn postmortem-handler
   "Based on etaoin postmortem handler, but using a different logging level"
   [driver {:keys [dir dir-src dir-img dir-log date-format]}]
-  (let [dir     (or dir (System/getProperty "user.dir"))
+  (let [dir     (or dir (ea/get-pwd))
         dir-img (or dir-img dir)
         dir-src (or dir-src dir)
         dir-log (or dir-log dir)
@@ -160,20 +159,19 @@
         params      [(-> driver :type name)
                      (-> driver :host)
                      (-> driver :port)
-                     (.format (SimpleDateFormat. date-format) (Date.))]
+                     (ea/format-date (Date.) date-format)]
 
         file-img (apply format file-tpl (conj params "png"))
         file-src (apply format file-tpl (conj params "html"))
         file-log (apply format file-tpl (conj params "json"))
 
-        join-path #(.getPath (apply io/file %&))
-        path-img (join-path dir-img file-img)
-        path-src (join-path dir-src file-src)
-        path-log (join-path dir-log file-log)]
+        path-img (ea/join-path dir-img file-img)
+        path-src (ea/join-path dir-src file-src)
+        path-log (ea/join-path dir-log file-log)]
 
-    (io/make-parents path-img)
-    (io/make-parents path-src)
-    (io/make-parents path-log)
+    (clojure.java.io/make-parents path-img)
+    (clojure.java.io/make-parents path-src)
+    (clojure.java.io/make-parents path-log)
 
     (when-not (and (empty? (browser-console-errors driver))
                    (empty? (browser-console-warnings driver)))

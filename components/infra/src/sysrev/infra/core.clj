@@ -3,8 +3,8 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [donut.system :as ds]
-            [salmon.cloudformation :as cfn]
-            [salmon.signal :as sig]
+            [salmon.cloudformation.interface :as cfn]
+            [salmon.signal.interface :as sig]
             [sysrev.infra.datapub :as datapub]
             [sysrev.infra.global :as global]
             [sysrev.infra.graphql-gateway :as graphql-gateway]
@@ -29,11 +29,11 @@
 
 (defn call [f & args]
   {::ds/config {:args args :f f}
-   ::ds/start (fn [{{:keys [args f]} ::ds/config}]
+   ::ds/start (fn [{:keys [args f]}]
                 (apply f args))})
 
 (defn system-map []
-  {::ds/base {:salmon/early-validate sig/early-validate-conf}
+  {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
    ::ds/defs
    {:common
     {:config (call #(-> % io/resource slurp edn/read-string)
@@ -116,13 +116,13 @@
                  :parameters (ds/ref [:sysrev :params])
                  :template sysrev/template})}}
    ::ds/signals
-   {:salmon/early-validate {:order :reverse-topsort}}})
+   {:salmon/pre-validate {:order :reverse-topsort}}})
 
 (defn deploy! [{:keys [groups]}]
   (try
     (-> (system-map)
         (update ::ds/defs select-keys (into #{:common} groups))
-        sig/early-validate!
+        sig/pre-validate!
         sig/start!
         (->> (reset! system)))
     (catch clojure.lang.ExceptionInfo e
