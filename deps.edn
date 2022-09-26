@@ -47,9 +47,9 @@
         nilenso/honeysql-postgres {:mvn/version "0.2.6"}
 
 ;;; Web server
-        aleph/aleph {:mvn/version "0.5.0"}
         com.taoensso/sente {:mvn/version "1.17.0"}
         compojure/compojure {:mvn/version "1.7.0"}
+        http-kit/http-kit {:mvn/version "2.6.0"}
         ring/ring {:mvn/version "1.9.6"}
         ring/ring-defaults {:mvn/version "0.3.4"}
         ring-transit/ring-transit {:mvn/version "0.1.6"}

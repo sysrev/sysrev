@@ -4,12 +4,11 @@
             [com.stuartsierra.component :as component]
             [compojure.core :as c :refer [defroutes GET ANY POST]]
             [compojure.route :refer [not-found]]
+            [org.httpkit.server :as server]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
-            [aleph.http :as http]
-            [aleph.netty]
             [sysrev.config :refer [env]]
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
@@ -185,17 +184,19 @@
     (if server
       this
       (let [handler (handler-f this)
-            server (http/start-server handler {:port port})]
+            server (server/run-server
+                    handler
+                    {:legacy-return-value? false
+                     :port port})]
         (assoc this
-               :bound-port (aleph.netty/port server)
+               :bound-port (server/server-port server)
                :handler handler
                :server server))))
   (stop [this]
     (if-not server
       this
       (do
-        (.close server)
-        (aleph.netty/wait-for-close server)
+        @(server/server-stop! server)
         (assoc this :bound-port nil :handler nil :server nil)))))
 
 (defn web-server [& {:keys [handler-f port]}]

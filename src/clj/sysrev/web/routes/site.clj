@@ -165,7 +165,8 @@
 
   (GET "/api/terms-of-use.md" _
        (app/text-file-response
-        (-> (io/resource "terms_of_use.md") io/reader)
+        (-> (io/resource "terms_of_use.md")
+            io/input-stream)
         "terms-of-use.md"))
 
   (GET "/api/search" [q p :<< as-int]
