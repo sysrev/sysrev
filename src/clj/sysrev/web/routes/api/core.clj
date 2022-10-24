@@ -15,6 +15,16 @@
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))
 
+(defn get-api-token [{:keys [body params request-method]}]
+  (if (= :get request-method)
+    (:api-token params)
+    (:api-token body)))
+
+(defn get-project-id [{:keys [body params request-method]}]
+  (if (= :get request-method)
+    (some-> params :project-id parse-long)
+    (:project-id body)))
+
 (defn-spec def-webapi any?
   [name ::swa/name
    method ::swa/method
@@ -66,12 +76,10 @@
       (handler request))))
 
 (defn wrap-check-project-id [handler]
-  (fn [{:keys [body params request-method] :as request}]
+  (fn [request]
     (let [route (web-api-route request)]
       (if (and route (in? (:required route) :project-id))
-        (let [project-id (or (:project-id body)
-                             (when (= :get request-method)
-                               (some-> params :project-id parse-long)))
+        (let [project-id (get-project-id request)
               project (and project-id (q/query-project-by-id
                                        project-id [:*]))]
           (cond
@@ -87,8 +95,9 @@
 (defn wrap-web-api-auth [handler]
   (fn [request]
     (if-let [route (web-api-route request)]
-      (let [{:keys [require-token? require-admin? project-role #_ required]} route
-            {:keys [api-token project-id]} (-> request :body)
+      (let [{:keys [require-token? require-admin? project-role]} route
+            api-token (get-api-token request)
+            project-id (get-project-id request)
             user (and api-token (user-by-api-token api-token))
             admin? (and user (in? (:permissions user) "admin"))
             member-roles
@@ -117,7 +126,7 @@
     (let [route (web-api-route request)]
       (if (and route (:check-answers? route))
         (let [allow-answers (-> request :body :allow-answers)
-              project-id (-> request :body :project-id)
+              project-id (get-project-id request)
               project (and project-id (q/query-project-by-id project-id [:*]))
               answers-count (and project-id project
                                  (-> (q/select-project-article-labels

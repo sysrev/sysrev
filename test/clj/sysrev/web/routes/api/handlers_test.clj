@@ -14,7 +14,7 @@
 (deftest ^:integration create-project-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
-          {:keys [email password]} (test/create-test-user system)
+          {:keys [email password user-id]} (test/create-test-user system)
           api-token (-> (handler
                          (-> (mock/request :get "/web-api/get-api-token")
                              (mock/query-string {:email email :password password})))
@@ -31,7 +31,23 @@
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
-      (is (= 0 (project/project-article-count new-project-id))))))
+      (is (= 0 (project/project-article-count new-project-id)))
+      (testing "get project-info"
+        (let [project-info-response
+              (-> (handler
+                   (-> (mock/request :get "/web-api/project-info"
+                                     {:api-token api-token
+                                      :project-id new-project-id})
+                       (mock/header "Content-Type" "application/json")))
+                  :body util/read-json)]
+          (is (= {:articles 0
+                  :labels ["overall include"]
+                  :members [{:user-id user-id}]
+                  :name "create-project-test"
+                  :project-id new-project-id
+                  :success true}
+               (select-keys (:result project-info-response)
+                            [:articles :labels :members :name :project-id :success]))))))))
 
 (deftest ^:integration transfer-project-test
   (test/with-test-system [system {}]

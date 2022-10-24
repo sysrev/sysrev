@@ -13,12 +13,12 @@
             [sysrev.project.core :as project]
             [sysrev.source.interface :as src]
             [sysrev.user.interface :as user :refer [user-by-email]]
-            [sysrev.util :as util :refer [in? parse-integer]]
+            [sysrev.util :as util :refer [in?]]
             [sysrev.web.app :refer [make-error-response
                                     validation-failed-response]]
-            [sysrev.web.routes.api.core :refer
-             [def-webapi web-api-routes
-              web-api-routes-order]]))
+            [sysrev.web.routes.api.core :as wra
+             :refer
+             [def-webapi web-api-routes web-api-routes-order]]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers
@@ -67,7 +67,7 @@
   {:required [:project-id]
    :project-role "member"}
   (fn [request]
-    (let [{:keys [project-id]} (:body request)
+    (let [project-id (wra/get-project-id request)
           project (q/get-project project-id :*, :include-disabled true)
           members (q/find-project {:pm.project-id project-id} [:u.user-id]
                                   :with [:project-member :web-user]
@@ -90,8 +90,9 @@
               "Imports articles from PubMed."
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
-  (fn [{:keys [body sr-context]}]
-    (let [{:keys [project-id pmids]} body]
+  (fn [{:keys [body sr-context] :as request}]
+    (let [project-id (wra/get-project-id request)
+          {:keys [pmids]} body]
       (cond
         (or (not (seqable? pmids))
             (empty? pmids)
@@ -128,8 +129,9 @@
               ""
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
-  (fn [{:keys [body sr-context]}]
-    (let [{:keys [project-id articles]} body]
+  (fn [{:keys [body sr-context] :as request}]
+    (let [project-id (wra/get-project-id request)
+          {:keys [articles]} body]
       (cond
         (or (not (seqable? articles))
             (empty? articles)
@@ -156,7 +158,8 @@
   :create-project :post
   {:required [:project-name]}
   (fn [request]
-    (let [{:keys [api-token project-name #_add-self?]} (:body request)
+    (let [api-token (wra/get-api-token request)
+          {:keys [project-name]} (:body request)
           {:keys [user-id]} (user/user-by-api-token api-token)]
       {:result (merge {:success true}
                       (api/create-project-for-user!
@@ -170,8 +173,7 @@
    :project-role "member"
    :doc "Returns a map of all label definitions for the project."}
   (fn [request]
-    (let [{:keys [project-id]} (:body request)]
-      {:result (project/project-labels project-id true)})))
+    {:result (project/project-labels (wra/get-project-id request) true)}))
 
 (def-webapi
   :project-annotations :get
@@ -192,8 +194,7 @@
 
     There are currently only two types of annotations for article, those which label an abstract or label a pdf. If an annotation has a pdf-source, it can be assumed the selection comes from a pdf. Otherwise, if there is no pdf-source the selection is associated with just the title, author or abstract of an article"}
   (fn [request]
-    (let [{:keys [project-id]} (walk/keywordize-keys (:query-params request))]
-      {:result (api/project-annotations (parse-integer project-id))})))
+    {:result (api/project-annotations (wra/get-project-id request))}))
 
 (def-webapi
   :clone-project :post
@@ -214,10 +215,11 @@
               ""
               "On success, returns the newly created project-id."]
              (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [project-id new-project-name articles labels answers members
+  (fn [{:keys [body] :as request}]
+    (let [project-id (wra/get-project-id request)
+          {:keys [new-project-name articles labels answers members
                   admin-members-only user-names-only user-ids-only]}
-          (:body request)]
+          body]
       (cond
         (not (string? new-project-name))
         (make-error-response
@@ -298,8 +300,9 @@
               "Either a user-id or a group-id is required to transfer a project"
               "On success, returns the newly created project-id."]
              (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [project-id user-id group-id]} (:body request)]
+  (fn [{:keys [body] :as request}]
+    (let [project-id (wra/get-project-id request)
+          {:keys [user-id group-id]} body]
       (cond (and (nil? user-id) (nil? group-id))
             (make-error-response
              500 :api "user-id or group-id must be provided")
@@ -322,8 +325,8 @@
   :stripe-hook :post
   {:require-token? false
    :doc "Stripe webhook handler"}
-  (fn [request]
-    (stripe/handle-webhook (:body request))))
+  (fn [{:keys [body]}]
+    (stripe/handle-webhook body)))
 
 (def-webapi
   :create-notification :post
