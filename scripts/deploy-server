@@ -7,16 +7,13 @@ fi
 
 set -eu
 
-echo $SYSREV_HOST > /dev/null
-
-dir=`pwd`
-
 if [[ $SYSREV_REBUILD == "1" ]]; then
     lein build-prod
     mv ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar .
 fi
 
 scp ./sysrev-web-0.1.0-SNAPSHOT-standalone.jar ubuntu@"$SYSREV_HOST":/data/sysrev/sysrev-web-standalone.jar
+ssh ubuntu@"$SYSREV_HOST" "bash /data/sysrev/scripts/receive-server"
 
 rm -f deploy-done.server
 touch deploy-done.server

@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 if [[ -z "$SYSREV_REBUILD" ]]; then
     SYSREV_REBUILD="1"
 fi
 
-set -eu
+dir=$(pwd)
 
-echo $SYSREV_HOST > /dev/null
-
-dir=`pwd`
-
-mkdir -p $dir/deploy
-rm -f $dir/deploy/client.tgz
+mkdir -p "$dir"/deploy
+rm -f "$dir"/deploy/client.tgz
 
 if [[ $SYSREV_REBUILD == "1" ]]; then
     cd client
@@ -28,7 +24,7 @@ cd ./resources/public
 rm -rf ./tmp
 mkdir tmp
 cp -R ./out-production ./tmp/out
-cp *.js ./tmp
+cp ./*.js ./tmp
 cp -R ./css/ ./tmp/
 
 # favicon and image files
@@ -45,16 +41,17 @@ cp ./sitemap.* ./tmp
 pdfjs_src="${dir}/client/node_modules/pdfjs-dist/build"
 pdfjs_dest="./tmp/js/pdfjs-dist/build"
 mkdir -p $pdfjs_dest
-cp -r $pdfjs_src/* $pdfjs_dest/
+cp -r "$pdfjs_src"/* $pdfjs_dest/
 
 cd tmp
-tar -czf $dir/deploy/client.tgz *
+tar -czf "$dir"/deploy/client.tgz ./*
 cd ..
 rm -rf ./tmp
 
-cd $dir
+cd "$dir"
 
 scp ./deploy/client.tgz ubuntu@"$SYSREV_HOST":/data/sysrev/deploy
+ssh ubuntu@"$SYSREV_HOST" "bash /data/sysrev/scripts/receive-client"
 
 rm -f deploy-done.client
 touch deploy-done.client
