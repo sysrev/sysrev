@@ -653,10 +653,9 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
            {:value :fda-drugs-docs
             :text "Drugs@FDA Documents (beta)"
             :name "at"})
-         (when beta-access?
-           {:value :project
-            :text "Project"
-            :name "folder"})
+         {:value :project
+          :text "Project"
+          :name "folder"}
          {:value :json
           :text "JSON file"
           :name "file outline"}
