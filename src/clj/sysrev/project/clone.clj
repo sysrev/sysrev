@@ -14,7 +14,7 @@
             [sysrev.project.core :as project]
             [sysrev.project.member :as member]
             [sysrev.source.core :as source]
-            [sysrev.util :refer [in? index-by]]))
+            [sysrev.util :refer [in?]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
                             {:keys [user-ids-only admin-members-only]}]
@@ -258,24 +258,23 @@
   {<src-source-id> <dest-source-id>
    ...}"
   [src-project-id dest-project-id]
-  (let [src-sources (-> (select :meta :enabled :source-id)
+  (let [src-sources (-> (select :*)
                         (from :project-source)
                         (where [:= :project-id src-project-id])
                         do-query)
-        create-source (fn [project-id metadata]
-                        (db/with-clear-project-cache project-id
-                          (q/create :project-source {:project-id project-id :meta metadata}
-                                    :returning [:source-id :meta])))
-        dest-sources (map #(create-source dest-project-id (:meta %)) src-sources)
-        src-sources-index (index-by :meta src-sources)]
-    (->> dest-sources
-         (map (fn [source]
-                {:src-source-id (-> (get src-sources-index
-                                         (:meta source))
-                                    :source-id)
-                 :dest-source-id (:source-id source)}))
-         (map #(hash-map (:src-source-id %) (:dest-source-id %)))
-         (apply merge))))
+        create-source (fn [project-id old-source]
+                        (let [new-source (-> (select-keys old-source [:check-new-results :dataset-id :enabled :import-date :import-new-results :meta :new-articles-available :notes])
+                                             (assoc :project-id project-id))]
+                          (-> (db/with-clear-project-cache project-id
+                                (q/create :project-source new-source
+                                          :returning [:source-id :meta]))
+                              (assoc :src-source-id (:source-id old-source)))))
+        dest-sources (map #(create-source dest-project-id %) src-sources)]
+    (reduce
+     (fn [m {:keys [source-id src-source-id]}]
+       (assoc m src-source-id source-id))
+     {}
+     dest-sources)))
 
 (defn copy-articles!
   "Given a map of src-dest-source-map {<src-source-id> <dest-source-id> ...}, copy the articles from src-project-id to dest-project-id"
