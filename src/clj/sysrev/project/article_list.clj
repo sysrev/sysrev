@@ -246,7 +246,9 @@
   [{:keys [project-id] :as _context} {:keys [label-id label-value direction score]}]
   (let [all-predicts (project-article-predicts project-id label-value)
         score (* 0.01 score)
-        pred (case direction :above > :below <)]
+        pred (case (if (string? direction) (keyword direction) direction)
+               :above >
+               :below <)]
     (fn [{:keys [article-id]}]
       (some-> (get-in all-predicts [article-id label-id])
               (pred score)))))

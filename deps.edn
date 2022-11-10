@@ -134,6 +134,7 @@
                       lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                       lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
                                                      :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
+                      lambdaisland/uri {:mvn/version "1.13.95"}
                       popen/popen {:mvn/version "0.3.1"}
 
                       poly/contajners {:local/root "components/contajners"}

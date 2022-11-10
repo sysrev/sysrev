@@ -1,7 +1,9 @@
 (ns sysrev.source.project-filter-test
-  (:require [clojure.java.io :as io]
+  (:require [clojure.data.json :as json]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer :all]
+            [lambdaisland.uri :as uri]
             [medley.core :as medley]
             [sysrev.api :as api]
             [sysrev.datapub-client.interface :as dpc]
@@ -313,3 +315,124 @@
                                            :join [[:article-data :ad] :a.article-data-id])]
             (is (= 1 (title-count "Sutinen Rosiglitazone.pdf")))
             (is (= 1 (title-count "Plosker Troglitazone.pdf")))))))))
+
+(deftest ^:integration test-import-prediction-filters
+  (test/with-test-system [{:keys [sr-context] :as system} {}]
+    (let [{:keys [api-token user-id]} (test/create-test-user system)]
+      (user/change-user-setting user-id :dev-account-enabled? true)
+      (testing "Articles can be imported from a project with prediction filters"
+        (let [project-1-id (-> (api/create-project-for-user!
+                                sr-context
+                                "Project-Filter-Import-Source"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              project-1-url (str "https://sysrev.com/p/" project-1-id)
+              project-2-id (-> (api/create-project-for-user!
+                                sr-context
+                                "Project-Filter-Import-Target"
+                                user-id
+                                true)
+                               :project
+                               :project-id)
+              filename "test-pdf-import.zip"
+              pdf-zip (-> (str "test-files/" filename) io/resource io/file)
+              label-1-id (random-uuid)
+              filters [[{:prediction {:direction "below"
+                                      :label-id (str label-1-id)
+                                      :label-value true
+                                      :score 30}}]
+                       [{:prediction {:direction "above"
+                                      :label-id (str label-1-id)
+                                      :label-value true
+                                      :score 70}}]]
+              predict-version-id (-> sr-context
+                                     (db/execute-one!
+                                      {:insert-into :predict-version
+                                       :values [{:create-time [:now]}]
+                                       :returning :predict-version-id})
+                                     first val)
+              predict-run-id (-> sr-context
+                                 (db/execute-one!
+                                  {:insert-into :predict-run
+                                   :values [{:project-id project-1-id
+                                             :predict-version-id predict-version-id}]
+                                   :returning :predict-run-id})
+                                 first val)]
+          (db/with-transaction
+            (src/import-source
+             sr-context :pdf-zip
+             project-1-id {:file pdf-zip :filename filename}
+             {:use-future? false})
+           (db/execute!
+            sr-context
+            {:insert-into :label
+             :values [{:global-label-id (random-uuid)
+                       :label-id label-1-id
+                       :owner-project-id project-1-id
+                       :name "label 1"
+                       :project-id project-1-id
+                       :question "Label 1?"
+                       :short-label "label1"
+                       :value-type "boolean"}]}))
+          (is (= 4 (project/project-article-count project-1-id)))
+          (->> (db/execute! sr-context
+                            {:select :*
+                             :from :article
+                             :where [:= :project-id project-1-id]
+                             :join [:article-data [:= :article.article-data-id :article-data.article-data-id]]
+                             :order-by [:article-data.title]})
+               (map
+                (fn [v {:article/keys [article-id]}]
+                  (db/execute!
+                   sr-context
+                   {:insert-into :label-predicts
+                    :values [{:article-id article-id
+                              :label-id label-1-id
+                              :label-value "TRUE"
+                              :predict-run-id predict-run-id
+                              :val v}]}))
+                [0.2 0.4 0.6 0.8])
+               doall)
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-1-id
+                                           :targetID project-2-id
+                                           :url (->> {:filters (-> filters first json/write-str)}
+                                                     uri/map->query-string
+                                                     (str project-1-url "/articles?"))}]]})
+                       :api-key api-token))))
+          (is (test/wait-not-importing? system project-2-id))
+          (is (= 1 (project/project-article-count project-2-id)))
+          (is (= {:data {:importArticleFilterUrl true}}
+                 (->> (test/graphql-request
+                       system
+                       (venia/graphql-query
+                        {:venia/operation {:operation/type :mutation
+                                           :operation/name "M"}
+                         :venia/queries [[:importArticleFilterUrl
+                                          {:sourceID project-1-id
+                                           :targetID project-2-id
+                                           :url (->> {:filters (-> filters second json/write-str)}
+                                                     uri/map->query-string
+                                                     (str project-1-url "/articles?"))}]]})
+                       :api-key api-token))))
+          (is (test/wait-not-importing? system project-2-id))
+          (is (= 2 (project/project-article-count project-2-id)))
+          (is (= 6
+                 (q/find-count :article {})
+                 (q/find-count :article-pdf {}))
+              "All pdfs are imported")
+          (let [title-count #(q/find-count [:article :a] {:a.project-id project-2-id
+                                                          :ad.title %}
+                                           :join [[:article-data :ad] :a.article-data-id])]
+            (is (= 1 (title-count "Plosker Troglitazone.pdf")))
+            (is (= 0 (title-count "Sutinen Rosiglitazone.pdf")))
+            (is (= 0 (title-count "Teitelbaum Effect.pdf")))
+            (is (= 1 (title-count "Weyers Ciprofloxacin.pdf")))))))))
