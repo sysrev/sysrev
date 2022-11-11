@@ -181,6 +181,7 @@
     :unlimited-reviews  (boolean value)
     :blind-reviewers    (boolean value)
     :auto-save-labels   (boolean value)
+    :freeze-model       (boolean value)
     nil))
 
 (defn- render-setting [skey]
@@ -314,7 +315,7 @@
         project-plan @(subscribe [:project/plan project-id])
         project-url @(subscribe [:project/uri project-id])]
     [SettingsField {:setting :blind-reviewers
-                    :label "Label blinding"
+                    :label "Label Blinding"
                     :disabled? (and (= project-plan "Basic")
                                     (not @(subscribe [:user/dev?]))
                                     @(subscribe [:project/public-access? project-id]))
@@ -338,6 +339,21 @@
                                     "your"
                                     "the organization's")
                               " plan to enable label blinding. Label blinding hides answers from non-admin reviewers.")]))]))
+
+(defn- FreezeModelField []
+  [SettingsField
+   {:setting :freeze-model
+    :label "Freeze Model"
+    :disabled? false
+    :entries
+    [{:key :false
+      :label [:span "No"]
+      :value false
+      :tooltip "Model not frozen"}
+     {:key :true
+      :label [:span "Yes"]
+      :value true
+      :tooltip "Model frozen"}]}])
 
 (defn ProjectNameField []
   (let [skey :project-name
@@ -434,7 +450,8 @@
           [DoubleReviewPriorityField]
           [UnlimitedReviewsField]
           [AutoSaveLabelsField]
-          [BlindReviewersField project-id]]
+          [BlindReviewersField project-id]
+          [FreezeModelField]]
          (when (admin?)
            [:div
             [:div.ui.divider]
