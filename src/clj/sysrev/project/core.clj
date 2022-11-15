@@ -22,9 +22,6 @@
              :refer
              [index-by opt-keys]]))
 
-;; for clj-kondo
-(declare delete-project)
-
 (s/def ::include-disabled? (s/nilable boolean?))
 
 (def default-project-settings {:second-review-prob 0.5
@@ -41,15 +38,6 @@
                       :settings (db/to-jsonb default-project-settings)
                       :parent-project-id parent-project-id}
             :returning :*))
-
-(defn-spec delete-project int?
-  "Deletes a project entry. All dependent entries should be deleted also by
-  ON DELETE CASCADE constraints in Postgres."
-  [project-id int?]
-  (db/with-clear-project-cache project-id
-    ;; delete the project sources first, to prevent deadlock errors during parallel tests on the remote build server
-    (q/delete :project-source {:project-id project-id})
-    (q/delete :project {:project-id project-id})))
 
 (defn-spec enable-project! int?
   [project-id int?]
@@ -96,12 +84,6 @@
     (-> (q/select-project-articles project-id [:%count.*])
         (merge-join [:article-pdf :apdf] [:= :apdf.article-id :a.article-id])
         do-query first :count)))
-
-(defn-spec delete-project-articles int?
-  "Delete all articles from project."
-  [project-id int?]
-  (db/with-clear-project-cache project-id
-    (q/delete :article {:project-id project-id})))
 
 (defn-spec project-labels (s/nilable (s/map-of ::sc/label-id ::sl/label))
   [project-id int? & [include-disabled] (s/? any?)]

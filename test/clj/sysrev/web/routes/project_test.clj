@@ -85,18 +85,18 @@
           (route-response :post "/api/auth/login" {:email (:email non-member)
                                                    :password (:password non-member)})
           (is (= "Not authorized (project member)"
-                 (get-in (route-response :post "/api/delete-project"
+                 (get-in (route-response :post "/api/disable-project"
                                          {:project-id new-project-id})
                          [:error :message])))
           ;; deletion can't happen for a user who isn't an admin of the project
           (add-project-member new-project-id (:user-id non-member))
           (is (= "Not authorized (project member)"
-                 (get-in (route-response :post "/api/delete-project"
+                 (get-in (route-response :post "/api/disable-project"
                                          {:project-id new-project-id})
                          [:error :message])))
           ;; add the user as an admin, they can now delete the project
           (set-member-permissions new-project-id (:user-id non-member) ["member" "admin"])
-          (is (get-in (route-response :post "/api/delete-project"
+          (is (get-in (route-response :post "/api/disable-project"
                                       {:project-id new-project-id})
                       [:result :success])))))))
 
@@ -203,7 +203,7 @@
                                                         {:project-id project-id})
                                         [:result :sources])))))))))
 
-(deftest ^:integration delete-project-and-sources
+(deftest ^:integration delete-project-sources
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           {:keys [email password]} (test/create-test-user system)

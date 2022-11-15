@@ -187,8 +187,8 @@
 (defn- render-setting [skey]
   (render-setting-value skey (current-values skey)))
 
-(def-action :project/delete
-  :uri (fn [] "/api/delete-project")
+(def-action :project/disable
+  :uri (fn [] "/api/disable-project")
   :content (fn [project-id] {:project-id project-id})
   :process (fn [{:keys [db]} _ _]
              {:db (assoc-in db [:state :active-project-id] nil)
@@ -368,38 +368,26 @@
                               (util/wrap-prevent-default
                                #(edit-misc skey (-> % .-target .-value))))}]]))
 
-(defn- DeleteProjectForm []
-  (let [confirming-delete (r/cursor state [:confirming-delete])
-        project-id @(subscribe [:active-project-id])
-        {:keys [reviewed]} @(subscribe [:project/article-counts])
-        delete-action (if (= reviewed 0) :delete :disable)]
-    [:div.delete-project-toplevel
-     (if @confirming-delete
-       (let [[title message action-color]
-             (case delete-action
-               :delete   ["Delete this project?"
-                          "All articles/labels/notes will be lost."
-                          "orange"]
-               :disable  ["Disable this project?"
-                          "It will be inaccessible until re-enabled."
-                          "yellow"])]
-         [ui/ConfirmationDialog
-          {:on-cancel #(reset! confirming-delete false)
-           :on-confirm #(do (reset! confirming-delete false)
-                            (dispatch [:action [:project/delete project-id]]))
-           :title title
-           :message message
-           :action-color action-color}])
+(defn- DisableProjectForm []
+  (let [confirming-disable (r/cursor state [:confirming-disable])
+        project-id @(subscribe [:active-project-id])]
+    [:div.disable-project-toplevel
+     (if @confirming-disable
+       [ui/ConfirmationDialog
+        {:on-cancel #(reset! confirming-disable false)
+         :on-confirm #(do (reset! confirming-disable false)
+                          (dispatch [:action [:project/disable project-id]]))
+         :title "Disable this project?"
+         :message "It will be inaccessible until re-enabled."
+         :action-color "yellow"}]
        [:button.ui.fluid.button
-        {:on-click #(reset! confirming-delete true)}
-        (if (= delete-action :delete)
-          "Delete Project..."
-          "Disable Project...")])]))
+        {:on-click #(reset! confirming-disable true)}
+        "Disable Project..."])]))
 
 (defn- ProjectExtraActions []
   (when (admin?)
     [:div.ui.secondary.segment.action-segment
-     [DeleteProjectForm]]))
+     [DisableProjectForm]]))
 
 (defn- ProjectMiscBox []
   (let [saving? (r/atom false)]

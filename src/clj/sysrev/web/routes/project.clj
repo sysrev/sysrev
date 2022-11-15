@@ -258,11 +258,11 @@
            {:src-project-id (:src-project-id body)
             :user-id user-id})))))
 
-(dr (POST "/api/delete-project" request
+(dr (POST "/api/disable-project" request
       (with-authorize request {:roles ["admin"]}
         (let [project-id (active-project request)
               user-id (current-user-id request)]
-          (api/delete-project! project-id user-id)))))
+          (api/disable-project! project-id user-id)))))
 
 (dr (POST "/api/create-gengroup" request
       (with-authorize request {:roles ["admin"]}

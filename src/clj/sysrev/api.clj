@@ -182,16 +182,13 @@
           :type :group-has-new-project})
         {:project (select-keys project [:project-id :name])}))))
 
-(defn-spec delete-project! (req-un ::sp/project-id)
-  "Delete a project with project-id by user-id. Checks to ensure the
-  user is an admin of that project. If there are reviewed articles in
-  the project, disables project instead of deleting it"
+(defn-spec disable-project! (req-un ::sp/project-id)
+  "Disable a project with project-id by user-id. Checks to ensure the
+  user is an admin of that project."
   [project-id int?, user-id int?]
   (assert (or (member/member-role? project-id user-id "admin")
               (in? (q/get-user user-id :permissions) "admin")))
-  (if (project/project-has-labeled-articles? project-id)
-    (project/disable-project! project-id)
-    (project/delete-project project-id))
+  (project/disable-project! project-id)
   {:project-id project-id})
 
 (defn ^:api remove-current-owner [project-id]
