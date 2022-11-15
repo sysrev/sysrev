@@ -13,10 +13,6 @@
              (when (and users user-id)
                (get users user-id)))))
 
-(reg-sub :user/uuid
-         (fn [[_ user-id]] (subscribe [::user user-id]))
-         #(:user-uuid %))
-
 (reg-sub :user/username
          (fn [[_ user-id]] (subscribe [::user user-id]))
          #(:username %))
