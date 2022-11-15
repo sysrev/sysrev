@@ -372,32 +372,26 @@
   (let [confirming-delete (r/cursor state [:confirming-delete])
         project-id @(subscribe [:active-project-id])
         {:keys [reviewed]} @(subscribe [:project/article-counts])
-        members-count (count @(subscribe [:project/member-user-ids nil true]))
-        delete-action (cond (= reviewed 0)             :delete
-                            (and (< reviewed 20)
-                                 (< members-count 4))  :disable
-                            :else                      nil)]
+        delete-action (if (= reviewed 0) :delete :disable)]
     [:div.delete-project-toplevel
      (if @confirming-delete
-       (when delete-action
-         (let [[title message action-color]
-               (case delete-action
-                 :delete   ["Delete this project?"
-                            "All articles/labels/notes will be lost."
-                            "orange"]
-                 :disable  ["Disable this project?"
-                            "It will be inaccessible until re-enabled."
-                            "yellow"]
-                 nil)]
-           [ui/ConfirmationDialog
-            {:on-cancel #(reset! confirming-delete false)
-             :on-confirm #(do (reset! confirming-delete false)
-                              (dispatch [:action [:project/delete project-id]]))
-             :title title
-             :message message
-             :action-color action-color}]))
+       (let [[title message action-color]
+             (case delete-action
+               :delete   ["Delete this project?"
+                          "All articles/labels/notes will be lost."
+                          "orange"]
+               :disable  ["Disable this project?"
+                          "It will be inaccessible until re-enabled."
+                          "yellow"])]
+         [ui/ConfirmationDialog
+          {:on-cancel #(reset! confirming-delete false)
+           :on-confirm #(do (reset! confirming-delete false)
+                            (dispatch [:action [:project/delete project-id]]))
+           :title title
+           :message message
+           :action-color action-color}])
        [:button.ui.fluid.button
-        {:on-click (when delete-action #(reset! confirming-delete true))}
+        {:on-click #(reset! confirming-delete true)}
         (if (= delete-action :delete)
           "Delete Project..."
           "Disable Project...")])]))
