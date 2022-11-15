@@ -397,8 +397,7 @@
              :message message
              :action-color action-color}]))
        [:button.ui.fluid.button
-        {:class (css [(nil? delete-action) "disabled"])
-         :on-click (when delete-action #(reset! confirming-delete true))}
+        {:on-click (when delete-action #(reset! confirming-delete true))}
         (if (= delete-action :delete)
           "Delete Project..."
           "Disable Project...")])]))
