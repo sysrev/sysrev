@@ -30,7 +30,7 @@
                    15000 1000)
   (Thread/sleep 500))
 
-(deftest ^:integration pubmed-search-test
+(deftest ^:optional pubmed-search-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
