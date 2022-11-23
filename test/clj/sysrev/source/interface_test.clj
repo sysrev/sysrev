@@ -16,7 +16,7 @@
             [sysrev.test.core :as test :refer [completes?]]
             [sysrev.util :as util :refer [in?]]))
 
-(deftest ^:integration import-pubmed-search
+(deftest ^:optional import-pubmed-search
   (test/with-test-system [{:keys [sr-context]} {}]
     (util/with-print-time-elapsed "import-pubmed-search"
       (let [search-term "foo bar"
