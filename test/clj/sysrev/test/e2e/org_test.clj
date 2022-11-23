@@ -38,7 +38,8 @@
           (et/fill-visible :create-org-input org-1-name)
           (et/is-click-visible :create-org-button)
           (et/is-wait-visible {:css ".panel-content #org"}))
-        (is (some #{"owner"} (user-group-permission user-id org-1-name))))
+        (is (some #{"admin"} (user-group-permission user-id org-1-name)))
+        (is (= user-id (group/get-group-owner (group/group-name->id org-1-name)))))
       (testing "duplicate orgs can't be created"
         (account/log-out test-resources)
         (account/log-in test-resources user)
