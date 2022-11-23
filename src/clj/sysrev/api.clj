@@ -149,7 +149,7 @@
       (update-member-permissions!
        project-id user-id
        (cond
-         (some #{"owner" "admin"} permissions) ["member" "admin"]
+         (some #{"admin"} permissions) ["member" "admin"]
          (some #{"member"} permissions) ["member"])))))
 
 (def re-project-name #"([A-Za-z0-9]+-)*[A-Za-z0-9]+")
@@ -1279,12 +1279,12 @@
       validation-result
       (with-transaction
         ;; create the group
-        (let [new-org-id (group/create-group! org-name)
+        (let [new-org-id (group/create-group! org-name user-id)
               user (q/get-user user-id)
               _ (group/create-group-stripe-customer! new-org-id user)
               stripe-id (group/group-stripe-id new-org-id)]
           ;; set the user as group owner
-          (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["owner"])
+          (group/add-user-to-group! user-id (group/group-name->id org-name) :permissions ["admin"])
           (stripe/create-subscription-org! new-org-id stripe-id)
           {:success true, :id new-org-id :user-id user-id})))))
 

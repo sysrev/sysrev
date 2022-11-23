@@ -39,14 +39,11 @@
                     (map #(merge % (get users-public-info (:user-id %)))))))))
 
 (defn-spec get-group-owner (s/nilable int?)
-  "Return earliest owner `user-id` among current owners of `group-id`."
   [group-id int?]
-  (first (q/find :user-group {:group-id group-id, "owner" :%any.permissions}
-                 :user-id, :order-by :created, :limit 1)))
+  (q/find-one :groups {:group-id group-id} :owner-user-id))
 
 (defn get-premium-members-count [user-id]
-  (let [group-ids (q/find [:user-group :ug] {"owner" :%any.permissions :ug.user-id user-id}
-                          :ug.group-id, :order-by :ug.created)
+  (let [group-ids (q/find :groups {:owner-user-id user-id} :group-id)
         user-ids (-> (sqlh/select :%distinct.ug.user-id)
                      (sqlh/from [:user-group :ug])
                      (sqlh/where [:in :group-id group-ids]
@@ -121,8 +118,8 @@
           [:g.* :ug.permissions], :join [[:groups :g] :ug.group-id]
           :prepare #(sqlh/modifiers % :distinct)))
 
-(defn create-group! [group-name]
-  (q/create :groups {:group-name group-name}
+(defn create-group! [group-name & [owner-user-id]]
+  (q/create :groups {:group-name group-name :owner-user-id owner-user-id}
             :returning :group-id))
 
 (defn group-stripe-id [group-id]

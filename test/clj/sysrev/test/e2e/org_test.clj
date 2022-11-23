@@ -11,8 +11,8 @@
             [sysrev.util :as util]))
 
 (defn create-org! [{:keys [system]} org-name owner-id]
-  (let [group-id (group/create-group! org-name)]
-    (group/add-user-to-group! owner-id group-id :permissions ["owner"])
+  (let [group-id (group/create-group! org-name owner-id)]
+    (group/add-user-to-group! owner-id group-id :permissions ["admin"])
     group-id))
 
 (defn create-project-org!

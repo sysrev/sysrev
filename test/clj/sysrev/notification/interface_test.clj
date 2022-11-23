@@ -18,8 +18,8 @@
     (testing "Adding users and changing roles don't generate :project-has-new-user notifications (#4, #5)"
       (let [{owner-id :user-id} (test/create-test-user system)
             {member-id :user-id} (test/create-test-user system)
-            group-id (group/create-group! "test-role-change")]
-        (group/add-user-to-group! owner-id group-id :permissions ["owner"])
+            group-id (group/create-group! "test-role-change" owner-id)]
+        (group/add-user-to-group! owner-id group-id :permissions ["admin"])
         (group/add-user-to-group! member-id group-id)
         (api/create-project-for-org! "test-role-change" owner-id group-id true)
         (api/set-user-group-permissions! member-id group-id ["admin"])

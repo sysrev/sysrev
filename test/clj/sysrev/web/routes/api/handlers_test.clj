@@ -91,8 +91,6 @@
                (:user-id (project/get-project-owner project-id))))
         ;; add another user to this org
         (api/set-user-group! (:user-id user-quux) group-name true)
-        ;; make them an owner as well
-        (api/set-user-group-permissions! (:user-id user-quux) group-id ["owner"])
         ;; transfer the project to this org
         (-> (handler
              (-> (mock/request :post "/web-api/transfer-project")

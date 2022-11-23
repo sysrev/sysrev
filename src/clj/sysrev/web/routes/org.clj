@@ -21,8 +21,11 @@
            group-name (group/group-id->name org-id)]
        (or dev-user? ; always treat sysrev dev users as having full access
            (and (group/user-active-in-group? user-id group-name)
-                ;; test if they have the correct permissions
-                (some (set permissions) (group/user-group-permission user-id org-id))))))))
+                (or
+                 ;; The group owner has all permissions
+                 (= user-id (group/get-group-owner org-id))
+                 ;; test if they have the correct permissions
+                 (some (set permissions) (group/user-group-permission user-id org-id)))))))))
 
 (defroutes org-routes
   (context
