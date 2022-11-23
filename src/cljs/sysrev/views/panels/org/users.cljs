@@ -213,6 +213,8 @@
   (let [new-role   (r/cursor state [:change-role :new-role])
         error      (r/cursor state [:change-role :error])
         running?   (action/running? :org/change-user-role)]
+    (when (and (not @new-role) (:role @user))
+      (reset! new-role (:role @user)))
     [Modal {:open @modal-open
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)}

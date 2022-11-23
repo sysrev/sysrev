@@ -72,8 +72,9 @@
          (fn [[owner? admin?]]
            (or owner? admin?)))
 
-(defn member->js [{:keys [user-id username]}]
+(defn member->js [{:keys [permissions user-id username]}]
   #js{:name username
+      :role (or (some #{"admin"} permissions) "member")
       :url (str js/window.location.origin "/user/" user-id "/profile")
       :userId user-id})
 

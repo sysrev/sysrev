@@ -23,6 +23,7 @@ export interface ProjectProps {
 
 export interface MemberProps {
   name?: string
+  role: string
   userId: number
   url?: string
 }
@@ -140,7 +141,7 @@ const Tab = (props: TabProps) => {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>User ID</th>
+                    <th>Role</th>
                     <th>URL</th>
                     <th></th>
                   </tr>
@@ -150,7 +151,7 @@ const Tab = (props: TabProps) => {
                     (props.members ?? []).map((item) => (
                       <tr key={item.userId}>
                         <td>{item.name}</td>
-                        <td>{item.userId}</td>
+                        <td>{item.role[0].toUpperCase() + item.role.slice(1)}</td>
                         <td><a href={item.url} target="_blank">{item.url}</a>
                         </td>
                         {
