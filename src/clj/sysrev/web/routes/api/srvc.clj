@@ -142,9 +142,10 @@
   (let [json-schema-url (make-json-schema sr-context hasher label)
         {:keys [inclusion-values]} definition]
     (cond-> {:question question
-             :required (boolean required)}
+             :required (boolean required)
+             :type "json_schema"}
       (seq inclusion-values) (assoc :inclusion_values inclusion-values)
-      json-schema-url (assoc :json_schema_url json-schema-url))))
+      json-schema-url (assoc :json_schema_uri json-schema-url))))
 
 (def-webapi :srvc-config :get
   {:allow-public? true
