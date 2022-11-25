@@ -9,6 +9,8 @@
             [sysrev.postgres.interface :as pg]
             [sysrev.web.routes.api.core :refer [def-webapi]]))
 
+(declare label-schema)
+
 (defn hash-process []
   (let [{:keys [in out] :as proc} (p/process ["sr" "hash"])]
     {:process proc
@@ -97,9 +99,34 @@
                   (map json/write-str)
                   (str/join "\n"))})))
 
+(defn boolean-label-schema [{:keys [multi?]}]
+  (let [spec {:type "boolean"}]
+    (if multi?
+      {:type "array" :items spec}
+      spec)))
+
 (defn categorical-label-schema [{:keys [all-values multi?]}]
   (let [spec {:enum all-values :type "string"}]
     (if multi?
+      {:type "array" :items spec}
+      spec)))
+
+(defn group-label-schema [sr-context {:label/keys [definition label-id]}]
+  (let [sublabels (db/with-tx [sr-context sr-context]
+                    (db/execute!
+                     sr-context
+                     {:select :*
+                      :from :label
+                      :where [:in :root-label-id-local
+                              {:select :label-id-local
+                               :from :label
+                               :where [:= :label-id label-id]}]}))
+        props (->> sublabels
+                   (mapv #(do [(:label/name %) (label-schema sr-context %)]))
+                   (into {}))
+        spec {:type "object"
+              :properties props}]
+    (if (:multi? definition)
       {:type "array" :items spec}
       spec)))
 
@@ -111,9 +138,11 @@
       {:type "array" :items spec}
       spec)))
 
-(defn label-schema [{:label/keys [definition value-type] :as label}]
+(defn label-schema [sr-context {:label/keys [definition value-type] :as label}]
   (case value-type
+    "boolean" (boolean-label-schema definition)
     "categorical" (categorical-label-schema definition)
+    "group" (group-label-schema sr-context label)
     "string" (string-label-schema definition)))
 
 (defn make-json-schema [sr-context hasher {:label/keys [value-type] :as label}]
@@ -121,10 +150,10 @@
     "boolean"
     "https://raw.githubusercontent.com/insilica/rs-srvc/master/src/schema/label-answer/boolean-v1.json"
 
-    ("annotation" "group" "relationship") nil
+    ("annotation" "relationship") nil
 
-    ("categorical" "string")
-    (let [schema (-> (label-schema label)
+    ("categorical" "group" "string")
+    (let [schema (-> (label-schema sr-context label)
                      (assoc "$schema" "http://json-schema.org/draft-07/schema"))
           hash (:hash (add-hash hasher {:data schema :type "document"}))
           schema-url (str "https://sysrev.com/web-api/srvc-json-schema?hash=" hash)
