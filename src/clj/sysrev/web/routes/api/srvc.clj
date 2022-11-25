@@ -155,7 +155,12 @@
           labels (get-project-labels sr-context project-id)]
       {:headers {"Content-Type" "application/yaml"}
        :body (yaml/generate-string
-              {:labels (into {} (for [label labels]
+              {:flows {:label {:steps
+                               [{:run_embedded "generator-file data/docs.jsonl"}
+                                {:run_embedded "remove-reviewed"}
+                                {:run_embedded "html src/resources/public/label.html"
+                                  :labels (mapv :label/name labels)}]}}
+               :labels (into {} (for [label labels]
                                   [(:label/name label) (sryaml-label sr-context hasher label)]))})})))
 
 (defn get-schema [sr-context hash]
