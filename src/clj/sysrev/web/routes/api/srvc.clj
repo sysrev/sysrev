@@ -97,6 +97,12 @@
                   (map json/write-str)
                   (str/join "\n"))})))
 
+(defn categorical-label-schema [{:keys [all-values multi?]}]
+  (let [spec {:enum all-values :type "string"}]
+    (if multi?
+      {:type "array" :items spec}
+      spec)))
+
 (defn string-label-schema [{:keys [max-length multi? regex]}]
   (let [spec (cond-> {:type "string"}
                max-length (assoc :maxLength max-length)
@@ -105,15 +111,20 @@
       {:type "array" :items spec}
       spec)))
 
-(defn make-json-schema [sr-context hasher {:label/keys [definition value-type]}]
+(defn label-schema [{:label/keys [definition value-type] :as label}]
+  (case value-type
+    "categorical" (categorical-label-schema definition)
+    "string" (string-label-schema definition)))
+
+(defn make-json-schema [sr-context hasher {:label/keys [value-type] :as label}]
   (case value-type
     "boolean"
     "https://raw.githubusercontent.com/insilica/rs-srvc/master/src/schema/label-answer/boolean-v1.json"
-    
-    ("annotation" "categorical" "group" "relationship") nil
 
-    "string"
-    (let [schema (-> (string-label-schema definition)
+    ("annotation" "group" "relationship") nil
+
+    ("categorical" "string")
+    (let [schema (-> (label-schema label)
                      (assoc "$schema" "http://json-schema.org/draft-07/schema"))
           hash (:hash (add-hash hasher {:data schema :type "document"}))
           schema-url (str "https://sysrev.com/web-api/srvc-json-schema?hash=" hash)
