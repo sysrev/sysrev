@@ -1,6 +1,5 @@
 (ns sysrev.graphql.handler
-  (:require [clojure.data.codec.base64 :as base64]
-            [clojure.data.json :as json]
+  (:require [clojure.data.json :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
@@ -20,7 +19,8 @@
               import-datasource-flattened
               import-ds-query]]
             [sysrev.source.project-filter :refer [import-article-filter-url!]]
-            [sysrev.util :as util]))
+            [sysrev.util :as util])
+  (:import [java.util Base64]))
 
 (def scalars
   {:Timestamp {:parse (fn [x]
@@ -83,18 +83,13 @@
                (catch Throwable _ ""))
     ""))
 
-;; https://github.com/remvee/ring-basic-authentication/blob/master/src/ring/middleware/basic_authentication.clj
-(defn- byte-transform
-  "Used to encode and decode strings.  Returns nil when an exception
-  was raised."
-  [direction-fn ^String string]
-  (util/ignore-exceptions
-   (apply str (map char (direction-fn (.getBytes string))))))
-
 (defn decode-base64
   "Will do a base64 decoding of a string and return a string."
-  [^String string]
-  (byte-transform base64/decode string))
+  [^String s]
+  (util/ignore-exceptions
+   (-> (Base64/getDecoder)
+       (.decode (.getBytes s "UTF-8"))
+       (String. "UTF-8"))))
 
 ;; https://github.com/remvee/ring-basic-authentication/blob/master/src/ring/middleware/basic_authentication.clj
 (defn extract-authorization-key
