@@ -96,6 +96,7 @@ jobs:
           nix-shell ../default.nix --run "packer build -var git-ref=$GITHUB_REF -var git-sha=$GITHUB_SHA -var uuid=$UUID datapub.pkr.hcl"
           export AMI=$(aws ec2 describe-images --filters Name='tag:sysrev:build:uuid',Values=$UUID --query 'Images[0].ImageId' --output text)
           echo "DATAPUB_AMI=$AMI" >> $GITHUB_ENV
+          echo "DATAPUB_SLACK_TOKEN=${{ secrets.DATAPUB_SLACK_TOKEN }}" >> $GITHUB_ENV
         working-directory: projects/datapub/packer
 
       - name: Deploy CloudFormation stacks to staging

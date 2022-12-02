@@ -6,7 +6,6 @@ clojure -M:antq \
         --directory=projects/* \
         --exclude=ch.qos.logback/logback-classic \
         --exclude=clojure-csv/clojure-csv \
-        --exclude=club.donutpower/system \
         --exclude=com.google.api-client/google-api-client \
         --exclude=honeysql/honeysql \
         --exclude=javax.servlet/javax.servlet-api \
@@ -26,7 +25,6 @@ clojure -M:antq \
         --exclude=org.eclipse.jetty.websocket/websocket-server \
         --exclude=org.eclipse.jetty.websocket/websocket-servlet \
         --exclude=org.flywaydb/flyway-core \
-        --exclude=rs.shaffe/salmon \
         --exclude=org.slf4j/jul-to-slf4j \
         --exclude=org.slf4j/slf4j-api \
         "$@"

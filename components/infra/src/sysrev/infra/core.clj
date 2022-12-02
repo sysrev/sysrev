@@ -3,8 +3,8 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [donut.system :as ds]
-            [salmon.cloudformation.interface :as cfn]
-            [salmon.signal.interface :as sig]
+            [salmon.cloudformation :as cfn]
+            [salmon.signal :as sig]
             [sysrev.infra.datapub :as datapub]
             [sysrev.infra.global :as global]
             [sysrev.infra.graphql-gateway :as graphql-gateway]
@@ -24,16 +24,16 @@
 
 (defn merge-maps [& maps]
   {::ds/config {:maps maps}
-   ::ds/start (fn [{:keys [maps]}]
+   ::ds/start (fn [{{:keys [maps]} ::ds/config}]
                 (reduce merge {} maps))})
 
 (defn call [f & args]
   {::ds/config {:args args :f f}
-   ::ds/start (fn [{:keys [args f]}]
+   ::ds/start (fn [{{:keys [args f]} ::ds/config}]
                 (apply f args))})
 
 (defn system-map []
-  {::ds/base {:salmon/pre-validate sig/pre-validate-conf}
+  {::ds/base {:salmon/early-validate sig/early-validate-conf}
    ::ds/defs
    {:common
     {:config (call #(-> % io/resource slurp edn/read-string)
@@ -68,7 +68,7 @@
                  (merge
                   (select-keys global [:CloudFrontOAI :DatapubBucket :DatapubHostedZoneId
                                        :DatapubZoneApex])
-                  (select-keys regional [:CredentialKeysId :CredentialsKeyUsePolicyArn
+                  (select-keys regional [:CredentialsKeyId :CredentialsKeyUsePolicyArn
                                          :LoadBalancerCanonicalHostedZoneId :LoadBalancerDNSName
                                          :LoadBalancerHTTPSListenerArn :LoadBalancerSecurityGroupId
                                          :LogsKeyArn :RDSSubnetGroupName
@@ -116,17 +116,19 @@
                  :parameters (ds/ref [:sysrev :params])
                  :template sysrev/template})}}
    ::ds/signals
-   {:salmon/pre-validate {:order :reverse-topsort}}})
+   {:salmon/early-validate {:order :reverse-topsort}}})
 
 (defn deploy! [{:keys [groups]}]
   (try
     (-> (system-map)
         (update ::ds/defs select-keys (into #{:common} groups))
-        sig/pre-validate!
+        sig/early-validate!
         sig/start!
         (->> (reset! system)))
     (catch clojure.lang.ExceptionInfo e
-      (log/error e (ex-message e) (ex-data e)))))
+      ; Always show a full stack trace
+      (log/error e (ex-message e) (ex-data e))
+      (throw e))))
 
 (comment
   (do

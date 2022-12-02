@@ -19,11 +19,11 @@
    :DatapubBucket {:MaxLength 63
                    :MinLength 3
                    :Type "String"}
-   :DatapubFilesDomainName {:Type "String"}
    :DatapubHostedZoneId {:Type "String"}
    :DatapubZoneApex {:Type "String"}
    :Env {:AllowedPattern "(dev)|(prod)|(staging)"
          :Type "String"}
+   :FilesDomainName {:Type "String"}
    :InstanceType {:Type "String"}
    :LoadBalancerCanonicalHostedZoneId {:Type "String"}
    :LoadBalancerDNSName {:Type "String"}
@@ -110,9 +110,9 @@
    :FileDistributionCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
-    {:DomainName (ref :DatapubFilesDomainName)
+    {:DomainName (ref :FilesDomainName)
      :DomainValidationOptions
-     [{:DomainName (ref :DatapubFilesDomainName)
+     [{:DomainName (ref :FilesDomainName)
        :HostedZoneId (ref :DatapubHostedZoneId)}]
      :ValidationMethod "DNS"}}
 
@@ -141,7 +141,7 @@
    {:Type "AWS::CloudFront::Distribution"
     :Properties
     {:DistributionConfig
-     {:Aliases [(ref :DatapubFilesDomainName)]
+     {:Aliases [(ref :FilesDomainName)]
       :DefaultCacheBehavior
       {:AllowedMethods ["GET" "HEAD" "OPTIONS"]
        :CachedMethods ["GET" "HEAD" "OPTIONS"]
@@ -168,11 +168,11 @@
      :RecordSets
      [{:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
                      :DNSName (get-att :FileDistribution "DomainName")}
-       :Name (ref :DatapubFilesDomainName)
+       :Name (ref :FilesDomainName)
        :Type "A"}
       {:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
                      :DNSName (get-att :FileDistribution "DomainName")}
-       :Name (ref :DatapubFilesDomainName)
+       :Name (ref :FilesDomainName)
        :Type "AAAA"}]}}
 
    :RDSMasterCredentials
@@ -364,7 +364,7 @@
        "set -oeux \n"
 
        "echo \""
-       "{:files-domain-name \\\"" (ref :DatapubFilesDomainName) "\\\"\n"
+       "{:files-domain-name \\\"" (ref :FilesDomainName) "\\\"\n"
        " :postgres {:host \\\"" (get-att :RDSInstance "Endpoint.Address") "\\\"\n"
        "            :port " (get-att :RDSInstance "Endpoint.Port") "\n"
        "            :user \\\"postgres\\\"}\n"
