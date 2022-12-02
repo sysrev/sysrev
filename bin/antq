@@ -27,4 +27,6 @@ clojure -M:antq \
         --exclude=org.eclipse.jetty.websocket/websocket-servlet \
         --exclude=org.flywaydb/flyway-core \
         --exclude=rs.shaffe/salmon \
+        --exclude=org.slf4j/jul-to-slf4j \
+        --exclude=org.slf4j/slf4j-api \
         "$@"
