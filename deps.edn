@@ -63,7 +63,7 @@
         buddy/buddy-hashers {:mvn/version "1.8.158"}
         buddy/buddy-sign {:mvn/version "3.4.333"}
         clj-http/clj-http {:mvn/version "3.12.3"}
-        com.cognitect.aws/s3 {:mvn/version "822.2.1145.0"}
+        com.cognitect.aws/s3 {:mvn/version "825.2.1250.0"}
         com.draines/postal {:mvn/version "2.0.5"} ;; email client
         com.velisco/clj-ftp {:mvn/version "0.3.17"}
         hashp/hashp {:mvn/version "0.2.1"}
@@ -73,7 +73,6 @@
         bouncer/bouncer {:mvn/version "1.0.1"} ;; validation
         hickory/hickory {:mvn/version "0.7.1"} ;; html parser
         kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
-        org.clojure/core.async {:mvn/version "1.5.648"}
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
         club.donutpower/system {:git/url "https://github.com/insilica/system.git"

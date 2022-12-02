@@ -1,4 +1,4 @@
 {:paths ["src"]
- :deps {com.cognitect.aws/api {:mvn/version "0.8.568"},
-        com.cognitect.aws/endpoints {:mvn/version "1.1.12.257"}
+ :deps {com.cognitect.aws/api {:mvn/version "0.8.620"},
+        com.cognitect.aws/endpoints {:mvn/version "1.1.12.353"}
         io.staticweb/aws-api-failjure {:mvn/version "1.1.0"}}}

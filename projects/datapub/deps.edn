@@ -3,8 +3,8 @@
         org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
         buddy/buddy-sign {:mvn/version "3.4.333"}
         clj-http/clj-http {:mvn/version "3.12.3"}
-        com.cognitect.aws/s3 {:mvn/version "822.2.1145.0"}
-        com.cognitect.aws/secretsmanager {:mvn/version "822.2.1171.0"}
+        com.cognitect.aws/s3 {:mvn/version "825.2.1250.0"}
+        com.cognitect.aws/secretsmanager {:mvn/version "825.2.1262.0"}
         com.fzakaria/slf4j-timbre {:mvn/version "0.3.21"}
         com.taoensso/timbre {:mvn/version "5.2.1"}
         hashp/hashp {:mvn/version "0.2.1"}
