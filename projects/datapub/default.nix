@@ -1,8 +1,8 @@
 let
-  rev = "fd3e33d696b81e76b30160dfad2efb7ac1f19879";
+  rev = "97e88a936cf18bc8a2c6cf65e4ec8d423e4cb743";
   nixpkgs = fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
-    sha256 = "1liw3glyv1cx0bxgxnq2yjp0ismg0np2ycg72rqghv75qb73zf9h";
+    sha256 = "sha256:1lkij94y3pxm3wdvsk4axf20g5lnm85c10r1926gwwxzp3fwqw7v";
   };
   pkgs = import nixpkgs { };
   inherit (pkgs) stdenv fetchurl;
@@ -26,7 +26,7 @@ stdenv.mkDerivation {
   name = "datapub";
   src = ./src;
   buildInputs = [
-    (clojure.override { jdk = jdk; })
+    clojure
     glibcLocales # postgres and rlwrap (used by clj) need this
     jdk
     nix
