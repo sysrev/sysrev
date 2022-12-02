@@ -133,4 +133,32 @@
      :PubliclyAccessible false
      :StorageEncrypted true
      :StorageType (ref :RDSStorageType)
-     :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}})
+     :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}
+
+   :ServerLifecyclePolicy
+   {:Type "AWS::DLM::LifecyclePolicy"
+    :Properties
+    {:Description "Sysrev Backups"
+     :ExecutionRoleArn
+     (sub ["arn:aws:iam::${AccountId}:role/service-role/AWSDataLifecycleManagerDefaultRole"
+           {:AccountId account-id}])
+     :PolicyDetails
+     {:ResourceTypes ["INSTANCE"]
+      :Schedules
+      [{:Name "Daily Schedule"
+        :CopyTags true
+        :CreateRule {:Interval 24 :IntervalUnit "HOURS" :Times ["06:00"]}
+        :RetainRule {:Count 7}
+        :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}
+       {:Name "Weekly Schedule"
+        :CopyTags true
+        :CreateRule {:CronExpression "cron(0 6 ? * SUN *)"}
+        :RetainRule {:Count 4}
+        :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}
+       {:Name "Monthly Schedule"
+        :CopyTags true
+        :CreateRule {:CronExpression "cron(0 6 1 * ? *)"}
+        :RetainRule {:Count 12}
+        :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}]
+      :TargetTags [{:Key "Name" :Value "sysrev-t3"}]}
+     :State "ENABLED"}}})
