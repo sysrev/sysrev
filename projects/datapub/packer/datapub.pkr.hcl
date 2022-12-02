@@ -79,7 +79,7 @@ build {
   provisioner "shell" {
     inline = [
       "sudo apt-get update && sudo apt-get upgrade -y",
-      "sudo apt-get install -y awscli htop openjdk-11-jre python3",
+      "sudo apt-get install -y awscli git htop openjdk-11-jre python3",
       "sudo apt-get autoremove -y"
     ]
   }
