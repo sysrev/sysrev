@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-set -eou pipefail
+set -eu
 
-clojure -X:test
+AWS_REGION=us-east-1 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test clojure -X:test
