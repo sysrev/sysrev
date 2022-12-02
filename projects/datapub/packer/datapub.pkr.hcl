@@ -37,9 +37,9 @@ source "amazon-ebs" "datapub" {
   region            = "us-east-1"
   shutdown_behavior = "terminate"
   # Ubuntu was failing ~50% of the time due to apt-get not finding packages,
-  # so we're using Debian. We reuse the previous AMI by default to save time.
-  source_ami        = "${data.amazon-ami.previous_build.id}"
-  #source_ami        = "ami-06a80441f25333895" # Build from base Debian 11.2 with DSA 5096 patch
+  # so we're using Debian.
+  #source_ami        = "${data.amazon-ami.previous_build.id}"
+  source_ami        = "ami-0be49b0e69a32b6bb"
   ssh_username      = "admin"
   tags = {
     "sysrev:build:git-ref" = "${var.git-ref}"
