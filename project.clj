@@ -26,7 +26,7 @@
   :profiles {:dev            {:lein-tools-deps/config {:aliases [:dev :test]}
                               :jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
-                              :plugins [[lein-eftest "0.5.9"]]}
+                              :plugins [[lein-eftest "0.6.0"]]}
              :prod           {:lein-tools-deps/config {:aliases [:prod]}
                               :main sysrev.main
                               :aot [sysrev.main]}

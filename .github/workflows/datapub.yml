@@ -26,7 +26,7 @@ jobs:
             ~/.m2/repository
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v17
+        uses: cachix/install-nix-action@v18
         with:
           nix_path: nixpkgs=channel:nixos-21.11
 
@@ -113,7 +113,7 @@ jobs:
         if: steps.nix-cache.outputs.cache-hit != 'true'
 
       - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.13.0
+        uses: 8398a7/action-slack@v3.14.0
         if: always()
         with:
           status: custom

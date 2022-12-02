@@ -5,7 +5,7 @@
  :aliases {:test {:extra-paths ["test"]
                   :extra-deps {com.cognitect/test-runner
                                {:git/url "https://github.com/cognitect-labs/test-runner.git"
-                                :sha "a85b3b02765fb68684ab9ee4a8598eacf7e471d2"}
+                                :sha "7284cda41fb9edc0f3bc6b6185cfb7138fc8a023"}
                                poly/datapub
                                {:local/root "../../projects/datapub"}
                                poly/datapub-test

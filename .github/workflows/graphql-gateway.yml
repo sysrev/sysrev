@@ -70,7 +70,7 @@ jobs:
             **/node_modules
 
       - name: Install Nix
-        uses: cachix/install-nix-action@v17
+        uses: cachix/install-nix-action@v18
         timeout-minutes: 5
         with:
           nix_path: nixpkgs=channel:nixos-21.11
@@ -98,7 +98,7 @@ jobs:
 
       - name: Set APOLLO_ELV2_LICENSE to avoid license prompt
         run: echo "APOLLO_ELV2_LICENSE=accept" >> $GITHUB_ENV
-  
+
       - name: Install rover
         run: |
           curl -sSL https://rover.apollo.dev/nix/v0.5.1 | sh
@@ -171,7 +171,7 @@ jobs:
         if: steps.nix-cache.outputs.cache-hit != 'true'
 
       - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.13.0
+        uses: 8398a7/action-slack@v3.14.0
         if: always()
         with:
           status: custom

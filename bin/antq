@@ -4,6 +4,7 @@ clojure -M:antq \
         --directory=bases/* \
         --directory=components/* \
         --directory=projects/* \
+        --exclude=ch.qos.logback/logback-classic \
         --exclude=clojure-csv/clojure-csv \
         --exclude=club.donutpower/system \
         --exclude=com.google.api-client/google-api-client \
@@ -24,5 +25,6 @@ clojure -M:antq \
         --exclude=org.eclipse.jetty.websocket/websocket-api \
         --exclude=org.eclipse.jetty.websocket/websocket-server \
         --exclude=org.eclipse.jetty.websocket/websocket-servlet \
+        --exclude=org.flywaydb/flyway-core \
         --exclude=rs.shaffe/salmon \
         "$@"

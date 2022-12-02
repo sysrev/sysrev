@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {org.apache.pdfbox/pdfbox {:mvn/version "2.0.26"}
+ :deps {org.apache.pdfbox/pdfbox {:mvn/version "2.0.27"}
         ;; Optional dependencies from https://pdfbox.apache.org/2.0/dependencies.html
         ;; and https://svn.apache.org/viewvc/pdfbox/trunk/parent/pom.xml?view=markup
         com.github.jai-imageio/jai-imageio-core {:mvn/version "1.4.0"}
