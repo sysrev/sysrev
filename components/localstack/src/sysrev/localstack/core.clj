@@ -9,8 +9,8 @@
 (defn localstack-config []
   (cond-> {:Env ["SERVICES=s3"]
            :HostConfig {:AutoRemove true}
-           :Image "localstack/localstack:0.14.2"}
-    (conc/linux?) (conc/add-tmpfs "/tmp/localstack")
+           :Image "localstack/localstack:1.3.0"}
+    (conc/linux?) (conc/add-tmpfs "/var/lib/localstack")
     true (conc/add-port 0 4566)))
 
 (defn s3-available? [client-opts localstack]
