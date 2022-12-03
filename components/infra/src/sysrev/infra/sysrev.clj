@@ -19,22 +19,7 @@
   :Parameters
   {:CredentialsGroupName {:Type "String"}
    :CredentialsKeyId {:Type "String"}
-   :RDSAllocatedStorage {:AllowedPattern "[1-9][0-9]+"
-                         :Description "Minimum allocated storage in GB. Must be at least 20."
-                         :Type "String"}
-   :RDSInstanceClass {:Type "String"}
-   :RDSIops {:Default 1000
-             :Description "Provisioned Iops for the storage. Only used when RDSStorageType is io1."
-             :MinValue 1000
-             :Type "Number"}
-   :RDSStorageType {:AllowedPattern "(gp2)|(io1)"
-                    :Type "String"}
-   :RDSSubnetGroupName {:Type "String"}
    :VpcId {:Type "String"}}
-
-  :Conditions
-  {:RDSIo1Storage
-   (equals "io1" (ref :RDSStorageType))}
 
   :Resources
   {:DatasourceCredentials
@@ -48,16 +33,6 @@
     :Properties
     {:KmsKeyId (ref :CredentialsKeyId)
      :SecretString "{\"client-id\":\"\",\"secret\":\"\",\"url\":\"\"}"}}
-
-   :RDSMasterCredentials
-   {:Type "AWS::SecretsManager::Secret"
-    :Properties
-    {:GenerateSecretString
-     {:ExcludeCharacters "\"@/\\"
-      :GenerateStringKey "password"
-      :PasswordLength 32
-      :SecretStringTemplate "{\"username\": \"postgres\"}"}
-     :KmsKeyId (ref :CredentialsKeyId)}}
 
    :StripeCredentials
    {:Type "AWS::SecretsManager::Secret"
@@ -82,7 +57,6 @@
         :Effect "Allow"
         :Resource [(ref :DatasourceCredentials)
                    (ref :PayPalCredentials)
-                   (ref :RDSMasterCredentials)
                    (ref :StripeCredentials)
                    (ref :SysrevDevKey)]}]}}}
 
@@ -93,47 +67,6 @@
      :SecurityGroupIngress
      (mapcat public-port [22 80 443])
      :VpcId (ref :VpcId)}}
-
-   :RDSSecurityGroup
-   {:Type "AWS::EC2::SecurityGroup"
-    :Properties
-    {:GroupDescription "Sysrev RDS Instances"
-     :SecurityGroupIngress
-     [{:IpProtocol "tcp"
-       :FromPort 5432
-       :ToPort 5432
-       :SourceSecurityGroupId (ref :SysrevSecurityGroup)}]
-     :VpcId (ref :VpcId)}}
-
-   :RDSInstance
-   {:Type "AWS::RDS::DBInstance"
-    :DeletionPolicy "Snapshot"
-    :UpdateReplacePolicy "Snapshot"
-    :Properties
-    {:AllocatedStorage (ref :RDSAllocatedStorage)
-     :AllowMajorVersionUpgrade true
-     :AutoMinorVersionUpgrade true
-     :BackupRetentionPeriod 7
-     :CopyTagsToSnapshot true
-     :DBInstanceClass (ref :RDSInstanceClass)
-     :DBInstanceIdentifier "sysrev"
-     :DBName "sysrev"
-     :DBSubnetGroupName (ref :RDSSubnetGroupName)
-     :DeletionProtection true
-     :EnablePerformanceInsights true
-     :Engine "postgres"
-     :EngineVersion "11.14"
-     :Iops (fn-if :RDSIo1Storage (ref :RDSIops) no-value)
-     :MasterUsername (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::username}}")
-     :MasterUserPassword (sub "{{resolve:secretsmanager:${RDSMasterCredentials}::password}}")
-     :MaxAllocatedStorage 1000
-     :MultiAZ false
-     :PreferredBackupWindow "08:48-09:18"
-     :PreferredMaintenanceWindow "Sun:05:57-Sun:06:27"
-     :PubliclyAccessible false
-     :StorageEncrypted true
-     :StorageType (ref :RDSStorageType)
-     :VPCSecurityGroups [(ref :RDSSecurityGroup)]}}
 
    :ServerLifecyclePolicy
    {:Type "AWS::DLM::LifecyclePolicy"

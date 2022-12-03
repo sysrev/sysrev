@@ -12,9 +12,4 @@
   :RDSAllocatedStorage 500
   :RDSInstanceClass "db.m6g.large"
   :RDSStorageType "io1"
-  :RDSIops 3000}
- :sysrev
- {:RDSAllocatedStorage 200
-  :RDSInstanceClass "db.t3.large"
-  :RDSIops 3000
-  :RDSStorageType "io1"}}
+  :RDSIops 3000}}

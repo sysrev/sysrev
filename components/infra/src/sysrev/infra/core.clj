@@ -105,7 +105,7 @@
              (merge
               config
               (select-keys global [:CredentialsGroupName])
-              (select-keys regional [:CredentialsKeyId :RDSSubnetGroupName :VpcId])))
+              (select-keys regional [:CredentialsKeyId :VpcId])))
            (config-val :sysrev)
            global-outputs
            regional-outputs)
