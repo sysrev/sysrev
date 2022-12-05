@@ -95,9 +95,8 @@
                        (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
           events (concat (vals labels-by-id) (vals articles-by-id) answers)]
       {:headers {"Content-Type" "application/ndjson"}
-       :body (->> events
-                  (map json/write-str)
-                  (str/join "\n"))})))
+       :body (->> (map json/write-str events)
+                  (interleave (repeat "\n")))})))
 
 (defn boolean-label-schema [{:keys [multi?]}]
   (let [spec {:type "boolean"}]

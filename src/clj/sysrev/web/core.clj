@@ -6,7 +6,7 @@
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
-            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
+            [ring.middleware.json :as rmj :refer [wrap-json-body]]
             [ring.middleware.transit :refer [wrap-transit-response wrap-transit-body]]
             [aleph.http :as http]
             [aleph.netty]
@@ -113,6 +113,13 @@
   [handler]
   (fn [request]
     (handler (assoc-in request [:headers "content-type"] "application/json"))))
+
+(defn wrap-json-response [handler opts]
+  (fn [request]
+    (let [{:keys [headers] :as response} (handler request)]
+      (case (get headers "Content-Type")
+        (nil "application/json") (rmj/json-response response opts)
+        response))))
 
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"

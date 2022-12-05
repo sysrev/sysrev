@@ -175,8 +175,10 @@
       (let [{{{:keys [status type message exception]
                :or {status 500, type :api, message "Error processing request"}
                :as error} :error
-              result :result :as body} :body
+              result :result} :body
+             :keys [headers]
              :as response} (handler request)
+            body (:body response)
             response
             (cond
               ;; Return error if body has :error field
@@ -189,6 +191,8 @@
                           (assoc-in [:body :error :uri] (:uri request))))
               ;; Otherwise return result if body has :result field
               result (merge-default-success-true response)
+              ;; return raw body if it is in json-lines format
+              (= "application/ndjson" (get headers "Content-Type")) response
               ;; If no :error or :result key, wrap the value in :result
               (map? body) (-> (update response :body #(hash-map :result %))
                               (merge-default-success-true))
