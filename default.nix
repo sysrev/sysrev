@@ -24,7 +24,6 @@ let
     betterthantomorrow.calva
     brettm12345.nixfmt-vscode
     codezombiech.gitignore
-    coenraads.bracket-pair-colorizer
     editorconfig.editorconfig
     graphql.vscode-graphql
     kahole.magit
