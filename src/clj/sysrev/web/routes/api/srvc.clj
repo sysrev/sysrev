@@ -7,7 +7,8 @@
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db]
             [sysrev.postgres.interface :as pg]
-            [sysrev.web.routes.api.core :refer [def-webapi]]))
+            [sysrev.web.routes.api.core :refer [def-webapi]]
+            [sysrev.util :as util]))
 
 (declare label-schema)
 
@@ -155,7 +156,7 @@
     (let [schema (-> (label-schema sr-context label)
                      (assoc "$schema" "http://json-schema.org/draft-07/schema"))
           hash (:hash (add-hash hasher {:data schema :type "document"}))
-          schema-url (str "https://sysrev.com/web-api/srvc-json-schema?hash=" hash)
+          schema-url (str (util/server-url sr-context) "/web-api/srvc-json-schema?hash=" hash)
           schema (assoc schema "$id" schema-url)]
       (db/with-tx [sr-context sr-context]
         (db/execute!
