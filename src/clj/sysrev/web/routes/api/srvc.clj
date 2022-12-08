@@ -1,9 +1,11 @@
 (ns sysrev.web.routes.api.srvc
   (:require [babashka.process :as p]
+            [clj-http.client :as http]
             [clj-yaml.core :as yaml]
             [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [sysrev.datapub-client.interface :as dpc]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db]
             [sysrev.postgres.interface :as pg]
@@ -52,10 +54,36 @@
       :join [:web-user [:= :article-label.user-id :web-user.user-id]]
       :order-by [:article-label.updated-time]})))
 
-(defn convert-article [hasher article]
-  (->> {:data (dissoc article :article-id :id :project-id)
-        :type "document"}
-       (add-hash hasher)))
+(defn add-datapub-data [sr-context article]
+  (let [{:keys [entity-id]} (:datapub article)]
+    (if-not entity-id
+      article
+      (let [{:keys [contentUrl mediaType metadata]}
+            (dpc/get-dataset-entity
+             entity-id "contentUrl mediaType metadata"
+             :endpoint (get-in sr-context [:config :graphql-endpoint]))
+            {:keys [body status] :as response} (when (= "application/json" mediaType)
+                                                 (http/get contentUrl {:as :json}))]
+        (when (and (not= 200 status) (= "application/json" mediaType))
+          (throw (ex-info (str "Unexpected " status " response")
+                          {:response response})))
+        (cond-> article
+         (seq body) (assoc :content body)
+         (seq metadata) (assoc :metadata (json/read-str metadata))
+         true (dissoc :article-subtype :article-type :datapub :dataset-id :external-id :types))))))
+
+(defn add-sysrev-article-uri [sr-context {:keys [article-id project-id uri] :as article}]
+  (if uri
+    article
+    (->> (str (util/server-url sr-context) "/p/" project-id "/article/" article-id)
+         (assoc article :uri))))
+
+(defn convert-article [sr-context hasher article]
+  (let [{:keys [uri] :as article} (add-sysrev-article-uri sr-context article)
+        data (-> (add-datapub-data sr-context article)
+                 (dissoc :article-id :id :project-id :uri))]
+    (->> {:data data :type "document" :uri uri}
+         (add-hash hasher))))
 
 (defn convert-label [hasher {:label/keys [definition name question required value-type]}]
   (let [{:keys [all-values inclusion-values]} definition
@@ -88,7 +116,7 @@
           project-id (-> params :project-id parse-long)
           articles (get-articles sr-context project-id)
           articles-by-id (into {} (for [[article-id article] articles]
-                                    [article-id (convert-article hasher article)]))
+                                    [article-id (convert-article sr-context hasher article)]))
           labels (get-project-labels sr-context project-id)
           labels-by-id (into {} (for [label labels]
                                   [(:label/label-id label) (convert-label hasher label)]))

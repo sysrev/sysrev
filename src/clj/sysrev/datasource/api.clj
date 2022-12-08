@@ -125,19 +125,28 @@
                    :args {:ids entity-ids}
                    :fields [:content :mimetype :id]})
        (index-by :id)))
+
 (defmulti enrich-articles (fn [datasource _articles] datasource))
 
 (defmethod enrich-articles :default [_ articles]
   (vec (for [{:keys [content] :as x} articles]
          (merge content
-                (select-keys x [:article-id :article-subtype :article-type
-                                :dataset-id :external-id :project-id :title])))))
+                 (select-keys x [:article-id :article-subtype :article-type
+                                 :dataset-id :external-id :project-id :title])))))
+
+(defmethod enrich-articles "ctgov" [_ articles]
+  (vec (for [{:keys [content external-id] :as x} articles]
+         (-> (merge content
+                    (select-keys x [:article-id :article-subtype :article-type
+                                    :dataset-id :external-id :project-id :title]))
+             (assoc :uri (str "https://clinicaltrials.gov/ct2/show/" external-id))))))
 
 (defmethod enrich-articles "pubmed" [_ articles]
   (let [data (->> articles (map :external-id) (fetch-pubmed-articles))]
     (vec (for [{:keys [external-id] :as x} articles]
-           (merge (get data (parse-integer external-id))
-                  (select-keys x [:article-id :project-id]))))))
+           (-> (get data (parse-integer external-id))
+               (merge (select-keys x [:article-id :project-id]))
+               (assoc :uri (str "https://pubmed.ncbi.nlm.nih.gov/" external-id "/")))))))
 
 (defn fetch-ris-articles-by-ids
   "Queries datasource API to get article data for sequence `ids`,
