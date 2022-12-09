@@ -210,11 +210,12 @@
   (fn [{:keys [params sr-context]}]
     (let [hasher (hash-process)
           project-id (-> params :project-id parse-long)
-          labels (get-project-labels sr-context project-id)]
+          labels (get-project-labels sr-context project-id)
+          events-url (str (util/server-url sr-context) "/web-api/srvc-events?project-id=" project-id)]
       {:headers {"Content-Type" "application/yaml"}
        :body (yaml/generate-string
               {:flows {:label {:steps
-                               [{:run_embedded "generator-file data/docs.jsonl"}
+                               [{:run_embedded (str "generator " events-url)}
                                 {:run_embedded "remove-reviewed"}
                                 {:run_embedded "html src/resources/public/label.html"
                                   :labels (mapv :label/name labels)}]}}
