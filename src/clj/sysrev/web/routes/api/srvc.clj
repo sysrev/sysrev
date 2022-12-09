@@ -79,9 +79,17 @@
          (assoc article :uri))))
 
 (defn convert-article [sr-context hasher article]
-  (let [{:keys [uri] :as article} (add-sysrev-article-uri sr-context article)
+  (let [{:keys [primary-title title uri] :as article} (add-sysrev-article-uri sr-context article)
+        title (or title primary-title)
         data (-> (add-datapub-data sr-context article)
-                 (dissoc :article-id :id :project-id :uri))]
+                 (dissoc :article-id :id :primary-title :project-id :uri)
+                 (assoc :title title))
+        {:keys [abstract content]} data
+        abstract (or abstract
+                     ; ctgov
+                     (-> content :ProtocolSection :DescriptionModule :DetailedDescription)
+                     (-> content :ProtocolSection :DescriptionModule :BriefSummary))
+        data (if abstract (assoc data :abstract abstract) data)]
     (->> {:data data :type "document" :uri uri}
          (add-hash hasher))))
 
