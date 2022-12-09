@@ -637,11 +637,12 @@
             (venia/graphql-query {:venia/queries query-form}))))
 
 #?(:clj (defn server-url [sr-context]
-          (let [{:keys [scheme server-name server-port]} (:request sr-context)]
-            (str (name scheme) "://" server-name
-                 (when-not (or (and (= 80 server-port) (= :http scheme))
-                               (and (= 443 server-port) (= :https scheme)))
-                   (str ":" server-port))))))
+          (or (-> sr-context :config :server :url)
+              (let [{:keys [scheme server-name server-port]} (:request sr-context)]
+                (str (name scheme) "://" server-name
+                     (when-not (or (and (= 80 server-port) (= :http scheme))
+                                   (and (= 443 server-port) (= :https scheme)))
+                       (str ":" server-port)))))))
 
 ;;;
 ;;; CLJS code
