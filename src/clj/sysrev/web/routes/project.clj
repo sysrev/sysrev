@@ -805,7 +805,8 @@
           {:entry (-> (select-keys entry [:download-id :export-type :added-time])
                       (assoc :filename filename
                              :url (str/join "/" ["/api/download-project-export" project-id
-                                                 (name export-type) download-id filename])))}))))
+                                                 (name export-type) download-id
+                                                 (str/replace filename "/" "%2F")])))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
       (with-authorize request {:allow-public true}
