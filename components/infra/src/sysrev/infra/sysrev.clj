@@ -81,17 +81,17 @@
       [{:Name "Daily Schedule"
         :CopyTags true
         :CreateRule {:Interval 24 :IntervalUnit "HOURS" :Times ["06:00"]}
-        :RetainRule {:Count 7}
+        :RetainRule {:Count 1}
         :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}
        {:Name "Weekly Schedule"
         :CopyTags true
         :CreateRule {:CronExpression "cron(0 6 ? * SUN *)"}
-        :RetainRule {:Count 4}
+        :RetainRule {:Count 1}
         :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}
        {:Name "Monthly Schedule"
         :CopyTags true
         :CreateRule {:CronExpression "cron(0 6 1 * ? *)"}
-        :RetainRule {:Count 12}
+        :RetainRule {:Count 2}
         :VariableTags [{:Key "instance-id" :Value "$(instance-id)"}]}]
       :TargetTags [{:Key "Name" :Value "sysrev-t3"}]}
      :State "ENABLED"}}})
