@@ -878,59 +878,6 @@
     {:error {:status not-found
              :message (str "No file found: " (pr-str [filename key]))}}))
 
-(defn- process-annotation-context
-  "Convert the context annotation to the one saved on the server"
-  [context article-id]
-  (let [text-context (:text-context context)
-        article-field-match (ann/text-context-article-field-match
-                             text-context article-id)]
-    (cond-> context
-      (not= text-context article-field-match)
-      (assoc :text-context {:article-id article-id
-                            :field article-field-match})
-      true (select-keys [:start-offset :end-offset :text-context :client-field]))))
-
-(defn save-article-annotation
-  [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
-  (db/with-clear-project-cache project-id
-    (let [annotation-id (ann/create-annotation!
-                         selection annotation
-                         (process-annotation-context context article-id)
-                         article-id)]
-      (ann/associate-ann-user annotation-id user-id)
-      (when pdf-key
-        (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
-          (ann/associate-ann-s3 annotation-id s3-id)))
-      {:success true, :annotation-id annotation-id})))
-
-(defn article-user-annotations [article-id]
-  {:success true, :annotations (ann/user-defined-article-annotations article-id)})
-
-(defn article-pdf-user-annotations [article-id pdf-key]
-  (let [s3-id (article-file/s3-id-from-article-key article-id pdf-key)]
-    {:success true, :annotations (ann/user-defined-article-pdf-annotations
-                                  article-id s3-id)}))
-
-;; todo: this needs better error handling
-(defn delete-annotation! [annotation-id]
-  (ann/delete-annotation! annotation-id)
-  {:success true, :annotation-id annotation-id})
-
-(defn update-annotation!
-  "Update the annotation for user-id. Only users can edit their own annotations"
-  [annotation-id annotation semantic-class user-id]
-  (with-transaction
-    (if (= user-id (ann/ann-user-id annotation-id))
-      (do (ann/update-annotation! annotation-id annotation semantic-class)
-          {:success true
-           :annotation-id annotation-id
-           :annotation annotation
-           :semantic-class semantic-class})
-      {:success false
-       :annotation-id annotation-id
-       :annotation annotation
-       :semantic-class semantic-class})))
-
 (defn pdf-download-url [article-id filename key]
   (str "/api/files/article/" article-id "/download/" key "/" filename))
 
@@ -957,13 +904,6 @@
                              text-context)))))
        (mapv #(select-keys % [:selection :annotation :semantic-class
                               :pmid :article-id :pdf-source :context :user-id]))))
-
-(defn project-annotation-status [project-id & {:keys [user-id]}]
-  (with-transaction
-    (let [member? (and user-id (member/member-role? project-id user-id "member"))]
-      {:status (cond-> {:project (ann/project-annotation-status project-id)}
-                 member? (assoc :member (ann/project-annotation-status
-                                         project-id :user-id user-id)))})))
 
 ;; todo: this needs better error handling
 (defn change-project-permissions [project-id users-map]

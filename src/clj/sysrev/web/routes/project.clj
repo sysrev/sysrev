@@ -13,7 +13,7 @@
             [sysrev.config :refer [env]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer
-             [with-project-cache with-transaction]]
+             [with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.encryption :as enc]
             [sysrev.export.core :as export]
@@ -920,64 +920,6 @@
             {:error {:status api/not-found
                      :message (str "Article " article-id " not found in project")}}
             (api/dissociate-article-pdf article-id key filename))))))
-
-;;;
-;;; Article annotations
-;;;
-
-(dr (POST "/api/annotation/create" request
-      (with-authorize request {:roles ["member"]}
-        (with-transaction
-          (let [{:keys [context annotation-map]} (-> request :body)
-                {:keys [selection annotation semantic-class]} annotation-map
-                {:keys [class article-id pdf-key]} context
-                user-id (current-user-id request)
-                project-id (active-project request)
-                result (condp = class
-                         "abstract"
-                         (do (assert (nil? pdf-key))
-                             (api/save-article-annotation
-                              project-id article-id user-id selection annotation
-                              :context (:context annotation-map)))
-                         "pdf"
-                         (do (assert pdf-key)
-                             (api/save-article-annotation
-                              project-id article-id user-id selection annotation
-                              :context (:context annotation-map) :pdf-key pdf-key)))]
-            (when (and (string? semantic-class)
-                       (not-empty semantic-class)
-                       (:annotation-id result))
-              (api/update-annotation! (:annotation-id result)
-                                      annotation semantic-class user-id))
-            result)))))
-
-(dr (POST "/api/annotation/update/:annotation-id" request
-      (with-authorize request {:roles ["member"]}
-        (let [annotation-id (-> request :params :annotation-id parse-integer)
-              {:keys [annotation semantic-class]} (-> request :body)
-              user-id (current-user-id request)]
-          (api/update-annotation!
-           annotation-id annotation semantic-class user-id)))))
-
-(dr (POST "/api/annotation/delete/:annotation-id" request
-      (with-authorize request {:roles ["member"]}
-        (let [annotation-id (-> request :params :annotation-id parse-integer)]
-          (api/delete-annotation! annotation-id)))))
-
-(dr (GET "/api/annotation/status" request
-      (with-authorize request {:allow-public true}
-        (let [project-id (active-project request)
-              user-id (current-user-id request)]
-          (api/project-annotation-status project-id :user-id user-id)))))
-
-(dr (GET "/api/annotations/user-defined/:article-id" request
-      (let [article-id (-> request :params :article-id parse-integer)]
-        (api/article-user-annotations article-id))))
-
-(dr (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
-      (let [article-id (-> request :params :article-id parse-integer)
-            pdf-key (-> request :params :pdf-key)]
-        (api/article-pdf-user-annotations article-id pdf-key))))
 
 ;;;
 ;;; Funding and compensation

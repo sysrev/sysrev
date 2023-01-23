@@ -34,17 +34,14 @@
                (reaction
                 (let [{:keys [active-article]} @(subscribe [::al/get context])
                       self-id @(subscribe [:self/user-id])
-                      project-id @(subscribe [:active-project-id])
-                      ann-context {:class "abstract" :project-id project-id :article-id article-id}]
+                      project-id @(subscribe [:active-project-id])]
                   (when (= article-id active-article)
                     (boolean
                      (and self-id
                           @(subscribe [:self/member? project-id])
                           (or @(subscribe [::resolving-allowed? context article-id])
                               (in? [:confirmed :unconfirmed]
-                                   @(subscribe [:article/user-status article-id]))
-                              (seq @(subscribe [:annotator/user-annotations
-                                                ann-context self-id]))))))))))
+                                   @(subscribe [:article/user-status article-id]))))))))))
 
 (defn- ArticleListNavHeader [context]
   (let [count-now @(al/sub-article-count context)

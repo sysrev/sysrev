@@ -25,10 +25,9 @@
   :prereqs (fn [project-id _] [[:project project-id]])
   :content (fn [project-id _] {:project-id project-id})
   :process
-  (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes json datasource-name]}]
+  (fn [{:keys [db]} _ {:keys [article labels notes json datasource-name]}]
     (let [article (merge article {:labels labels :notes notes})]
-      {:db (-> db (load-article article))
-       :dispatch [:reload [:annotator/article project-id article-id]]})))
+      {:db (-> db (load-article article))})))
 
 (reg-sub :articles/all #(get-in % [:data :articles]))
 

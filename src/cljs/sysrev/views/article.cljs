@@ -552,12 +552,9 @@
         score @(subscribe [:article/score article-id])
         datasource-name @(subscribe [:article/datasource-name article-id])
         helper-text @(subscribe [:article/helper-text article-id])
-        ann-context {:class "abstract" :project-id project-id :article-id article-id}
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])
         {:keys [disabled?] :as duplicates} @(subscribe [:article/duplicates article-id])]
     [:div.article-info-top
-     (dispatch [:require (annotator/annotator-data-item ann-context)])
-     (dispatch [:require [:annotator/status project-id]])
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list [:div.ui.middle.aligned.header.grid.segment.article-header {:key :article-header}

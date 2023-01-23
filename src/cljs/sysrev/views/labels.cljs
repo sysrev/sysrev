@@ -8,7 +8,6 @@
             [sysrev.views.components.core :as ui
              :refer [UpdatedTimeLabel NoteContentLabel]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-            [sysrev.views.annotator :as ann]
             [sysrev.views.semantic :refer [Button Icon]]
             [sysrev.state.label :refer [real-answer?]]
             [sysrev.util :as util :refer [in? css time-from-epoch]]
@@ -258,14 +257,7 @@
         self-id @(subscribe [:self/user-id])
         user-labels @(subscribe [:article/labels article-id])
         resolve-id @(subscribe [:article/resolve-user-id article-id])
-        ann-context {:project-id project-id :article-id article-id :class "abstract"}
-        ann-data-item (ann/annotator-data-item ann-context)
-        ann-status-item [:annotator/status project-id]
-        annotations @(subscribe ann-data-item)
-        user-annotations (fn [user-id] (seq (->> (vals annotations)
-                                                 (filter #(= (:user-id %) user-id)))))
-        user-ids (sort (concat (keys user-labels)
-                               (distinct (->> (vals annotations) (map :user-id) (remove nil?)))))
+        user-ids (sort (keys user-labels))
         user-confirmed? (fn [user-id]
                           (let [ulmap (get user-labels user-id)]
                             (every? #(true? (get-in ulmap [% :confirmed]))
@@ -283,14 +275,9 @@
                                 (remove resolved?)
                                 (filter some-real-answer?)
                                 (filter user-confirmed?))
-        user-ids-annotated (->> user-ids
-                                (filter user-annotations))
         user-ids-ordered   (distinct (cond->> (concat user-ids-resolved
-                                                      user-ids-other
-                                                      user-ids-annotated)
+                                                      user-ids-other)
                                        self-only? (filter (partial = self-id))))]
-    (dispatch [:require ann-data-item])
-    (dispatch [:require ann-status-item])
     (when (seq user-ids-ordered)
       (with-loader [[:article project-id article-id]]
         {:class "ui segments article-labels-view"}

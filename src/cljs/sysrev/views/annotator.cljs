@@ -6,13 +6,11 @@
             [sysrev.views.semantic :as S]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v reg-event-fx]]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components.core :as ui]
             [sysrev.views.components.pdfjs-express :as pdfjs-express]
             ["react-hotkeys-hook" :refer [useHotkeys]]
-            [sysrev.util :as util :refer [css index-by nbsp]]))
+            [sysrev.util :as util :refer [css nbsp]]))
 
 (def view :annotator)
 
@@ -35,11 +33,6 @@
 (reg-event-db ::set [trim-v]
               (fn [db [context path value]]
                 (set-field db context path value)))
-
-(reg-event-db ::clear-annotations [trim-v]
-              (fn [db [context]]
-                (-> (set-field db context [:annotations] {})
-                    (set-field context [:editing-id] nil))))
 
 (reg-event-db ::remove-ann [trim-v]
               (fn [db [context ann-id]]
@@ -71,99 +64,6 @@
                                   (map (fn [[ann-id annotation]]
                                          [ann-id (update annotation :context assoc :text-context abstract)]))
                                   (into {}))))))
-
-(defn annotator-data-item
-  "Given an annotator context, returns a vector representing both the
-   def-data item and the re-frame subscription for the annotation data."
-  [{:keys [class project-id article-id pdf-key] :as _context}]
-  (case class
-    "abstract" [:annotator/article project-id article-id]
-    "pdf"      [:annotator/article-pdf project-id article-id pdf-key]
-    nil))
-
-(def-action :annotator/create-annotation
-  :uri (fn [] "/api/annotation/create")
-  :content (fn [context annotation-map]
-             {:project-id (:project-id context)
-              :context context
-              :annotation-map annotation-map})
-  :process (fn [_ [context _annotation-map] {:keys [annotation-id]}]
-             {:dispatch-n
-              (list [:data/after-load (annotator-data-item context) ::clear-on-create
-                     [::clear-annotations context]]
-                    [:reload (annotator-data-item context)])}))
-
-(def-action :annotator/update-annotation
-  :uri (fn [_ annotation-id _ _] (str "/api/annotation/update/" annotation-id))
-  :content (fn [context _ annotation semantic-class]
-             {:project-id (:project-id context)
-              :annotation annotation
-              :semantic-class semantic-class})
-  :process (fn [_ [context _ _ _] _]
-             {:dispatch-n (list [:reload (annotator-data-item context)]
-                                [::set context [:editing-id] nil])}))
-
-(def-action :annotator/delete-annotation
-  :uri (fn [_ annotation-id]
-         (str "/api/annotation/delete/" annotation-id))
-  :content (fn [context _] {:project-id (:project-id context)})
-  :process (fn [_ [context annotation-id] _]
-             {:dispatch-n (list [::remove-ann context annotation-id]
-                                [:reload (annotator-data-item context)])}))
-
-(def-data :annotator/status
-  :loaded? (fn [db project-id]
-             (-> (get-in db [:data :project project-id :annotator])
-                 (contains? :status)))
-  :uri (fn [_] "/api/annotation/status")
-  :prereqs (fn [project-id] [[:project project-id]])
-  :content (fn [project-id] {:project-id project-id})
-  :process (fn [{:keys [db]} [project-id] {:keys [status]}]
-             {:db (assoc-in db [:data :project project-id :annotator :status] status)}))
-
-(reg-sub :annotator/status
-         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
-         #(-> % :annotator :status))
-
-(def-data :annotator/article
-  :loaded? (fn [db project-id article-id]
-             (-> (get-in db [:data :project project-id :annotator :article])
-                 (contains? article-id)))
-  :uri (fn [_ article-id]
-         (str "/api/annotations/user-defined/" article-id))
-  :prereqs (fn [project-id article-id]
-             [[:project project-id] [:article project-id article-id]])
-  :content (fn [project-id _] {:project-id project-id})
-  :process (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
-             (when annotations
-               {:db (assoc-in db [:data :project project-id :annotator :article article-id]
-                              (index-by :annotation-id annotations))
-                :dispatch [:reload [:annotator/status project-id]]})))
-
-(reg-sub :annotator/article
-         (fn [db [_ project-id article-id]]
-           (get-in db [:data :project project-id :annotator :article article-id])))
-
-(def-data :annotator/article-pdf
-  :loaded? (fn [db project-id article-id pdf-key]
-             (-> (get-in db [:data :project project-id :annotator :article-pdf article-id])
-                 (contains? pdf-key)))
-  :uri (fn [_ article-id pdf-key]
-         (str "/api/annotations/user-defined/" article-id "/pdf/" pdf-key))
-  :prereqs (fn [project-id article-id _]
-             [[:project project-id] [:article project-id article-id]])
-  :content (fn [project-id _ _] {:project-id project-id})
-  :process
-  (fn [{:keys [db]} [project-id article-id pdf-key] {:keys [annotations]}]
-    (when annotations
-      {:db (assoc-in db [:data :project project-id :annotator :article-pdf article-id pdf-key]
-                     (index-by :annotation-id annotations))
-       :dispatch [:reload [:annotator/status project-id]]})))
-
-(reg-sub :annotator/article-pdf
-         (fn [db [_ project-id article-id pdf-key]]
-           (get-in db [:data :project project-id
-                       :annotator :article-pdf article-id pdf-key])))
 
 (defn editor-hotkeys-listener [{:keys [values callback]}]
   (fn []
@@ -271,14 +171,6 @@
            [:i.red.circle.times.icon]
            (when full-width? "Delete")]]])]]))
 
-;; Returns map of annotations for context filtered by user-id.
-;; Includes new-annotation entry for self-id unless only-saved is true.
-(reg-sub :annotator/user-annotations
-         (fn [[_ context _ & _]] (subscribe (annotator-data-item context)))
-         (fn [annotations [_ _ user-id & [{:keys [only-saved]}]]]
-           (cond-> (medley/filter-vals #(= (:user-id %) user-id) annotations)
-             only-saved (dissoc draft-ann-id))))
-
 (reg-sub :annotator/label-annotations
          (fn [[_ context]]
            (subscribe [::get context [:annotations]]))
@@ -302,8 +194,6 @@
 (defn AnnotationMenu
   "Full component for editing and viewing annotations."
   [context class]
-  (dispatch [:require [:annotator/status (:project-id context)]])
-  (dispatch [:require (annotator-data-item context)])
   (let [{:keys [root-label-id label-id _]} @(subscribe [::annotation-label-data])
         all-values @(subscribe [:label/all-values root-label-id label-id])
         label-name @(subscribe [:label/display root-label-id label-id])
