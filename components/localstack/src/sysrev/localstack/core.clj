@@ -13,13 +13,16 @@
     (conc/linux?) (conc/add-tmpfs "/var/lib/localstack")
     true (conc/add-port 0 4566)))
 
-(defn s3-available? [client-opts localstack]
+(defn list-buckets [client-opts localstack]
   (-> (aws-client/aws-client
        {:client-opts (assoc client-opts :api :s3)})
       (assoc :localstack localstack)
       component/start
       :client
-      (aws/invoke {:op :ListBuckets :request {}})
+      (aws/invoke {:op :ListBuckets :request {}})))
+
+(defn s3-available? [client-opts localstack]
+  (-> (list-buckets client-opts localstack)
       :cognitect.anomalies/category
       not))
 
@@ -27,8 +30,11 @@
   (let [port (-> ports first val)]
     (ul/wait-timeout
      #(s3-available? client-opts localstack)
-     :timeout-f #(throw (ex-info "Could not connect to localstack"
-                                 {:name name :port port}))
+     :timeout-f #(let [response (list-buckets client-opts localstack)]
+                   (when (:cognitect.anomalies/category response)
+                     (throw (ex-info "Could not connect to localstack"
+                                     {:port port
+                                      :response response}))))
      :timeout-ms 30000))
   localstack)
 
