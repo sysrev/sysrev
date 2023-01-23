@@ -82,7 +82,9 @@
                label-answers (map (fn [{:keys [label-id value-type]}]
                                     (-> (filter #(= (:label-id %) label-id) user-article)
                                         first :answer
-                                        (cond-> (= "group" value-type) boolean)))
+                                        (cond->
+                                         (= "annotation" value-type) (->> vals (map :semantic-class))
+                                         (= "group" value-type) boolean)))
                                   all-labels)
                all-authors (str/join "; " (map str authors))]
            (mapv (partial stringify-csv-value separator)
@@ -142,6 +144,9 @@
                                    (fn [{:keys [answer] :as resolved}]
                                      (when (= label-id (:label-id resolved))
                                        (cond
+                                         (= "annotation" value-type) (->> answer
+                                                                          vals
+                                                                          (map :semantic-class))
                                          (= "group" value-type) [(boolean answer)]
                                          (sequential? answer) answer
                                          :else [answer]))))
