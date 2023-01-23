@@ -11,7 +11,6 @@
             [orchestra.core :refer [defn-spec]]
             [ring.mock.request :as mock]
             [ring.util.response :as response]
-            [sysrev.annotations :as ann]
             [sysrev.api2 :as api2]
             [sysrev.article.core :as article]
             [sysrev.biosource.concordance :as concordance-api]
@@ -70,7 +69,7 @@
              :as
              util
              :refer
-             [in? index-by parse-integer req-un sum
+             [in? index-by req-un sum
               uuid-from-string]]
             [sysrev.web.app :as app])
   (:import (java.util.zip ZipEntry ZipOutputStream)))
@@ -877,33 +876,6 @@
         {:success true})
     {:error {:status not-found
              :message (str "No file found: " (pr-str [filename key]))}}))
-
-(defn pdf-download-url [article-id filename key]
-  (str "/api/files/article/" article-id "/download/" key "/" filename))
-
-(defn project-annotations [project-id]
-  (->> (ann/project-annotations project-id)
-       (mapv #(condp = (:datasource-name %)
-                "pubmed" (assoc % :pmid (parse-integer (:external-id %)))
-                %))
-       (mapv #(if-not (nil? (and (:filename %)
-                                 (:key %)))
-                (assoc % :pdf-source (pdf-download-url
-                                      (:article-id %)
-                                      (:filename %)
-                                      (:key %)))
-                %))
-       (mapv #(set/rename-keys % {:definition :semantic-class}))
-       (mapv (fn [result]
-               (let [text-context (get-in result [:context :text-context])
-                     field (:field text-context)]
-                 (if (map? text-context)
-                   (assoc-in result [:context :text-context]
-                             (get result (keyword field)))
-                   (assoc-in result [:context :text-context]
-                             text-context)))))
-       (mapv #(select-keys % [:selection :annotation :semantic-class
-                              :pmid :article-id :pdf-source :context :user-id]))))
 
 ;; todo: this needs better error handling
 (defn change-project-permissions [project-id users-map]

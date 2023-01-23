@@ -1,8 +1,5 @@
 (ns sysrev.db.migration
   (:require [clojure.tools.logging :as log]
-            [sysrev.annotations
-             :refer [delete-invalid-annotations
-                     migrate-old-annotations]]
             [sysrev.db.core :as db]
             [sysrev.group.core :as group]
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
@@ -21,9 +18,7 @@
   []
   (doseq [migrate-fn [#'update-stripe-plans-table
                       #'ensure-groups
-                      #'migrate-all-project-article-resolve
-                      #'delete-invalid-annotations
-                      #'migrate-old-annotations]]
+                      #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))
     (time (try ((var-get migrate-fn))
                (catch Throwable e
