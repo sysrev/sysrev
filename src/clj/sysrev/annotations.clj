@@ -1,6 +1,5 @@
 (ns sysrev.annotations
-  (:require [clj-time.coerce :as tc]
-            [medley.core :as medley]
+  (:require [medley.core :as medley]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.datasource.api :as ds-api]
@@ -116,16 +115,3 @@
   (find-annotation {:a.project-id project-id}
                    [:ann.selection :ann.annotation :ann.context :ann-sc.definition :ann-u.user-id
                     :a.article-id :s3.filename [:s3.key :file-key]]))
-
-(defn project-article-annotations [project-id & {:keys [include-disabled?]}]
-  (db/with-project-cache project-id [:annotations :articles include-disabled?]
-    (->> (find-annotation (cond-> {:a.project-id project-id}
-                            (not include-disabled?) (merge {:a.enabled true}))
-                          [:ann.article-id :ann.created :ann-sc.definition :ann-u.user-id])
-         (group-by :article-id)
-         (medley/map-vals (fn [anns]
-                            {:updated-time (->> (map (comp tc/to-epoch :created) anns)
-                                                (apply max 0) tc/from-epoch tc/to-sql-time)
-                             :users (distinct (map :user-id anns))
-                             :count (count anns)
-                             :classes (distinct (->> (map :definition anns) (remove nil?)))})))))

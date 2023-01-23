@@ -9,7 +9,6 @@
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
-            [sysrev.annotations :refer [project-article-annotations]]
             [sysrev.datasource.api :as ds-api]
             [sysrev.util :as util :refer [in? index-by]]))
 
@@ -73,13 +72,11 @@
          (map #(update % :updated-time tc/to-epoch))
          (group-by :article-id))))
 
-(defn project-article-updated-time [_ article-id & [all-labels all-notes all-annotations]]
+(defn project-article-updated-time [_ article-id & [all-labels all-notes]]
   (let [labels (get all-labels article-id)
-        notes  (get all-notes article-id)
-        annotations (get all-annotations article-id)]
+        notes  (get all-notes article-id)]
     (->> [(map :updated-time labels)
-          (map :updated-time notes)
-          [(some-> annotations :updated-time tc/to-epoch)]]
+          (map :updated-time notes)]
          (apply concat) (remove nil?) (apply max 0))))
 
 ;;;
@@ -187,20 +184,14 @@
 
 (defn article-user-filter
   [{:keys [project-id] :as _context} {:keys [user content confirmed]}]
-  (let [all-labels (project-article-labels project-id)
-        all-annotations (project-article-annotations project-id)]
+  (let [all-labels (project-article-labels project-id)]
     (fn [{:keys [article-id]}]
-      (let [article-labels (get all-labels article-id)
-            annotations (get all-annotations article-id)
-            labels (when (in? [nil :labels] content)
-                     (cond->> article-labels
-                       user  (filter-labels-by-users [user])
-                       true  (filter-labels-confirmed confirmed)))
-            have-annotations? (when (in? [nil :annotations] content)
-                                (boolean (if (nil? user)
-                                           (not-empty annotations)
-                                           (in? (:users annotations) user))))]
-        (or (not-empty labels) have-annotations?)))))
+      (let [article-labels (get all-labels article-id)]
+        (when (in? [nil :labels] content)
+          (as-> article-labels $
+            (if user (filter-labels-by-users [user] $) $)
+            (filter-labels-confirmed confirmed $)
+            seq))))))
 
 (defn article-labels-filter
   [{:keys [project-id] :as _context} {:keys [label-id users values inclusion confirmed]}]
@@ -279,7 +270,6 @@
           article-ids (project/project-article-ids project-id true)
           labels (project-article-labels project-id)
           notes (project-article-notes project-id)
-          annotations (project-article-annotations project-id)
           sort-fn (get-sort-fn sort-by sort-dir)
           filter-fns (mapv (get-filter-fn opts) filters)
           filter-all-fn (if (empty? filters)
@@ -289,7 +279,7 @@
            (map #(hash-map :article-id %))
            (filter filter-all-fn)
            (map #(assoc % :updated-time (project-article-updated-time project-id (:article-id %)
-                                                                      labels notes annotations)))
+                                                                      labels notes)))
            (sort-fn)))))
 
 (defn lookup-article-entries [project-id article-ids]
