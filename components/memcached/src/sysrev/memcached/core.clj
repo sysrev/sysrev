@@ -58,8 +58,8 @@
   (let [port (-> ports first val first)]
     (ul/wait-timeout
      #(available? port)
-     :timeout-f #(throw (ex-info "Could not connect to localstack"
-                                 {:name name :port port}))
+     :timeout-f #(throw (ex-info "Could not connect to memcached"
+                                 {:port port}))
      :timeout-ms 30000))
   component)
 
