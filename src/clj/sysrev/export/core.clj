@@ -3,7 +3,6 @@
    [clojure.string :as str]
    [honeysql.helpers :as sqlh :refer [merge-join merge-where order-by]]
    [medley.core :as medley]
-   [sysrev.annotations :as ann]
    [sysrev.api :refer [graphql-request]]
    [sysrev.datasource.api :as ds-api]
    [sysrev.db.core :refer [do-query with-transaction]]
@@ -215,7 +214,6 @@
                           all-authors abstract]
                          predict-scores))))))))
 
-;; TODO: include some user name in entries, or in another csv file
 (defn export-annotations-csv
   "Returns CSV-printable list of user annotations in project. The first
   row contains column names; each following row contains fields for
@@ -224,18 +222,28 @@
   will be included."
   [project-id & {:keys [article-ids separator]}]
   (with-transaction
-    (concat
-     [["Article ID" "User ID" "Annotation" "Semantic Class" "Selection"
-       "Start Offset" "End Offset" "Article Field" "Filename" "File Key"]]
-     (for [{:keys [article-id annotation selection context definition user-id filename file-key]}
-           (->> (ann/project-annotations-basic project-id)
-                (sort-by #(vector (:article-id %) (:user-id %))))]
-       (let [{:keys [start-offset end-offset text-context]} context
-             {:keys [field]} text-context]
-         (mapv (partial stringify-csv-value separator)
-               [article-id user-id annotation definition selection
-                start-offset end-offset field filename file-key]))))))
+    (->>
+     (-> (q/select-project-articles
+          project-id [:al.article-id :al.label-id :al.user-id :al.answer
+                      :l.short-label])
 
+         (q/join-article-labels)
+         (q/filter-valid-article-label true)
+         (q/join-article-label-defs)
+         (cond-> (seq article-ids)
+           (merge-where [:in :al.article-id article-ids]))
+         (merge-where [:and
+                       [:= :l.enabled true]
+                       [:= :l.value-type "annotation"]])
+         (q/join-users :al.user-id)
+         do-query)
+     (mapcat
+      (fn [{:keys [answer article-id short-label user-id]}]
+        (for [[_ {:keys [selection semantic-class value]}] answer]
+          (mapv (partial stringify-csv-value separator)
+                [article-id user-id short-label semantic-class selection value]))))
+     (cons
+      ["Article ID" "User ID" "Annotation Label" "Semantic Class" "Selection" "Value"]))))
 
 (defn export-group-label-csv
   "Export the group label-id in project-id"
