@@ -13,16 +13,16 @@
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
 (def-action :project/generate-export
-            :uri (fn [project-id export-type _]
-                   (str "/api/generate-project-export/" project-id "/" (name export-type)))
-            :content (fn [_ _ options]
-                       (merge options {}))
-            :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
-                       {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
-            :on-error (fn [{:keys [db error]} [project-id export-type options] _]
-                        {:db (assoc-in db [:data :project-exports [project-id export-type options]]
-                                       {:error error})})
-            :timeout (* 10 60 1000))
+  :uri (fn [project-id export-type _]
+         (str "/api/generate-project-export/" project-id "/" (name export-type)))
+  :content (fn [_ _ options]
+             (merge options {}))
+  :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
+             {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
+  :on-error (fn [{:keys [db error]} [project-id export-type options] _]
+              {:db (assoc-in db [:data :project-exports [project-id export-type options]]
+                             {:error error})})
+  :timeout (* 10 60 1000))
 
 (reg-sub :project/export-file
          (fn [db [_ project-id export-type options]]
@@ -160,9 +160,9 @@
       [:p "This provides a CSV file containing the label answers from all project members for each article."]
       [:p (str "Each row contains answers for one article. Values are combined from all user answers; enabling "
                (pr-str (-> label-settings-config :consensus :display))
-               " for a label can ensure that user answers are identical.") ]
+               " for a label can ensure that user answers are identical.")]
       [:p "By default, includes all labeled articles except those in Conflict status; this can be customized from the Articles page."]
-      [ProjectExportNavigateForm :group-answers]]
+      [ProjectExportNavigateForm :article-answers]]
      [:div.ui.segment
       [:h4.ui.dividing.header "User Answers"]
       [:p "This provides a CSV file containing the exact answers saved by each user for each article."]

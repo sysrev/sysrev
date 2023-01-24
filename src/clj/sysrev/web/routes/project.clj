@@ -746,8 +746,8 @@
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
-                         :group-answers
-                         (-> (export/export-group-answers-csv
+                         :article-answers
+                         (-> (export/export-article-answers-csv
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
@@ -780,7 +780,7 @@
                            {:user-id user-id :filters filters :separator separator})
               filename-base (case export-type
                               :user-answers     "UserAnswers"
-                              :group-answers    "Answers"
+                              :article-answers    "Answers"
                               :endnote-xml      "Articles"
                               :articles-csv     "Articles"
                               :annotations-csv  "Annotations"
@@ -789,7 +789,7 @@
                               :json             "JSON")
               filename-ext (case export-type
                              (:user-answers
-                              :group-answers
+                              :article-answers
                               :articles-csv
                               :annotations-csv
                               :group-label-csv)  "csv"
@@ -823,7 +823,7 @@
                 (nil? file) (app/make-error-response
                              api/not-found :file "Export file not found")
                 :else (case export-type
-                        (:user-answers :group-answers :articles-csv :annotations-csv :group-label-csv)
+                        (:user-answers :article-answers :articles-csv :annotations-csv :group-label-csv)
                         (-> (io/reader file) (app/csv-file-response filename))
                         :endnote-xml
                         (-> (io/reader file) (app/xml-file-response filename))

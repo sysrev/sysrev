@@ -91,7 +91,7 @@
                          label-answers
                          [user-note primary-title secondary-title all-authors]))))))))
 
-(defn export-group-answers-csv
+(defn export-article-answers-csv
   "Returns CSV-printable list of combined group answers for
   articles. The first row contains column names; each following row
   contains answers for one article. article-ids optionally specifies a

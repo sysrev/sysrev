@@ -30,7 +30,7 @@
                         :source      {:source-ids nil}
                         :has-label   {:label-id nil, :users nil, :values nil, :inclusion nil, :confirmed nil}
                         :consensus   {:status nil, :inclusion nil}
-                        :prediction  {:label-id (project-overall-label-id db),
+                        :prediction  {:label-id (project-overall-label-id db)
                                       :label-value true, :direction :above, :score 50})
                       {:editing? true})})
 
@@ -767,8 +767,8 @@
     [:div.column>i.fitted.angle.double.right.icon]]])
 
 (def export-type-default-filters
-  {:group-answers    [{:has-label {:confirmed true}}
-                      {:consensus {:status :conflict, :negate true}}]
+  {:article-answers    [{:has-label {:confirmed true}}
+                        {:consensus {:status :conflict, :negate true}}]
    :user-answers     [{:has-label {:confirmed true}}]
    :endnote-xml      []
    :articles-csv     []
@@ -889,7 +889,7 @@
         [ExportFiltersInfo context]
         [ExportTypeForm context :endnote-xml "Articles" "EndNote XML"]
         [ExportTypeForm context :articles-csv "Articles" "CSV"]
-        [ExportTypeForm context :group-answers "Article Answers" "CSV"]
+        [ExportTypeForm context :article-answers "Article Answers" "CSV"]
         [ExportTypeForm context :user-answers "User Answers" "CSV"]
         [ExportTypeForm context :annotations-csv "Annotations" "CSV"]])]))
 
