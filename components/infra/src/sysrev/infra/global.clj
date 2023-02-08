@@ -206,6 +206,54 @@
       [(google-mx-recordset (ref :SysrevZoneApex))]
       (no-email-recordsets (ref :SysrevZoneApex)))}}
 
+   :LoggingBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "Private"
+     :BucketEncryption
+     {:ServerSideEncryptionConfiguration
+      [{:BucketKeyEnabled true
+        :ServerSideEncryptionByDefault
+        {:SSEAlgorithm "AES256"}}]}
+     :LifecycleConfiguration
+     {:Rules
+      [{:ExpirationInDays 365
+        :Status "Enabled"
+        :Transitions
+        [{:StorageClass "GLACIER"
+          :TransitionInDays 1}]}]}
+     :PublicAccessBlockConfiguration
+     {:BlockPublicAcls true
+      :BlockPublicPolicy true
+      :IgnorePublicAcls true
+      :RestrictPublicBuckets true}}}
+
+   :LoggingBucketPolicy
+   {:Type "AWS::S3::BucketPolicy"
+    :Properties
+    {:Bucket (ref :LoggingBucket)
+     :PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Effect "Allow"
+        :Principal {:Service "delivery.logs.amazonaws.com"}
+        :Action "s3:PutObject"
+        :Resource
+        (join ""
+              ["arn:aws:s3:::"
+               (ref :LoggingBucket)
+               "/AWSLogs/"
+               account-id
+               "/*"])
+        :Condition
+        {:StringEquals {:s3:x-amz-acl "bucket-owner-full-control"}}}
+       {:Effect "Allow"
+        :Principal {:Service "delivery.logs.amazonaws.com"}
+        :Action "s3:GetBucketAcl"
+        :Resource
+        (join ""
+              ["arn:aws:s3:::" (ref :LoggingBucket)])}]}}}
+
    :CodeBucket
    {:Type "AWS::S3::Bucket"
     :Properties
@@ -452,6 +500,100 @@
         :Principal {:AWS (join "" ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity " (ref :CloudFrontOAI)])}
         :Resource (join "" ["arn:aws:s3:::" (ref :DatapubBucket) "/*"])}]}}}
 
+   :StaticSiteBucket
+   {:Type "AWS::S3::Bucket"
+    :Properties
+    {:AccessControl "PublicRead"
+     :WebsiteConfiguration
+     {:IndexDocument "index.html"
+      :ErrorDocument "error.html"}}}
+
+   :StaticSiteBucketPolicy
+   {:Type "AWS::S3::BucketPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Sid "PublicReadForGetBucketObjects"
+        :Effect "Allow"
+        :Principal "*"
+        :Action "s3:GetObject"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :StaticSiteBucket) "/*"])}]}
+     :Bucket (ref :StaticSiteBucket)}}
+
+   :StaticSiteCertificate
+   {:Type "AWS::CertificateManager::Certificate"
+    :Properties
+    {:DomainName (join  "." ["static" (ref :SysrevZoneApex)])
+     :DomainValidationOptions
+     [{:DomainName (join  "." ["static" (ref :SysrevZoneApex)])
+       :HostedZoneId (ref :SysrevHostedZone)}]
+     :ValidationMethod "DNS"}}
+
+   :StaticSiteDistribution
+   {:Type "AWS::CloudFront::Distribution"
+    :Properties
+    {:DistributionConfig
+     {:Aliases [(join  "." ["static" (ref :SysrevZoneApex)])]
+      :DefaultCacheBehavior
+      {:AllowedMethods ["GET" "HEAD"]
+       :Compress true
+       :ForwardedValues
+       {:Cookies {:Forward "none"}
+        :QueryString true}
+       :TargetOriginId "StaticSiteBucketOrigin"
+       :ViewerProtocolPolicy "redirect-to-https"}
+      :Enabled true
+      :HttpVersion "http2"
+      :Logging
+      {:Bucket (get-att :LoggingBucket "DomainName")
+       :IncludeCookies false
+       :Prefix (join "" ["cloudfront/static." (ref :SysrevZoneApex) "/"])}
+      :Origins
+      [{:CustomOriginConfig {:OriginProtocolPolicy "http-only"}
+        :DomainName
+        (join ""
+              [(ref :StaticSiteBucket)
+               ".s3-website-" region ".amazonaws.com"])
+        :Id "StaticSiteBucketOrigin"}]
+      :ViewerCertificate
+      {:AcmCertificateArn (ref :StaticSiteCertificate)
+       :SslSupportMethod "sni-only"}}}}
+
+   :StaticSiteDistributionRecordSetGroup
+   {:Type "AWS::Route53::RecordSetGroup"
+    :Properties
+    {:HostedZoneId (ref :SysrevHostedZone)
+     :RecordSets
+     [{:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :StaticSiteDistribution "DomainName")}
+       :Name (join  "." ["static" (ref :SysrevZoneApex)])
+       :Type "A"}
+      {:AliasTarget {:HostedZoneId cloudfront-hosted-zone-id
+                     :DNSName (get-att :StaticSiteDistribution "DomainName")}
+       :Name (join  "." ["static" (ref :SysrevZoneApex)])
+       :Type "AAAA"}]}}
+
+   :StaticSiteFullAccessPolicy
+   {:Type "AWS::IAM::ManagedPolicy"
+    :Properties
+    {:PolicyDocument
+     {:Version "2012-10-17"
+      :Statement
+      [{:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :StaticSiteBucket)])}
+       {:Effect "Allow"
+        :Action "*"
+        :Resource
+        (join "" ["arn:aws:s3:::" (ref :StaticSiteBucket) "/*"])}
+       {:Effect "Allow"
+        :Action "cloudfront:CreateInvalidation"
+        :Resource
+        (join "" ["arn:aws:cloudfront::" account-id ":distribution/" (ref :StaticSiteDistribution)])}]}}}
+
    :CredentialsGroup
    {:Type "AWS::IAM::Group"}
 
@@ -478,7 +620,8 @@
       (ref :CloudFormationCreateUpdatePolicy)
       (ref :CodeBucketFullAccessPolicy)
       (ref :CacheBucketFullAccessPolicy)
-      (ref :PackerBuildPolicy)]
+      (ref :PackerBuildPolicy)
+      (ref :StaticSiteFullAccessPolicy)]
      :UserName "github-actions"}}}
 
   :Outputs
