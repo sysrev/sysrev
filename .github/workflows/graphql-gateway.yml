@@ -51,16 +51,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Cache Clojure dependencies
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          key: clj-sysrev-${{ hashFiles('**/deps.edn') }}
-          restore-keys: clj-sysrev-
-          path: |
-            ~/.gitlibs
-            ~/.m2/repository
-
       - name: Cache npm dependencies
         uses: actions/cache@v3
         with:
@@ -71,30 +61,57 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v18
-        timeout-minutes: 5
         with:
-          nix_path: nixpkgs=channel:nixos-21.11
+          nix_path: nixpkgs=channel:nixos-22.11
 
-      - name: Cache Nix store
-        id: nix-cache
-        uses: john-shaffer/cache@sudo-tar
-        timeout-minutes: 10
+      - name: Restore cached Nix store
+        id: nix-cache-restore
+        uses: john-shaffer/cache/restore@main
         with:
-          key: nix-sysrev-${{ hashFiles('**.nix') }}
-          restore-keys: nix-sysrev-
+          key: nix-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('**.nix', '**/flake.lock') }}
+          restore-keys: |
+            nix-${{ github.repository }}-${{ runner.os }}-
           path: |
-            ~/nix-db-dump
             /nix/store
-            /nix/var/nix/profiles
+            /nix/var/nix/db/db.sqlite
 
-      - run: sudo `command -v nix-store` --load-db < ~/nix-db-dump || true
-        if: steps.nix-cache.outputs.cache-hit == 'true'
-
-      - name: Build Nix derivation
+      - name: Build Nix derivations
+        if: steps.nix-cache-restore.outputs.cache-hit != 'true'
         run: |
-          mkdir -p ~/.config/nixpkgs
-          echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
-          nix-build -A inputDerivation -o gcroots
+          nix develop -c bash bin/prep-nix
+      - name: Save cached Nix store
+
+        if: steps.nix-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          key: nix-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('**.nix', '**/flake.lock') }}
+          path: |
+            /nix/store
+            /nix/var/nix/db/db.sqlite
+
+      - name: Restore cached Clojure dependencies
+        id: clj-cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          key: clj-${{ github.repository }}-${{ hashFiles('**/deps.edn') }}
+          restore-keys: clj-${{ github.repository }}-
+          path: |
+            ~/.gitlibs
+            ~/.m2/repository
+
+      - name: Prepare Clojure dependencies
+        if: steps.clj-cache-restore.outputs.cache-hit != 'true'
+        run: |
+          nix develop -c bash bin/prep-clojure
+
+      - name: Save cached Clojure dependencies
+        if: steps.clj-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          key: clj-${{ github.repository }}-${{ hashFiles('**/deps.edn') }}
+          path: |
+            ~/.gitlibs
+            ~/.m2/repository
 
       - name: Set APOLLO_ELV2_LICENSE to avoid license prompt
         run: echo "APOLLO_ELV2_LICENSE=accept" >> $GITHUB_ENV
@@ -122,8 +139,8 @@ jobs:
 
       - name: Build gateway lambda code
         run: |
-          nix-shell ../../default.nix --run "npm ci"
-          nix-shell ../../default.nix --run "zip -qr lambda.zip *"
+          nix develop -c npm ci
+          nix develop -c zip -qr lambda.zip *
         working-directory: projects/graphql-gateway
 
       - name: Configure AWS staging credentials
@@ -154,21 +171,17 @@ jobs:
       - name: Upload lambda code to S3
         if: github.ref_name == 'staging' || github.ref_name == 'production'
         run:
-          nix-shell --run "aws s3 cp projects/graphql-gateway/lambda.zip s3://${{ needs.get-global-resources.outputs.code-bucket }}/${{ env.LAMBDA_KEY }}"
+          nix develop -c aws s3 cp projects/graphql-gateway/lambda.zip s3://${{ needs.get-global-resources.outputs.code-bucket }}/${{ env.LAMBDA_KEY }}
 
       - name: Deploy CloudFormation stacks to staging
         if: github.ref_name == 'staging'
         run: |
-          nix-shell --run "clojure -X:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]"
+          nix develop -c clojure -X:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]
 
       - name: Deploy CloudFormation stacks to production
         if: github.ref_name == 'production'
         run: |
-          nix-shell --run "clojure -X:prod:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]"
-
-      - run: |
-          nix-store --dump-db > ~/nix-db-dump
-        if: steps.nix-cache.outputs.cache-hit != 'true'
+          nix develop -c clojure -X:prod:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.14.0
