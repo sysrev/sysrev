@@ -56,7 +56,7 @@ jobs:
             ~/.gitlibs
             ~/.m2/repository
 
-      - name: Pull Sysrev Clojure dependencies
+      - name: Prepare Clojure dependencies
         if: steps.clj-cache-restore.outputs.cache-hit != 'true'
         run: |
           nix develop -c bash bin/prep-clojure
