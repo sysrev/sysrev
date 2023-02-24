@@ -46,7 +46,7 @@ jobs:
 
       - name: Test nix devShell
         run: |
-          nix develop -c clj -P
+          nix develop -c which clj-kondo
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.14.0
