@@ -116,9 +116,7 @@
                                                       :variables variables}}))
             (recur acc))
           "data"
-          (do
-            (conj! acc payload)
-            (recur acc))
+          (recur (conj! acc payload))
           "error"
           (throw (ex-info (str "Error in GraphQL subscription: " (:message payload))
                           {:error payload}))
