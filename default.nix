@@ -19,19 +19,6 @@ in with pkgs;
 let
   local = if builtins.pathExists ./local.nix then import ./local.nix else { };
   jdk = openjdk8;
-  extensions = (with vscode-extensions; [
-    bbenoist.nix
-    betterthantomorrow.calva
-    brettm12345.nixfmt-vscode
-    codezombiech.gitignore
-    editorconfig.editorconfig
-    graphql.vscode-graphql
-    kahole.magit
-    ms-vscode-remote.remote-ssh
-  ]) ++ vscode-utils.extensionsFromVscodeMarketplace
-    (local.vscodeExtensions or [ ]);
-  vscode-with-extensions =
-    pkgs.vscode-with-extensions.override { vscodeExtensions = extensions; };
 in with pkgs;
 mkShell {
   buildInputs = [
@@ -59,8 +46,6 @@ mkShell {
   ] ++ (if target.isDarwin then [ ] else [ chromium ]);
   shellHook = ''
     export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
-    echo "${vscode-with-extensions}/bin/code -a ." > bin/code
-    chmod +x bin/code
     rm -f scripts/clj-kondo
     ln -s ${clj-kondo}/bin/clj-kondo scripts/
   '' + (if target.isDarwin then

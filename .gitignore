@@ -14,10 +14,7 @@
 
 !/.github
 
-bin/code
-
 /local/
-/local.nix
 
 resources/public/css/js-components.css
 target/

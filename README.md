@@ -38,8 +38,8 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
   - `AWS_REGION=us-east-1 aws-vault exec sysrev-test -- nix-shell --run "bash scripts/test-local"`
 
 - Run VSCode with `nix-shell --run "bin/code"`
-  - For emacs keybindings, first run `ln -s nix/vscode-emacs.nix local.nix`
-  - For IntelliJ keybindings, first run `ln -s nix/vscode-intellij.nix local.nix`. You may import an IntelliJ keymaps XML file from within VSCode
+  - For emacs keybindings, run `nix-shell --run "bin/code-emacs"`
+  - For IntelliJ keybindings, run `nix-shell --run "bin/code-intellij"`. You may import an IntelliJ keymaps XML file from within VSCode
 
 - Run ClojureScript with `nix-shell --run "cd client && bash browser-repl"`
 
