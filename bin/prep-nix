@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "Preparing Nix dependencies..."
+
+nix develop -c echo OK
+nix develop ./projects/datapub -c echo OK

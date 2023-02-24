@@ -33,7 +33,7 @@ jobs:
       - name: Build Nix derivations
         if: steps.nix-cache-restore.outputs.cache-hit != 'true'
         run: |
-          nix develop -c echo OK
+          nix develop -c bash bin/prep-nix
       - name: Save cached Nix store
 
         if: steps.nix-cache-restore.outputs.cache-hit != 'true'
