@@ -1,9 +1,6 @@
 (ns build
-  (:require
-   [clojure.data.xml :as dxml]
-   [clojure.string :as str]
-   [clojure.tools.build.api :as b]
-   [org.corfield.build :as bb]))
+  (:require [clojure.string :as str]
+            [clojure.tools.build.api :as b]))
 
 (def lib 'insilica/sysrev)
 (def version
