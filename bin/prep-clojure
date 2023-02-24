@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "Preparing Clojure dependencies..."
+
+clojure -P
+clojure -P -A:build
+clojure -P -A:dev
+clojure -P -M:poly
+clojure -P -A:test
+
+cd projects/datapub
+clojure -P
+clojure -P -A:dev
+clojure -P -A:test
+clojure -P -A:uberjar
