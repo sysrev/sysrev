@@ -14,7 +14,6 @@
            :redefined-var {:level :off}
            :reduce-without-init {:level :warning}
            :redundant-do {:level :off}
-           :redundant-fn-wrapper {:level :warning}
            :refer-all {:level :off}
            :use {:level :off}
            :unresolved-var {:level :off}
