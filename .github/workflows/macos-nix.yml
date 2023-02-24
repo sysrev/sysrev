@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/macos-nix.yml'
       - '**.nix'
+      - '**/flake.lock'
 
 jobs:
   nix:
@@ -16,17 +17,36 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v18
         with:
-          nix_path: nixpkgs=channel:nixpkgs-21.11-darwin
+          nix_path: nixpkgs=channel:nixpkgs-22.11-darwin
 
-      - name: Build Nix derivation
-        run: |
-          mkdir -p ~/.config/nixpkgs
-          echo "{ allowUnfree = true; }" > ~/.config/nixpkgs/config.nix
-          nix-build -A inputDerivation -o gcroots
+      - name: Restore cached Nix store
+        id: nix-cache-restore
+        uses: john-shaffer/cache/restore@main
+        with:
+          key: nix-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('**.nix', '**/flake.lock') }}
+          restore-keys: |
+            nix-${{ github.repository }}-${{ runner.os }}-
+          path: |
+            /nix/store
+            /nix/var/nix/db/db.sqlite
 
-      - name: Test nix-shell
+      - name: Build Nix derivations
+        if: steps.nix-cache-restore.outputs.cache-hit != 'true'
         run: |
-          nix-shell --pure --run "echo 0 | clj-kondo --lint -"
+          nix develop -c echo OK
+      - name: Save cached Nix store
+
+        if: steps.nix-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v3
+        with:
+          key: nix-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('**.nix', '**/flake.lock') }}
+          path: |
+            /nix/store
+            /nix/var/nix/db/db.sqlite
+
+      - name: Test nix devShell
+        run: |
+          nix develop -c clj -P
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.14.0
