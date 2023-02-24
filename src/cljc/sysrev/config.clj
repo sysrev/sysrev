@@ -21,6 +21,7 @@
     (with-open [r (-> url io/reader PushbackReader.)]
       (edn/read r))))
 
+#_{:clj-kondo/ignore [:dynamic-var-not-earmuffed]}
 (defonce ^{:doc "A map of environment variables."
            :dynamic true}
   env (let [{:keys [private-config] :as config} (read-config-file "config.edn")
