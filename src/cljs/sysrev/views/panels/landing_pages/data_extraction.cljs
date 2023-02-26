@@ -3,7 +3,8 @@
             [sysrev.data.core :refer [reload load-data]]
             [sysrev.views.panels.landing-pages.core :refer [IntroSegment FeaturedReviews]]
             [sysrev.views.panels.landing-pages.reviews :as reviews]
-            [sysrev.macros :refer-macros [with-loader def-panel]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]
+            [sysrev.base :as base]))
 
 (def panel [:data-extraction])
 
@@ -23,7 +24,9 @@
      [FeaturedReviews
       {:header-1 "Share projects with a link."
        :header-2 [:span "Share your own project or find and "
-                  [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                  (if @base/show-blog-links
+                    [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                    "clone")
                   " other data extraction projects."]
        :header-3 "Open Access Data Extraction Projects"
        :cards [^{:key 1} [reviews/GeneHunterReview]

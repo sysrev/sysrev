@@ -3,7 +3,8 @@
             [sysrev.data.core :refer [reload load-data]]
             [sysrev.views.panels.landing-pages.core :refer [IntroSegment FeaturedReviews]]
             [sysrev.views.panels.landing-pages.reviews :as reviews]
-            [sysrev.macros :refer-macros [with-loader def-panel]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]
+            [sysrev.base :as base]))
 
 (def panel [:systematic-review])
 
@@ -23,7 +24,9 @@
       {:header-1 "Learn from the best with open access projects."
        :header-2 [:span
                   [:a {:href "/search"} "Discover"] " and "
-                  [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                  (if @base/show-blog-links
+                    [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                    "clone")
                   " public systematic reviews." [:br]
                   "Publish your work with a simple link."]
        :header-3 "Community Systematic Reviews"

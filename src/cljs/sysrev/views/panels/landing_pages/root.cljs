@@ -4,7 +4,8 @@
             [sysrev.views.project-list :as plist]
             [sysrev.views.panels.landing-pages.core :refer [IntroSegment FeaturedReviews]]
             [sysrev.views.panels.landing-pages.reviews :as reviews]
-            [sysrev.macros :refer-macros [with-loader def-panel]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]
+            [sysrev.base :as base]))
 
 (def panel [:root])
 
@@ -34,7 +35,9 @@
      [FeaturedReviews
       {:header-1 "Learn from the best with open access projects."
        :header-2 [:span "Watch, "
-                  [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                  (if @base/show-blog-links
+                    [:a {:href "https://blog.sysrev.com/cloning-projects"} "clone"]
+                    "clone")
                   " and learn from successful projects."]
        :header-3 "Community Literature Reviews"
        :cards [^{:key 1} [reviews/EntogemReview]

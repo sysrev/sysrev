@@ -64,7 +64,8 @@
             [sysrev.views.panels.user.verify-email]
             [sysrev.views.panels.users]
             [sysrev.views.review :as review]
-            [sysrev.views.semantic :as S]))
+            [sysrev.views.semantic :as S]
+            [sysrev.base :as base]))
 
 (defmethod panel-content :default []
   (fn [child]
@@ -133,7 +134,8 @@
         social-text? (not mobile?) #_false
         sysrev-links
         [:span.links
-         [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
+         (when @base/show-blog-links
+           [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"])
          [:a {:target "_blank" :href "https://twitter.com/sysrev1"}
           [:i.twitter.icon] (when social-text? "Twitter")]
          [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"}
@@ -147,7 +149,9 @@
         copyright-notice
         [:span [:span.medium-weight "Sysrev "] (str "© " (-> (js/Date.) (.getFullYear)) " Insilica LLC")]
         site-terms [:a#terms-link {:href "/terms-of-use"} "Terms"]
-        citation-link [:a {:href "https://blog.sysrev.com/how-to-cite"
+        citation-link [:a {:href (if @base/show-blog-links
+                                   "https://blog.sysrev.com/how-to-cite"
+                                   "https://www.frontiersin.org/articles/10.3389/frai.2021.685298/full")
                            :target "_blank"}
                        "Cite"]]
     [:div#footer

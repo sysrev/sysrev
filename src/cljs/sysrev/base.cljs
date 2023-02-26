@@ -16,6 +16,8 @@
 
 (defonce console-logs (atom {}))
 
+(defonce show-blog-links (atom nil))
+
 ;;; based on
 ;;; https://stackoverflow.com/questions/19846078/how-to-read-from-chromes-console-in-javascript
 ;;; and

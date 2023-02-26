@@ -9,7 +9,8 @@
             [sysrev.util :as util :refer [format sum round]]
             [sysrev.shared.text :as shared]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
-            [sysrev.shared.components :refer [colors]]))
+            [sysrev.shared.components :refer [colors]]
+            [sysrev.base :as base]))
 
 ;; for clj-kondo
 (declare panel)
@@ -178,7 +179,7 @@
 (defn- CountCheckbox [event subscription id]
   [Checkbox {:id        id
              :as        "h4"
-             :style     {:margin-top "0.0rem" :margin-right "10px" }
+             :style     {:margin-top "0.0rem" :margin-right "10px"}
              :checked   subscription
              :on-change #(dispatch [event (not subscription)])
              :radio     true
@@ -188,7 +189,7 @@
 (defn- PercCheckbox [event subscription id]
   [Checkbox {:id        id
              :as        "h4"
-             :style     {:margin-top "0.0rem" :margin-right "10px" }
+             :style     {:margin-top "0.0rem" :margin-right "10px"}
              :checked   (or (nil? subscription) (false? subscription))
              :on-change #(dispatch [event (not subscription)])
              :radio     true
@@ -218,14 +219,14 @@
       [:span [:b "Keep Resolved Articles?"]]
       [Checkbox {:id        "ignore-resolved?"
                  :as        "span"
-                 :style     {:margin-top "0.0rem" :margin-left "10px" }
+                 :style     {:margin-top "0.0rem" :margin-left "10px"}
                  :checked   @(subscribe [::keep-resolved-articles])
                  :on-change #(dispatch [::keep-resolved-articles project-id true])
                  :radio     true
                  :label     "Keep"}]
       [Checkbox {:id        "keep-resolved?"
                  :as        "span"
-                 :style     {:margin-top "0.0rem" :margin-left "10px" }
+                 :style     {:margin-top "0.0rem" :margin-left "10px"}
                  :checked   (not @(subscribe [::keep-resolved-articles]))
                  :on-change #(dispatch [::keep-resolved-articles project-id false])
                  :radio     true
@@ -474,10 +475,12 @@
          [:div.ui.negative.message
           [:div.content "Significant discordance. Reviewers may not understand some tasks."]])
        [BetaMessage]
-       [:p "User concordance tracks how often users agree with each other." [:br]
-        "Learn more at " [ui/UrlLink "https://blog.sysrev.com/concordance"] "."]]
+       [:p "User concordance tracks how often users agree with each other."
+        (when @base/show-blog-links [:br])
+        (when @base/show-blog-links
+          [:span "Learn more at " [ui/UrlLink "https://blog.sysrev.com/concordance"] "."])]]
       [Column {:width rwidth :text-align "center" :vertical-align "middle"}
-       [:h3 [:a {:href (shared/links :analytics)} "Youtube Demo Video"]]] ]
+       [:h3 [:a {:href (shared/links :analytics)} "Youtube Demo Video"]]]]
      [segment
       [Column {:width lwidth} [:h3 "Article Filters"]
        [:p "Restrict concordance analysis to articles that match filters."]]
@@ -494,7 +497,7 @@
         [Column {:width rwidth} [UserConcordance]])]
      [segment
       [Column {:width lwidth} [UserLabelSpecificDescription]]
-      (if (or (empty? selected-label) (empty? selected-user) )
+      (if (or (empty? selected-label) (empty? selected-user))
         [Column {:width rwidth
                  :text-align "center"
                  :vertical-align "middle"} [UserLabelSpecificEmpty]]

@@ -8,7 +8,8 @@
             [sysrev.views.panels.landing-pages.core :refer
              [IntroSegment FeaturedReviews ReviewCard TwitterUser]]
             [sysrev.util :as util]
-            [sysrev.macros :refer-macros [with-loader def-panel]]))
+            [sysrev.macros :refer-macros [with-loader def-panel]]
+            [sysrev.base :as base]))
 
 (def panel [:managed-review])
 
@@ -62,7 +63,10 @@
     :description
     [:p "SysRev helps companies extract therapeutic effects of substances from literature.
          In this pilot, we show how mangiferin (a mango extract) modifies disease."
-     [:br] [UrlLink "https://blog.sysrev.com/generating-insights"]]
+     (when @base/show-blog-links
+       [:br])
+     (when @base/show-blog-links
+       [UrlLink "https://blog.sysrev.com/generating-insights"])]
     ;; TODO can we link to beiersdorf
     :extra ["TJ Bozada"
             "Insilica Managed Review Division"
@@ -75,8 +79,11 @@
     :description
     [:p "Safety Data Sheets lock chemical information into pdfs. "
      "SysRev Managed Review worked with the Sustainable Research Group to extract that data
-      into spreadsheets to help SRG clients." [:br]
-     [UrlLink "https://blog.sysrev.com/srg-sysrev-chemical-transparency"]]
+      into spreadsheets to help SRG clients."
+     (when @base/show-blog-links
+       [:br])
+     (when @base/show-blog-links
+       [UrlLink "https://blog.sysrev.com/srg-sysrev-chemical-transparency"])]
     :extra ["Daniel Mcgee"
             [:a {:href "https://sustainableresearchgroup.com"}
              "Sustainable Research Group"]]}])
@@ -89,8 +96,11 @@
     [:p "Gene Hunter extracted genes from text to create a "
      [:b "named entity recognition"] " model. "
      "Data extraction the first step in creating machine learning models, this project shows
-      how sysrev builds models." [:br]
-     [UrlLink "https://blog.sysrev.com/simple-ner"]]
+      how sysrev builds models."
+     (when @base/show-blog-links
+       [:br])
+     (when @base/show-blog-links
+       [UrlLink "https://blog.sysrev.com/simple-ner"])]
     :extra ["Tom Luechtefeld"
             [UrlLink "https://insilica.co"]
             [TwitterUser "tomlue"]]}])

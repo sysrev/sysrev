@@ -5,6 +5,7 @@
             [medley.core :as medley]
             [re-frame.core :refer [dispatch reg-sub subscribe]]
             [reagent.core :as r]
+            [sysrev.base :as base]
             [sysrev.chartjs :as chartjs]
             [sysrev.data.core :as data :refer [def-data]]
             [sysrev.macros :refer-macros [with-loader setup-panel-state def-panel]]
@@ -456,7 +457,8 @@
     [:div.ui.segment
      [:h4.ui.dividing.header "Prediction Histograms"]
      [:p "Prediction histograms provide an estimate of sysrev machine learning model accuracy."
-      [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"]]
+      (when @base/show-blog-links
+        [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"])]
      [:p "Models are built for all binary & categorical labels. They can be used to build article filters."]
      [PredictionHistogramLastUpdated]
      [:br]

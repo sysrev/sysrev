@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.landing-pages.reviews
   (:require [sysrev.views.components.core :refer [UrlLink]]
-            [sysrev.views.panels.landing-pages.core :refer [ReviewCard TwitterUser]]))
+            [sysrev.views.panels.landing-pages.core :refer [ReviewCard TwitterUser]]
+            [sysrev.base :as base]))
 
 (defn GeneHunterReview []
   [ReviewCard
@@ -9,8 +10,9 @@
     :img-alt "Extraction of gene names from medical abstracts"
     :description
     [:p "Gene Hunter extracted gene names from medical abstracts to create a "
-     [:b "named entity recognition"] " model. Learn more at "
-     [UrlLink "https://blog.sysrev.com/simple-ner"]]
+     [:b "named entity recognition"] " model."
+     (when @base/show-blog-links
+       [:span " Learn more at " [UrlLink "https://blog.sysrev.com/simple-ner"]])]
     :extra ["Tom Luechtefeld"
             [UrlLink "https://insilica.co"]
             [TwitterUser "tomlue"]]}])
@@ -22,9 +24,11 @@
     :img-alt "safety data sheet extraction"
     :description
     [:p "SDS PDFs lock important chemical information into pdfs. "
-     "Sysrev was used to extract that data into spreadsheets. Learn more at "
-     [:a {:href "https://blog.sysrev.com/srg-sysrev-chemical-transparency/"}
-      "blog.sysrev.com"]]
+     "Sysrev was used to extract that data into spreadsheets."
+     (when @base/show-blog-links
+       [:span " Learn more at "
+        [:a {:href "https://blog.sysrev.com/srg-sysrev-chemical-transparency/"}
+         "blog.sysrev.com"]])]
     :extra ["Daniel Mcgee"
             [:a {:href "https://sustainableresearchgroup.com"}
              "Sustainable Research Group"]]}])
@@ -38,7 +42,8 @@
     [:p "An extraction of mangiferin (a mango extract) effects from publications. R and "
      [:a {:href "https://github.com/sysrev/RSysrev"} "RSysrev"]
      " were used to analyze results. "
-     [UrlLink "https://blog.sysrev.com/generating-insights/"]]
+     (when @base/show-blog-links
+       [UrlLink "https://blog.sysrev.com/generating-insights/"])]
     :extra ["TJ Bozada"
             "Insilica Managed Review Division"
             [:span [:i.envelope.icon] "info@insilica.co"]]}])

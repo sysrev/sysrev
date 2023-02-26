@@ -8,6 +8,7 @@
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.base :as base]
             [sysrev.data.core :as data]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.shared.plans-info :as plans-info]
@@ -649,7 +650,6 @@
      (when (= @value-type "relationship")
        (RelationshipBuilder (concat @all-values @event-types) relationships))
 
-
      ;; required
      [ui/LabeledCheckboxField
       (make-args :required
@@ -757,7 +757,6 @@
                           (reset! validatable-label? checked?))
             :label "Yes"}]
           [show-error-msg error]]))
-
 
      (case @value-type
        "boolean"
@@ -916,15 +915,18 @@
     [:h2 "Group Labels are available for Pro Accounts" [:br]
      "Sign up at " [:a {:href "/pricing"} "sysrev.com/pricing"]]
     [:span {:font-size "0.5em !important"}
-     "Read a " [:a {:href "https://blog.sysrev.com/group-labels/"
-                    :target "_blank"} "blog post"]
-     ", see a " [:a {:href "/o/2/p/31871"
-                     :target "_blank"} "sample project"]
+     (if @base/show-blog-links
+       [:span
+        "Read a " [:a {:href "https://blog.sysrev.com/group-labels/"
+                       :target "_blank"} "blog post"]
+        ", see a "]
+       [:span "See a "])
+     [:a {:href "/o/2/p/31871"
+          :target "_blank"} "sample project"]
      " or view a " [:a {:href "https://youtu.be/aKhg-hHea88"
                         :target "_blank"} "demo video"]
      " to learn more about this feature"]
     [:br]]])
-
 
 (defn SideEditableView [labels-atom]
   (let [editing-label (subscribe [::editing-label])
@@ -1152,8 +1154,8 @@
            [:div.column [AddLabelButton "group" add-new-label!]]
            [:div.column [AddLabelButton "annotation" add-new-label!]]
            (if-not has-relationsip-label?
-            [:div.column [AddLabelButton "relationship" add-new-label!]]
-            [:div.column [:p "A project can only have 1 relationship label."]])
+             [:div.column [AddLabelButton "relationship" add-new-label!]]
+             [:div.column [:p "A project can only have 1 relationship label."]])
            [:div.column [ImportLabelButton]]]
 
           :else

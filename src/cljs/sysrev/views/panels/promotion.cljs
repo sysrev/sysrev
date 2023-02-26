@@ -1,7 +1,8 @@
 (ns sysrev.views.panels.promotion
   (:require [cljs-time.core :as time]
             [re-frame.core :refer [dispatch]]
-            [sysrev.macros :refer-macros [def-panel setup-panel-state]]))
+            [sysrev.macros :refer-macros [def-panel setup-panel-state]]
+            [sysrev.base :as base]))
 
 ;; for clj-kondo
 (declare panel)
@@ -16,8 +17,11 @@
      "Sysrev will award 10 selected projects $500 for reviewer payments. If selected, a project of your choice
      will receive $500 which can be used to pay reviewers to complete review tasks. Apply at the bottom of the page before August 31."]
     [:p "Learn more about sysrev document reviews at"
-     [:a {:href "/"} " sysrev.com "] "or the "
-     [:a {:href "https://blog.sysrev.com/what-is-sysrev"} "what is sysrev?"] " blog."]
+     [:a {:href "/"} " sysrev.com"]
+     (if @base/show-blog-links
+       [:span " or the "
+        [:a {:href "https://blog.sysrev.com/what-is-sysrev"} "what is sysrev?"] " blog."]
+       [:span "."])]
     [:h2 "What happens after I apply?"]
     [:p "We will email acceptance decisions within a week. If your project is accepted, we will:"
      [:ul
