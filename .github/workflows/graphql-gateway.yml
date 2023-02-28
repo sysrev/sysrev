@@ -118,7 +118,7 @@ jobs:
 
       - name: Install rover
         run: |
-          curl -sSL https://rover.apollo.dev/nix/v0.5.1 | sh
+          curl -sSL https://rover.apollo.dev/nix/v0.12.2 | sh
           echo "$HOME/.rover/bin" >> $GITHUB_PATH
 
       - name: Upload subgraph schemas to Apollo Studio
