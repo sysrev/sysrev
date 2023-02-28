@@ -3,13 +3,14 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs-npm.url = "github:nixos/nixpkgs/97e88a936cf18bc8a2c6cf65e4ec8d423e4cb743";
     flake-utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
   };
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-npm, flake-utils, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       with import nixpkgs { inherit system; };
       let
@@ -29,8 +30,8 @@
             (leiningen.override { jdk = jdk; })
             nix
             nixfmt
-            nodePackages.npm # should come before nodejs for latest version
-            nodejs
+            (import nixpkgs-npm { inherit system; }).nodePackages.npm # should come before nodejs
+            (import nixpkgs-npm { inherit system; }).nodejs
             polylith
             postgresql
             python39Packages.cfn-lint
