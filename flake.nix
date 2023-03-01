@@ -3,17 +3,18 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    nixpkgs-npm.url = "github:nixos/nixpkgs/nixos-22.05";
+    nixpkgs-2205.url = "github:nixos/nixpkgs/nixos-22.05";
     flake-utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;
     };
   };
-  outputs = { self, nixpkgs, nixpkgs-npm, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       with import nixpkgs { inherit system; };
       let
+        pkgs-2205 = import nixpkgs-2205 { inherit system; };
         jdk = openjdk8;
       in {
         devShells.default = mkShell {
@@ -23,15 +24,15 @@
             clj-kondo
             (clojure.override { jdk = jdk; })
             entr # for ./scripts/watch-css
-            (flyway.override { jre_headless = jdk; })
+            (pkgs-2205.flyway.override { jre_headless = jdk; })
             git
             glibcLocales # postgres and rlwrap (used by clj) need this
             jdk
             (leiningen.override { jdk = jdk; })
             nix
             nixfmt
-            (import nixpkgs-npm { inherit system; }).nodePackages.npm # should come before nodejs
-            (import nixpkgs-npm { inherit system; }).nodejs
+            pkgs-2205.nodePackages.npm # should come before nodejs
+            pkgs-2205.nodejs
             polylith
             postgresql
             python39Packages.cfn-lint

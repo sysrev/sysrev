@@ -47,7 +47,7 @@
         "type": "github"
       }
     },
-    "nixpkgs-npm": {
+    "nixpkgs-2205": {
       "locked": {
         "lastModified": 1672580127,
         "narHash": "sha256-3lW3xZslREhJogoOkjeZtlBtvFMyxHku7I/9IVehhT8=",
@@ -68,7 +68,7 @@
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",
-        "nixpkgs-npm": "nixpkgs-npm"
+        "nixpkgs-2205": "nixpkgs-2205"
       }
     }
   },
