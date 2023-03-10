@@ -15,10 +15,13 @@
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))
 
-(defn get-api-token [{:keys [body params request-method]}]
-  (if (= :get request-method)
-    (:api-token params)
-    (:api-token body)))
+(def re-bearer-token #"(?i)Bearer\s+(\S+)")
+
+(defn get-api-token [{:keys [body headers params request-method]}]
+  (or
+   (:api-token params)
+   (:api-token body)
+   (some->> (get headers "authorization") (re-matches re-bearer-token) second)))
 
 (defn get-project-id [{:keys [body params request-method]}]
   (if (= :get request-method)
