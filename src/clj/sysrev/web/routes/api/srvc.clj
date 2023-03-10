@@ -4,6 +4,7 @@
             [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [medley.core :as medley]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db]
@@ -338,21 +339,20 @@
      :srvc-document/uri
      (uri->article-id sr-context project-id))))
 
-(defn srvc-label-id->sysrev-label-id [sr-context project-id srvc-label-id]
+(defn srvc-label-id->sysrev-label [sr-context project-id srvc-label-id]
   (db/with-tx [sr-context sr-context]
     (->
      (db/execute-one!
       sr-context
-      {:select :label-id
+      {:select :*
        :from :label
        :where [:and
                [:= :enabled true]
                [:= :name srvc-label-id]
                [:= :project-id project-id]
-               [:= :root-label-id-local nil]]})
-     :label/label-id)))
+               [:= :root-label-id-local nil]]}))))
 
-(defn hash->label-id [sr-context project-id hash]
+(defn hash->sysrev-label [sr-context project-id hash]
   (db/with-tx [sr-context sr-context]
     (some->>
      (db/execute-one!
@@ -362,7 +362,7 @@
        :where [:= :hash hash]})
      first
      val
-     (srvc-label-id->sysrev-label-id sr-context project-id))))
+     (srvc-label-id->sysrev-label sr-context project-id))))
 
 
 (defmulti sink-event
@@ -409,11 +409,38 @@
       :on-conflict [:hash :project-id]
       :do-nothing []})))
 
+(defn group-label-names-map [sr-context group-label-id-local]
+  (db/with-tx [sr-context sr-context]
+    (-> sr-context
+        (db/execute!
+         {:select [:name :label-id]
+          :from :label
+          :where [:= :root-label-id-local group-label-id-local]})
+        (->> (reduce
+              (fn [m {:label/keys [label-id name]}]
+                (assoc m (keyword name) label-id))
+              {})))))
+
+(defn srvc-answer->sysrev [sr-context project-id label-hash answer]
+  (db/with-tx [sr-context sr-context]
+    (let [{:label/keys [label-id label-id-local value-type]} (hash->sysrev-label sr-context project-id label-hash)]
+      (if (not= "group" value-type)
+        {label-id answer}
+        (let [names-map (group-label-names-map sr-context label-id-local)
+              values (->> answer
+                          (map
+                           (fn [m]
+                             (medley/map-keys names-map m)))
+                          (map-indexed
+                           (fn [i v]
+                             [(str i) v]))
+                          (into {}))]
+          {label-id {:labels values}})))))
+
 (defn sync-label-answer [{:keys [sr-context] :as request} project-id {{:keys [answer document label reviewer]} :data}]
   (let [api-token (web-api/get-api-token request)
         {:keys [email user-id]} (user/user-by-api-token api-token)
-        article-id (hash->article-id sr-context project-id document)
-        label-id (hash->label-id sr-context project-id label)]
+        article-id (hash->article-id sr-context project-id document)]
     (if (not= reviewer (str "mailto:" email))
       (throw (ex-info "Reviewer does not match user email"
                       {:email email
@@ -421,7 +448,7 @@
       (answer/set-user-article-labels
        user-id
        article-id
-       {label-id answer}
+       (srvc-answer->sysrev sr-context project-id label answer)
        {:confirm? true}))))
 
 (defmethod sink-event "label-answer"
