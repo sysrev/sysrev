@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+nix run github:insilica/srvc-gpt-index#train $(nix build .#source --json | jq -r '.[].outputs.out') llama-index.json

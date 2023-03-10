@@ -16,7 +16,30 @@
       let
         pkgs-2205 = import nixpkgs-2205 { inherit system; };
         jdk = openjdk8;
+        source = stdenv.mkDerivation {
+          name = "SysRev source and docs";
+          src = [
+            ./bin
+            ./components
+            ./doc
+            ./docker
+            ./jenkins
+            ./scripts
+            ./src
+            ./test
+          ];
+          unpackPhase = ''
+            mkdir -p $out
+
+            for dir in $src; do
+              tgt=$(echo $dir | cut -d'-' -f2-)
+              mkdir -p $out/$tgt
+              cp -r $dir/* $out/$tgt
+            done
+          '';
+        };
       in {
+        packages = { inherit source; };
         devShells.default = mkShell {
           buildInputs = [
             awscli
