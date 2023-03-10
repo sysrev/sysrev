@@ -52,8 +52,8 @@
    @web-api-routes-order
    (mapv
     (fn [name]
-      (let [{:keys [name method handler]} (get @web-api-routes name)
-            path (str "/web-api/" (clojure.core/name name))]
+      (let [{:keys [handler method name path]} (get @web-api-routes name)
+            path (or path (str "/web-api/" (clojure.core/name name)))]
         (c/make-route method path handler))))
    (apply c/routes)))
 
