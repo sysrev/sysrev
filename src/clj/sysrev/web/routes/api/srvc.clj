@@ -465,7 +465,7 @@
         (not (project/project-exists? project-id))
         {:status 404}
 
-        (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)
+        (not (some->> user-id (project-permissions-for-user sr-context project-id) project-member?))
         {:status 401}
 
         :else
