@@ -36,6 +36,3 @@ echo "running: gulp build-javascript"
 cd "$pwd"/semantic
 npx gulp build-javascript > /dev/null
 cd "$pwd"
-
-echo "running: ./scripts/build-all-css"
-./scripts/build-all-css
