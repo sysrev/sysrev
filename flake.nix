@@ -37,6 +37,7 @@
             postgresql
             python39Packages.cfn-lint
             rlwrap
+            srvc
             time
             yarn
             zip
