@@ -24,9 +24,9 @@
    (some->> (get headers "authorization") (re-matches re-bearer-token) second)))
 
 (defn get-project-id [{:keys [body params request-method]}]
-  (if (= :get request-method)
-    (some-> params :project-id parse-long)
-    (:project-id body)))
+  (or
+   (some-> params :project-id parse-long)
+   (:project-id body)))
 
 (defn-spec def-webapi any?
   [name ::swa/name
