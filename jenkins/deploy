@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eux
 
-echo $SYSREV_HOST > /dev/null
+echo "$SYSREV_HOST" > /dev/null
 
 SYSREV_REBUILD=0 ./scripts/deploy-client
 SYSREV_REBUILD=0 ./scripts/deploy-server

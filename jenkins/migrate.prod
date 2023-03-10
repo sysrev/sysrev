@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-echo `readlink -f .`
+echo "$(readlink -f .)"
 
 ./scripts/install-flyway
 cp -f conf-files/flyway.conf.aws-prod-main flyway.conf
