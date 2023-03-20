@@ -46,6 +46,7 @@
      {:select [:definition :label-id :name :question :required :short-label :value-type]
       :from :label
       :where [:and
+              [:= :enabled true]
               [:= :project-id project-id]
               [:= :root-label-id-local nil]]
       :order-by [:project-ordering]})))
@@ -216,10 +217,12 @@
                      sr-context
                      {:select :*
                       :from :label
-                      :where [:in :root-label-id-local
-                              {:select :label-id-local
-                               :from :label
-                               :where [:= :label-id label-id]}]
+                      :where [:and
+                              [:= :enabled true]
+                              [:in :root-label-id-local
+                               {:select :label-id-local
+                                :from :label
+                                :where [:= :label-id label-id]}]]
                       :order-by [:project-ordering]}))
         props (reduce
                #(assoc % (:label/name %2) (label-schema sr-context %2))
