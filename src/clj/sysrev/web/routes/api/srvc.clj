@@ -335,7 +335,7 @@
               :from :article
               :join [:article-data [:= :article.article-data-id :article-data.article-data-id]]
               :where [:and
-                      [:= :external-id [:cast external-id :jsonb]]
+                      [:= :external-id [:cast (pr-str external-id) :jsonb]]
                       [:= :project-id project-id]
                       [:= :enabled true]]
               :order-by [:article-id]})
