@@ -182,11 +182,15 @@
                    (interleave (repeat "\n")))}))))
 
 (defn multify [{:label/keys [question]
-                {:keys [multi?]} :label/definition} spec]
+                {:keys [multi?]} :label/definition}
+               spec
+               & [extra]]
   (if multi?
-    {:items spec
-     :title question
-     :type "array"}
+    (merge
+     {:items spec
+      :title question
+      :type "array"}
+     extra)
     (assoc spec :title question)))
 
 (defmulti label-schema
@@ -195,12 +199,15 @@
 (defmethod label-schema "bolean" [_ label]
   (multify label {:type "boolean"}))
 
-(defmethod label-schema "categorical" [_ {{:keys [all-values]} :label/definition
+(defmethod label-schema "categorical" [_ {:label/keys [required]
+                                          {:keys [all-values]} :label/definition
                                           :as label}]
   (multify
    label
    {:enum all-values
-    :type "string"}))
+    :type "string"}
+   (when required
+     {:minItems 1})))
 
 (defmethod label-schema "group" [sr-context {:label/keys [definition label-id]
                                              :as label}]
@@ -218,15 +225,19 @@
                #(assoc % (:label/name %2) (label-schema sr-context %2))
                {}
                sublabels)
-        spec {:properties props
-              :srvcOrder (mapv :label/name sublabels)
-              :type "object"}]
+        required (filter :label/required sublabels)
+        spec (cond-> {:properties props
+                      :srvcOrder (mapv :label/name sublabels)
+                      :type "object"}
+               (seq required) (assoc :required (mapv :label/name required)))]
     (multify label spec)))
 
-(defmethod label-schema "string" [_ {{:keys [max-length regex]} :label/definition
+(defmethod label-schema "string" [_ {:label/keys [required]
+                                     {:keys [max-length regex]} :label/definition
                                      :as label}]
   (let [spec (cond-> {:type "string"}
                max-length (assoc :maxLength max-length)
+               required (assoc :minLength 1)
                (seq regex) (assoc :pattern (str "^" (first regex) "$")))]
     (multify label spec)))
 
