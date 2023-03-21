@@ -1,7 +1,4 @@
-{:source-paths ["src/cljs" "src/cljc" "resources"
-                "components/notification/src"
-                "components/user/src"
-                "test"]
+{:deps true
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
             ;; https://github.com/thheller/shadow-cljs/issues/556
             "-Xms400m" "-Xmx1400m"]
@@ -26,39 +23,5 @@
           {:target    :karma
            :ns-regexp "-test$"
            :output-to "target/karma-test.js"}}
- :dependencies [;;; Indirect dependency versions
-                [commons-io/commons-io "2.8.0"]
-                [commons-codec/commons-codec "1.15"]
-                [org.apache.commons/commons-lang3 "3.9"]
-;;; CLJ/CLJS libraries
-                [hashp "0.2.1"]
-                [orchestra "2021.01.01-1"]
-                [org.clojure/tools.logging "1.1.0"]
-                [ch.qos.logback/logback-classic "1.2.3"]
-                [org.slf4j/jul-to-slf4j "1.7.30"]
-                [org.clojure/test.check "1.1.0"]
-                [lambdaisland/regal "0.0.97"]
-;;; Client libraries (CLJS)
-                [com.cognitect/transit-cljs "0.8.264"]
-                [com.taoensso/sente "1.16.2"]
-                [reagent "1.0.0"]
-                [re-frame "1.1.2"]
-                [day8.re-frame/http-fx "0.2.2"]
-                [clj-commons/secretary "1.2.4"]
-                [kibu/pushy "0.3.8"]
-                [cljs-http "0.1.46"]
-                [com.andrewmcveigh/cljs-time "0.5.2"]
-                [medley "1.3.0"]
-;;; Cider
-                [cider/cider-nrepl "0.28.3"]
-                [refactor-nrepl "3.5.2"]
-;;; Needed for CLJ macro compilation (sysrev.util)
-                [clj-time "0.15.2"]
-                [org.clojure/data.xml "0.2.0-alpha6"]
-                [org.clojure/math.numeric-tower "0.0.4"]
-                [crypto-random "1.2.1"]
-                [me.raynes/fs "1.4.6"]
-                [environ "1.2.0"]
-                [vincit/venia "0.2.5"]]
  :nrepl {:port 7888
          #_:middleware #_[refactor-nrepl.middleware/wrap-refactor]}}
