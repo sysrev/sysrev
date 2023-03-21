@@ -126,10 +126,6 @@
   (q/find-one :groups {:group-id group-id} :stripe-id))
 
 (defn delete-group! [group-id]
-  (when-let [stripe-id (group-stripe-id group-id)]
-    (when-let [{:keys [sub-id]} (plans/group-current-plan group-id)]
-      (stripe/delete-subscription! sub-id))
-    (stripe/delete-customer! {:stripe-id stripe-id :user-id (str "group-id: " group-id)}))
   (q/delete :groups {:group-id group-id}))
 
 (defn create-project-group! [project-id group-id]
