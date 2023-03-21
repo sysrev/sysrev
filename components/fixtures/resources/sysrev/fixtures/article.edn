@@ -27,4 +27,29 @@
   :article-id 36900006
   :article-uuid #uuid "43b6bcb1-6ca3-445d-94d3-bf5ce387e123"
   :enabled true
-  :project-id 1200001}]
+  :project-id 1200001}
+ {:article-data-id 36800001
+  :article-id 36900007
+  :article-uuid #uuid "57d08687-f755-41e0-a7c1-5508fcfbd5ba"
+  :enabled true
+  :project-id 1200003}
+ {:article-data-id 36800002
+  :article-id 36900008
+  :article-uuid #uuid "90236624-0479-4373-8da4-2ca8c82c8cf9"
+  :enabled true
+  :project-id 1200003}
+ {:article-data-id 36800003
+  :article-id 36900009
+  :article-uuid #uuid "34e7b99a-c75d-47d4-a70f-703f2306bcbe"
+  :enabled true
+  :project-id 1200003}
+ {:article-data-id 36800004
+  :article-id 36900010
+  :article-uuid #uuid "1221f624-fddf-4c0a-aaac-cfe6bea4b97e"
+  :enabled true
+  :project-id 1200003}
+ {:article-data-id 36800005
+  :article-id 36900011
+  :article-uuid #uuid "96e809df-2cb8-44ae-9e59-84c8591eca7b"
+  :enabled true
+  :project-id 1200003}]

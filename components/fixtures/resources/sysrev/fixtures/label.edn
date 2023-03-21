@@ -39,4 +39,84 @@
   :question "Annotation category?"
   :short-label "Annotation"
   :required true
-  :value-type "annotation"}]
+  :value-type "annotation"}
+ {:category "inclusion criteria"
+  :consensus true
+  :definition [:lift {:inclusion-values [true]}]
+  :enabled true
+  :global-label-id #uuid "0a60fd87-a322-4d92-8f45-c98283f487c2"
+  :label-id #uuid "0a60fd87-a322-4d92-8f45-c98283f487c2"
+  :label-id-local 15100004
+  :name "overall include"
+  :owner-project-id 1200003
+  :project-id 1200003
+  :project-ordering 0
+  :question "Include this article?"
+  :short-label "Include"
+  :required true
+  :value-type "boolean"}
+ {:category "extra"
+  :consensus false
+  :definition [:lift {:multi? true}]
+  :enabled true
+  :global-label-id #uuid "116ba77b-5f74-4a9d-985b-b8853c8ff8d0"
+  :label-id #uuid "116ba77b-5f74-4a9d-985b-b8853c8ff8d0"
+  :label-id-local 15100005
+  :name "groupblOdlb"
+  :owner-project-id 1200003
+  :project-id 1200003
+  :project-ordering 1
+  :question "N/A"
+  :short-label "Relationships"
+  :required false
+  :value-type "group"}
+ {:category "extra"
+  :consensus false
+  :definition [:lift {:max-length 100 :multi? false}]
+  :enabled true
+  :global-label-id #uuid "bc2c448f-29d1-4e8b-af68-1454ebad8974"
+  :label-id #uuid "bc2c448f-29d1-4e8b-af68-1454ebad8974"
+  :label-id-local 15100006
+  :name "stringwHyRbV"
+  :owner-project-id 1200003
+  :project-id 1200003
+  :project-ordering 0
+  :question "Source"
+  :root-label-id-local 15100005
+  :short-label "Source"
+  :required true
+  :value-type "string"}
+ {:category "extra"
+  :consensus false
+  :definition [:lift {:all-values ["promotes susceptibility to" "inhibits susceptilibity to"]
+                      :inclusion-values []
+                      :multi? true}]
+  :enabled true
+  :global-label-id #uuid "285802fb-4574-4acd-91d5-991ef71cfeef"
+  :label-id #uuid "285802fb-4574-4acd-91d5-991ef71cfeef"
+  :label-id-local 15100007
+  :name "categoricalOFrlvl"
+  :owner-project-id 1200003
+  :project-id 1200003
+  :project-ordering 1
+  :question "Relationship"
+  :root-label-id-local 15100005
+  :short-label "Relationship"
+  :required true
+  :value-type "categorical"}
+ {:category "extra"
+  :consensus false
+  :definition [:lift {:max-length 100 :multi? false}]
+  :enabled true
+  :global-label-id #uuid "0c516168-6b05-4de9-b422-578e7007b2e6"
+  :label-id #uuid "0c516168-6b05-4de9-b422-578e7007b2e6"
+  :label-id-local 15100008
+  :name "stringJfIzGn"
+  :owner-project-id 1200003
+  :project-id 1200003
+  :project-ordering 2
+  :question "Target"
+  :root-label-id-local 15100005
+  :short-label "Target"
+  :required true
+  :value-type "string"}]

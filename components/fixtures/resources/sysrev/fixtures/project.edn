@@ -12,4 +12,9 @@
   :enabled true
   :name "Public-Project-1200002"
   :project-uuid #uuid "34c6b22f-49e1-4748-b023-e42d51395bfe"
+  :settings [:lift {:public-access true :second-review-prob 0.5}]}
+ {:project-id 1200003
+  :enabled true
+  :name "GPT"
+  :project-uuid #uuid "92efbc58-e4c3-4309-b33e-edad6975f06a"
   :settings [:lift {:public-access true :second-review-prob 0.5}]}]
