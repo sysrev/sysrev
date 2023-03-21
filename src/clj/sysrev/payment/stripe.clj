@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.project.funds :as funds]
             [sysrev.shared.plans-info :as plans-info :refer [default-plan]]
-            [sysrev.util :as util :refer [index-by current-function-name]]))
+            [sysrev.util :as util :refer [index-by]]))
 
 (defn stripe-public-key []
   (env :stripe-public-key))
@@ -38,9 +38,6 @@
                     (assoc (default-req)
                            :form-params
                            (walk/stringify-keys form-params)))))
-
-(defn stripe-delete [uri]
-  (:body (http/delete (str stripe-url uri) (default-req))))
 
 (defn create-customer!
   "Create a stripe customer"
@@ -80,17 +77,6 @@
                  (assoc (default-req)
                         :form-params {"invoice_settings[default_payment_method]"
                                       payment-method})))))
-
-(defn delete-customer!
-  "Delete stripe customer entry for user"
-  [{:keys [stripe-id user-id]}]
-  (if stripe-id
-    (stripe-delete (str "/customers/" stripe-id))
-    (log/warnf "Error in %s: no stripe-id associated with user=%d"
-               (current-function-name) user-id)))
-
-(defn delete-subscription! [subscription-id]
-  (stripe-delete (str "/subscriptions/" subscription-id)))
 
 (defn get-plans
   "Get all site plans"
