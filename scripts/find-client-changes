@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 cd client
-input_paths="src node_modules semantic package.json package-lock.json shadow-cljs.edn"
+input_paths="src node_modules semantic package.json package-lock.json deps.edn shadow-cljs.edn"
 output_path="resources/public/out-production/sysrev.js"
 if [ ! -f "$output_path" ] ; then
   echo "! $output_path"
