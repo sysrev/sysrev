@@ -504,10 +504,12 @@
           user-id (some-> (web-api/get-api-token request) user/user-by-api-token :user-id)]
       (cond
         (not (project/project-exists? project-id))
-        {:status 404}
+        {:status 404
+         :body {:error {:message "Project does not exist"}}}
 
         (not (some->> user-id (project-permissions-for-user sr-context project-id) project-member?))
-        {:status 401}
+        {:status 403
+         :body {:error {:message "Forbidden"}}}
 
         :else
         (do
