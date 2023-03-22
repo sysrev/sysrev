@@ -62,14 +62,6 @@
    (when file-key
      {:file-key file-key})))
 
-(defn-spec delete-file ::s3-response
-  [sr-context map? file-key ::file-key, bucket ::bucket]
-  (aws-client/invoke!
-   (:s3 sr-context)
-   {:op :DeleteObject
-    :request {:Bucket (lookup-bucket bucket)
-              :Key file-key}}))
-
 (defn-spec lookup-file ::s3-response
   [sr-context map? file-key ::file-key, bucket ::bucket]
   (let [r (aws/invoke

@@ -7,8 +7,6 @@
             [sysrev.util :as util]))
 
 (s/def ::time any?)
-(s/def ::count int?)
-
 (s/def ::s3-id int?)
 (s/def ::key ::s3/file-key)
 (s/def ::filename string?)
@@ -35,10 +33,6 @@
 (defn-spec s3-key (s/nilable ::key)
   [s3-id (s/nilable ::s3-id)]
   (when s3-id (q/find-one :s3store {:s3-id s3-id} :key)))
-
-(defn-spec delete-s3-id ::count
-  [s3-id ::s3-id]
-  (q/delete :s3store {:s3-id s3-id}))
 
 (defn-spec save-s3-file ::s3store
   "Saves a file to S3 and creates s3store entry referencing it,

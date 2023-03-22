@@ -31,14 +31,6 @@
          (log/warn "article =" (pr-str article))
          (throw e))))
 
-(defn-spec add-article ::sa/article-id
-  [article ::sa/article-partial
-   project-id ::sc/sql-serial-id
-   & [conn] (s/? any?)]
-  (q/create :article (-> (article-to-sql article conn)
-                         (assoc :project-id project-id))
-            :returning :article-id))
-
 (def article-cols
   [:article-data-id :article-id :article-uuid :duplicate-of :enabled
    :last-user-assigned :last-user-review :parent-article-uuid :project-id])
@@ -77,25 +69,6 @@
                :an.*, :join [[:article-note :an] :a.article-id])
        (index-by :user-id)
        (medley/map-vals :content)))
-
-(defn-spec remove-article-flag nil?
-  [article-id ::sa/article-id
-   flag-name string?]
-  (q/delete :article-flag {:article-id article-id :flag-name flag-name})
-  nil)
-
-(defn-spec set-article-flag map?
-  [article-id ::sa/article-id
-   flag-name string?
-   disable? boolean?
-   & [meta] (s/? (s/cat :meta map?))]
-  (db/with-transaction
-    (remove-article-flag article-id flag-name)
-    (q/create :article-flag {:article-id article-id
-                             :flag-name flag-name
-                             :disable disable?
-                             :meta (some-> meta db/to-jsonb)}
-              :returning :*)))
 
 (defn-spec article-locations-map (s/nilable (s/every map?))
   [article-id ::sa/article-id]

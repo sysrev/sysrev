@@ -341,10 +341,6 @@
 
 (defonce ^:dynamic *query-cache-enabled* (atom true))
 
-(defn-spec ^:repl enable-query-cache boolean?
-  [enabled boolean?]
-  (reset! *query-cache-enabled* enabled))
-
 (defmacro with-query-cache [field-path & body]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]

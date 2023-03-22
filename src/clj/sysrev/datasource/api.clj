@@ -71,7 +71,6 @@
        (mapv #(medley/map-keys field-from-graphql %))))
 
 (s/def ::pmids (s/nilable (s/every #(int? (parse-integer %)))))
-(s/def ::nctids (s/nilable (s/every string?)))
 
 (s/def ::name keyword?)
 (s/def ::args (s/map-of keyword? any?))
@@ -106,17 +105,6 @@
                  [:TI :T1 :BT :CT :id]]])
        (run-ds-query)
        :body :data :risFileCitationsByFileHash))
-
-;; TODO: support this for article import (analogous to `fetch-pubmed-articles`)
-(defn-spec fetch-nct-entities (s/map-of string? map?)
-  "Queries datasource API to return article data for sequence `nctids`,
-   returning a map of nctid -> article."
-  [nctids ::nctids, & {:keys [fields]} (opt-keys ::fields)]
-  (->> (query-api {:name :clinicalTrialEntities
-                   :args {:nctids nctids}
-                   :fields (concat [:nctid] (or fields [:json]))})
-       (map (fn [entry] (update entry :json util/read-json)))
-       (index-by :nctid)))
 
 (defn fetch-entities
   "Queries datasource to return map of entity-id -> entity for `entity-ids`."

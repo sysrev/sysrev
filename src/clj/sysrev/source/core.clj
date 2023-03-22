@@ -249,23 +249,6 @@
                   {:count overlap, :source-id id2, :overlap-source-id id1}])))
            (apply concat)))))
 
-(defn-spec project-sources-basic vector?
-  "Returns vector of source information maps for project-id, with just
-  basic information and excluding more expensive queries."
-  [project-id int?]
-  (with-project-cache project-id [:sources :basic-maps]
-    (with-transaction
-      (-> (select :source-id :project-id :meta :enabled :date-created)
-          (from [:project-source :ps])
-          (where [:= :ps.project-id project-id])
-          (->> do-query
-               (mapv (fn [{:keys [source-id] :as psource}]
-                       (merge psource
-                              {:article-count (-> (select :%count.*)
-                                                  (from [:article-source :asrc])
-                                                  (where [:= :asrc.source-id source-id])
-                                                  do-query first :count)}))))))))
-
 (defn-spec project-sources vector?
   "Returns vector of source information maps for project-id."
   [sr-context map? project-id int?]

@@ -39,11 +39,6 @@
                       :parent-project-id parent-project-id}
             :returning :*))
 
-(defn-spec enable-project! int?
-  [project-id int?]
-  (db/with-clear-project-cache project-id
-    (q/modify :project {:project-id project-id} {:enabled true})))
-
 (defn-spec disable-project! int?
   [project-id int?]
   (db/with-clear-project-cache project-id
@@ -130,21 +125,6 @@
               :where (q/exists [:article :a] {:a.project-id project-id
                                               :a.article-id :an.article-id}))
     nil))
-
-(defn-spec add-project-keyword map?
-  "Creates an entry in `project-keyword` table, to be used by web client
-  to highlight important words and link them to labels."
-  [project-id int?, text string?, category string? &
-   {:keys [user-id label-id label-value color] :as optionals}
-   (opt-keys ::skw/user-id ::skw/label-id ::skw/label-value ::skw/color)]
-  (db/with-clear-project-cache project-id
-    (q/create :project-keyword (cond-> {:project-id project-id :value text :category category}
-                                 user-id (assoc :user-id user-id)
-                                 label-id (assoc :label-id label-id)
-                                 ((comp not nil?) label-value)
-                                 (assoc :label-value (db/to-jsonb label-value))
-                                 color (assoc :color color))
-              :returning :*)))
 
 (defn-spec project-keywords ::skw/project-keywords-full
   "Returns map of `project-keyword` entries for a project."

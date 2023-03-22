@@ -26,12 +26,6 @@
           :join [[:s3store :s3] :pd.s3-id]
           :order-by :s3.created))
 
-(defn-spec lookup-deleted-document (s/nilable ::document)
-  [project-id int?, file-key string?]
-  (q/find-one [:project-document :pd] {:pd.project-id project-id :s3.key file-key :delete-time nil}
-              [:pd.* :s3.key :s3.filename :s3.created]
-              :join [[:s3store :s3] :pd.s3-id]))
-
 (defn mark-document-file-deleted
   "Sets `delete-time` to make the file invisible to users while keeping
   the entries in database and S3."
