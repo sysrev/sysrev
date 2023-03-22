@@ -45,21 +45,9 @@ function install_flyway () {
   echo "done"
 }
 
-function install_clj_kondo() {
-  set -eu
-  echo -n "Installing clj-kondo [ ./scripts/clj-kondo ] ... "
-  if [ -e "$PWD/scripts/clj-kondo" ] ; then
-    echo "kept existing"
-  else
-    install-clj-kondo > /dev/null || (echo "failed" && false)
-    echo "done"
-  fi
-}
-
 echo ; check_deps
 echo ; time install_semantic
 echo ; copy_client_semantic
 echo ; time install_client
 echo ; install_flyway
-echo ; install_clj_kondo
 echo

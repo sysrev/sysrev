@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-./scripts/install-clj-kondo.sh --dir $PWD/scripts --version $(cat .clj-kondo/version.txt)

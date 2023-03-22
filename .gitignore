@@ -81,9 +81,6 @@ boot-cljsjs-checksums.edn
 node_modules
 client/semantic
 
-/scripts/clj-kondo
-/scripts/clj-kondo.old
-
 # Nix derivations
 gcroots
 result

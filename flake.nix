@@ -67,8 +67,6 @@
           ] ++ (if stdenv.isDarwin then [ ] else [ chromium ]);
           shellHook = ''
             export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
-            rm -f scripts/clj-kondo
-            ln -s ${clj-kondo}/bin/clj-kondo scripts/
           '' + (if stdenv.isDarwin then
             ""
           else ''
