@@ -71,9 +71,8 @@
           # Used by the ClojureScript test runner
           CHROME_BIN =
             if stdenv.isDarwin then [ ] else [ "${chromium}/bin/chromium" ];
-          shellHook = ''
-            export LD_LIBRARY_PATH="${dbus.lib}/lib:$LD_LIBRARY_PATH"
-          '';
+          LD_LIBRARY_PATH = "${dbus}/lib:"
+            + (builtins.getEnv "LD_LIBRARY_PATH");
         };
       });
 
