@@ -71,7 +71,6 @@ resources/public/css/semantic
 
 /pdf
 
-chrome
 profiles.clj
 /vars.sh
 /flyway.cmd
