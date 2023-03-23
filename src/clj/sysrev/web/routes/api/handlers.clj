@@ -220,9 +220,9 @@
         (make-error-response
          500 :api "answers: Boolean value must be provided")
 
-        (and answers (not members))
+        (and answers (not (and articles labels members)))
         (make-error-response
-         500 :api "answers: Inconsistent option, members must be true")
+         500 :api "answers: articles, labels, and members must be true when answers is true")
 
         (not (or (nil? admin-members-only)
                  (boolean? admin-members-only)))
@@ -257,12 +257,15 @@
                                  (map :user-id)))
               user-ids (or user-ids-only
                            (and user-names-only (to-user-ids user-names-only)))
-              new-project-id (clone/clone-project new-project-name project-id
-                                                  :articles articles
-                                                  :labels labels
-                                                  :answers answers
-                                                  :members members
-                                                  :user-ids-only user-ids)]
+              new-project-id (clone/clone-project
+                              project-id
+                              :admin-members-only? admin-members-only
+                              :copy-answers? answers
+                              :copy-articles? articles
+                              :copy-labels? labels
+                              :copy-members? members
+                              :member-user-ids user-ids
+                              :project-name new-project-name)]
           {:result {:success true
                     :new-project {:project-id new-project-id
                                   :name new-project-name

@@ -1,28 +1,27 @@
 (ns sysrev.project.clone
   (:require [clojure.set :refer [difference]]
             [clojure.tools.logging :as log]
-            [honeysql.helpers :as sqlh :refer [from insert-into join select values
-                                               where]]
+            [honeysql.helpers :as sqlh :refer [from insert-into join select
+                                               values where]]
             [sysrev.article.core :as article]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.db.core :as db :refer
-             [do-execute do-query to-jsonb
-              with-transaction]]
+             [do-execute do-query to-jsonb with-transaction]]
             [sysrev.db.queries :as q]
-            [sysrev.file.article :as article-file]
             [sysrev.label.core :as label]
             [sysrev.project.core :as project]
+            [sysrev.project.description :as description]
             [sysrev.project.member :as member]
             [sysrev.source.core :as source]
             [sysrev.util :refer [in?]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
-                            {:keys [user-ids-only admin-members-only]}]
+                            {:keys [admin-members-only? member-user-ids]}]
   (doseq [user-id (project/project-user-ids src-project-id)]
-    (when (or (nil? user-ids-only)
-              (in? user-ids-only user-id))
+    (when (or (nil? member-user-ids)
+              (in? member-user-ids user-id))
       (let [{:keys [permissions]} (member/project-member src-project-id user-id)]
-        (when (or (not admin-members-only)
+        (when (or (not admin-members-only?)
                   (in? permissions "admin"))
           (member/add-project-member dest-project-id user-id
                                      :permissions permissions))))))
@@ -158,101 +157,6 @@
                      (filterv some?))]
     (q/create :project-keyword entries)))
 
-(defn populate-child-project-articles [parent-id child-id article-uuids]
-  (doseq [article-uuid article-uuids]
-    (when-let [article (-> (q/select-article-where
-                            parent-id [:= :article-uuid article-uuid] [:*]
-                            {:include-disabled? true})
-                           do-query first)]
-      (when-let [new-article-id
-                 (q/create :article (-> article
-                                        (assoc :project-id child-id
-                                               :parent-article-uuid article-uuid)
-                                        (dissoc :article-id :article-uuid
-                                                :duplicate-of :text-search)
-                                        (article/article-to-sql))
-                           :returning :article-id)]
-        (doseq [s3-file (article-file/get-article-file-maps (:article-id article))]
-          (when (:s3-id s3-file)
-            (article-file/associate-article-pdf (:s3-id s3-file) new-article-id)))))))
-
-;; TODO: copy actual sources instead of doing this
-(defn create-project-legacy-source
-  "Create a new legacy source in project and add all articles to it, if
-  project has no sources already."
-  [project-id]
-  (with-transaction
-    (let [n-sources (-> (select :%count.*)
-                        (from [:project-source :ps])
-                        (where [:= :ps.project-id project-id])
-                        do-query first :count)]
-      (when (= 0 n-sources)
-        (log/info "Creating legacy source entry for project" project-id)
-        (let [article-ids (-> (q/select-project-articles
-                               project-id [:a.article-id]
-                               {:include-disabled? true})
-                              (->> do-query (mapv :article-id)))]
-          (if (empty? article-ids)
-            (log/info "No articles in project")
-            (let [source-id (source/create-source
-                             project-id
-                             {:source "legacy"})]
-              (log/info "Creating" (count article-ids)
-                        "article source entries for project" project-id)
-              (doseq [ids-group (partition-all 200 article-ids)]
-                (source/add-articles-to-source ids-group source-id)))))))))
-
-;; TODO: should copy "Project Documents" files
-;; TODO: should copy project sources (not just articles)
-(defn clone-project
-  "Creates a copy of a project.
-
-  Copies most project definition entries over from the parent project
-  (eg. project members, label definitions, keywords).
-
-  `articles`, `labels`, `answers`, `members` control whether to copy
-  those entries from the source project.
-
-  `admin-members-only` if true will skip copying non-admin members to
-  new project.
-
-  `user-ids-only` (optional) explicitly lists which users to add as members
-  of new project."
-  [project-name src-id &
-   {:keys [articles labels answers members user-ids-only admin-members-only]
-    :or {labels false, answers false, articles false, members true}}]
-  (with-transaction
-    (let [dest-id
-          (:project-id (project/create-project
-                        project-name :parent-project-id src-id))
-          article-uuids
-          (when articles
-            (-> (q/select-project-articles src-id [:a.article-uuid])
-                (->> do-query (map :article-uuid))))]
-      (log/info (format "created project (#%d, '%s')"
-                        dest-id project-name))
-      (when articles
-        (populate-child-project-articles
-         src-id dest-id article-uuids)
-        (log/info (format "loaded %d articles"
-                          (project/project-article-count dest-id))))
-      (when members
-        (copy-project-members src-id dest-id
-                              :user-ids-only user-ids-only
-                              :admin-members-only admin-members-only))
-      (if labels
-        (copy-project-label-defs src-id dest-id)
-        (label/add-label-overall-include dest-id))
-      (when labels
-        (copy-project-keywords src-id dest-id))
-      (when (and labels answers articles)
-        (copy-project-article-labels src-id dest-id))
-      (log/info "clone-project done")
-      (create-project-legacy-source dest-id)
-      (when (and articles answers)
-        (predict-api/schedule-predict-update dest-id))
-      dest-id)))
-
 (defn copy-article-source-defs!
   "Given a src-project-id and dest-project-id, create source entries in dest-project-id and return a map of
   {<src-source-id> <dest-source-id>
@@ -308,3 +212,55 @@
       (doall (map #(q/create :article-pdf {:s3-id (:s3-id %)
                                            :article-id (get  src-dest-article-map (:article-id %))})
                   article-pdfs)))))
+
+(defn clone-project
+  "Creates a copy of a project.
+
+  Copies most project definition entries over from the parent project
+  (eg. project members, label definitions, keywords).
+
+  `copy-answers?`, `copy-articles?`, `copy-labels?`, and `copy-members?`
+  control whether to copy those entries from the source project.
+  If `copy-answers?` is true, `copy-articles?`, `copy-labels?`, and
+  `copy-members?` must also be true.
+
+  `admin-members-only?` will skip copying non-admin members to the new project.
+
+  `member-user-ids` (optional) explicitly lists which users to add as members
+  of new project."
+  [src-project-id &
+   {:keys [admin-members-only? copy-answers? copy-articles? copy-labels? copy-members? member-user-ids project-name]
+    :or {copy-answers? false, copy-articles? false, copy-labels? false, copy-members? false}}]
+  (when (and copy-answers? (not (and copy-articles? copy-labels? copy-members?)))
+    (throw (IllegalArgumentException. "copy-articles?, copy-labels?, and copy-members? must be true when copy-answers? is true")))
+  (with-transaction
+    (let [project-name (or project-name (:name (q/find-one :project {:project-id src-project-id})))
+          dest-project-id
+          (:project-id (project/create-project
+                        project-name :parent-project-id src-project-id))]
+      (log/info (format "cloning project #%d to (#%d, '%s')"
+                        src-project-id dest-project-id project-name))
+      (description/set-project-description!
+       dest-project-id
+       (description/read-project-description src-project-id))
+      (when copy-articles?
+        (let [src-dest-source-map (copy-article-source-defs! src-project-id dest-project-id)]
+          (copy-articles! src-dest-source-map src-project-id dest-project-id)
+          (log/info (format "loaded %d articles for project #%d"
+                            (project/project-article-count dest-project-id)
+                            dest-project-id))))
+      (when copy-members?
+        (copy-project-members
+         src-project-id dest-project-id
+         :admin-members-only? admin-members-only?
+         :member-user-ids member-user-ids))
+      (if-not copy-labels?
+        (label/add-label-overall-include dest-project-id)
+        (do
+          (copy-project-label-defs src-project-id dest-project-id)
+          (copy-project-keywords src-project-id dest-project-id)
+          (when copy-answers?
+            (copy-project-article-labels src-project-id dest-project-id)
+            (predict-api/schedule-predict-update dest-project-id))))
+      (log/info (format "finished creating cloned project #%d" dest-project-id))
+      dest-project-id)))
