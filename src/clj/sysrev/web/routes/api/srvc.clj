@@ -165,7 +165,8 @@
           labels (get-project-root-labels sr-context project-id)
           labels-by-id (into {} (for [label labels]
                                   [(:label/label-id label) (convert-label hasher label)]))
-          user-id (some-> (web-api/get-api-token request) user/user-by-api-token :user-id)
+          api-token (web-api/get-api-token request)
+          user-id (some-> api-token user/user-by-api-token :user-id)
           answers (->> (mapcat #(get-label-answers sr-context (:label/label-id %) user-id) labels)
                        (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
           events (concat (vals labels-by-id) (vals articles-by-id) answers)]
@@ -173,7 +174,8 @@
         (not (project/project-exists? project-id))
         {:status 404}
 
-        (not (or (public-project? sr-context project-id)
+        (not (or (util/sysrev-dev-key? sr-context api-token)
+                 (public-project? sr-context project-id)
                  (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)))
         {:status 401}
 
@@ -281,13 +283,15 @@
           project-id (-> params :project-id parse-long)
           labels (get-project-root-labels sr-context project-id)
           events-url (str (util/server-url sr-context) "/web-api/srvc-events?project-id=" project-id)
-          user (some-> (web-api/get-api-token request) user/user-by-api-token)
+          api-token (web-api/get-api-token request)
+          user (some-> api-token user/user-by-api-token)
           {:keys [user-id]} user]
       (cond
         (not (project/project-exists? project-id))
         {:status 404}
 
-        (not (or (public-project? sr-context project-id)
+        (not (or (sysrev.util/sysrev-dev-key? sr-context api-token)
+                 (public-project? sr-context project-id)
                  (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)))
         {:status 401}
 
@@ -453,12 +457,18 @@
 
 (defn sync-label-answer [{:keys [sr-context] :as request} project-id {{:keys [answer document label reviewer]} :data}]
   (let [api-token (web-api/get-api-token request)
-        {:keys [email user-id]} (user/user-by-api-token api-token)
+        dev-key? (util/sysrev-dev-key? sr-context api-token)
+        {:keys [email user-id]} (when-not dev-key? (user/user-by-api-token api-token))
         article-id (hash->article-id sr-context project-id document)]
-    (if (not= reviewer (str "mailto:" email))
+    (cond
+      dev-key? nil
+
+      (not= reviewer (str "mailto:" email))
       (throw (ex-info "Reviewer does not match user email"
                       {:email email
                        :reviewer reviewer}))
+
+      :else
       (answer/set-user-article-labels
        user-id
        article-id
@@ -501,13 +511,15 @@
    :required [:project-id]}
   (fn [{:keys [body params sr-context] :as request}]
     (let [project-id (some-> params :project-id parse-long)
-          user-id (some-> (web-api/get-api-token request) user/user-by-api-token :user-id)]
+          api-token (web-api/get-api-token request)
+          user-id (some-> api-token user/user-by-api-token :user-id)]
       (cond
         (not (project/project-exists? project-id))
         {:status 404
          :body {:error {:message "Project does not exist"}}}
 
-        (not (some->> user-id (project-permissions-for-user sr-context project-id) project-member?))
+        (not (or (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)
+                 (util/sysrev-dev-key? sr-context api-token)))
         {:status 403
          :body {:error {:message "Forbidden"}}}
 
