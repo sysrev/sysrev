@@ -153,9 +153,7 @@
                               :group-id group-id
                               :api-token api-token})))))
         ;; the org is now the owner of the project
-        (is (= group-id (:group-id (project/get-project-owner project-id))))
-        ;; delete the group
-        (group/delete-group! group-id)))))
+        (is (= group-id (:group-id (project/get-project-owner project-id))))))))
 
 (deftest ^:integration create-notification-test
   (test/with-test-system [system {}]

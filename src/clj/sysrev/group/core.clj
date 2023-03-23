@@ -125,9 +125,6 @@
 (defn group-stripe-id [group-id]
   (q/find-one :groups {:group-id group-id} :stripe-id))
 
-(defn delete-group! [group-id]
-  (q/delete :groups {:group-id group-id}))
-
 (defn create-project-group! [project-id group-id]
   (q/create :project-group {:project-id project-id :group-id group-id}
             :returning :id))
