@@ -9,8 +9,14 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    srvc = {
+      url = "github:insilica/rs-srvc/master";
+      inputs.flake-compat.follows = "flake-compat";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
-  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, srvc, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       with import nixpkgs { inherit system; };
       let
@@ -63,7 +69,7 @@
             postgresql
             python39Packages.cfn-lint
             rlwrap
-            srvc
+            srvc.packages.${system}.default
             time
             yarn
             zip
