@@ -639,11 +639,12 @@
 
 #?(:clj (defn server-url [sr-context]
           (or (-> sr-context :config :server :url)
-              (let [{:keys [scheme server-name server-port]} (:request sr-context)]
-                (str (name scheme) "://" server-name
-                     (when-not (or (and (= 80 server-port) (= :http scheme))
-                                   (and (= 443 server-port) (= :https scheme)))
-                       (str ":" server-port)))))))
+              (let [{:keys [scheme server-name server-port]} (:request sr-context)
+                    port (or server-port (-> sr-context :config :server :port))]
+                (str (if scheme (name scheme) "http") "://" (or server-name "localhost")
+                     (when-not (or (and (= 80 port) (= :http scheme))
+                                   (and (= 443 port) (= :https scheme)))
+                       (str ":" port)))))))
 
 ;;;
 ;;; CLJS code
