@@ -20,6 +20,7 @@
                        [clojure.tools.logging :as log]
                        [clojure.data.xml :as dxml]
                        [clojure.math.numeric-tower :as math]
+                       [crypto.equality]
                        [crypto.random]
                        [venia.core :as venia]
                        [sysrev.stacktrace :refer [print-cause-trace-custom]]]
@@ -1038,3 +1039,7 @@
 
                    :else href))))
 
+#?(:clj
+   (defn sysrev-dev-key? [sr-context s]
+     (and (seq s)
+          (crypto.equality/eq? s (-> sr-context :config :sysrev-dev-key)))))

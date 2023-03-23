@@ -20,6 +20,7 @@
         org.clojure/test.check {:mvn/version "1.1.1"}
         org.clojure/math.numeric-tower {:mvn/version "0.0.5"}
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
+        crypto-equality/crypto-equality {:mvn/version "1.0.1"}
         crypto-random/crypto-random {:mvn/version "1.2.1"}
         me.raynes/fs {:mvn/version "1.4.6"}
 
