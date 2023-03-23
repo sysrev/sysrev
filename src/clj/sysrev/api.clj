@@ -1330,7 +1330,7 @@
              :message "You don't have permission to clone that project"}}))
 
 (defn graphql-request
-  "Make a request against out own GraphQL API, using our own dev
+  "Make a request against our own GraphQL API, using our own dev
   key. This allows for internal use of GraphQL"
   [query]
   (let [body (-> (mock/request :post "/graphql")
