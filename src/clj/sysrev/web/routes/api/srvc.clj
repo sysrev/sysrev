@@ -18,7 +18,7 @@
 (declare label-schema)
 
 (defn hash-process []
-  (let [{:keys [in out] :as proc} (p/process ["sr" "hash"])]
+  (let [{:keys [in out] :as proc} (p/process "sr" "hash")]
     {:process proc
      :reader (io/reader out)
      :writer (io/writer in)}))
