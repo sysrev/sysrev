@@ -474,7 +474,9 @@
                   :tooltip ["Allow answers to contain multiple string values."]}
    :inclusion    {:display "Inclusion criteria"
                   :tooltip ["Define a relationship between this label and article inclusion."
-                            "Users will be warned if their answers contradict the value selected for article inclusion."]}})
+                            "Users will be warned if their answers contradict the value selected for article inclusion."]}
+   :predict-with-gpt {:display "Predict answers with GPT?"
+                      :tooltip ["Predict label answers using GPT models"]}})
    ; :entities     {:path [:definition :entities]
    ;                :display "Entities To Annotate (i.e Person) (comma-separated)"
    ;                :tooltip ["Entities that are able to be annotated."]
@@ -841,14 +843,17 @@
          [:div.column {:style {:padding "0.5em"}} [DetachLabelButton label]]]])]))
 
 (defn GroupLabelEditForm [labels-atom label]
-  (let [short-label (r/cursor label [:short-label])
+  (let [{:keys [project-id]} @label
+        {:keys [gpt-access]} @(subscribe [:project/settings project-id])
+        short-label (r/cursor label [:short-label])
         root-label-id (r/cursor label [:label-id])
         definition (r/cursor label [:definition])
         errors (r/cursor label [:errors])
         multi? (r/cursor definition [:multi?])
+        predict-with-gpt (r/cursor label [:predict-with-gpt])
         labels (r/cursor label [:labels])
         is-new? (and (string? (:label-id @label)) (str/starts-with? (:label-id @label) new-label-id-prefix))
-        is-owned? (or is-new? (= (:owner-project-id @label) (:project-id @label)))]
+        is-owned? (or is-new? (= (:owner-project-id @label) project-id))]
     [:div.ui.form.define-group-label {:id (str "group-label-id-" @root-label-id)}
      ;; short-label
      [ui/TextInputField
@@ -864,6 +869,13 @@
                   :disabled (not is-owned?)
                   :on-change #(reset! multi? (-> % .-target .-checked boolean))}
                  errors)]
+     (when gpt-access
+       [ui/LabeledCheckboxField
+        (make-args :predict-with-gpt
+                   {:checked? @predict-with-gpt
+                    :disabled (not is-owned?)
+                    :on-change #(reset! predict-with-gpt (-> % .-target .-checked boolean))}
+                   errors)])
      [:div {:class (css "sub-labels-edit-form"
                         [(:labels-error @errors) "error"])}
       (when (:labels-error @errors)
@@ -1106,15 +1118,15 @@
                                       (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
                                       (sync-to-server))})
 
-                        (clj->js
-                         {:icon "check_circle"
-                          :tooltip "Enable label"
-                          :disabled (or (= (.-valueType ^js rowData) "group") (and has-relationsip-label? (= (.-valueType ^js rowData) "relationship")))
-                          :onClick (fn [event rowData]
-                                     (.stopPropagation event)
-                                     (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
-                                     (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
-                                     (sync-to-server))})))])
+                         (clj->js
+                          {:icon "check_circle"
+                           :tooltip "Enable label"
+                           :disabled (or (= (.-valueType ^js rowData) "group") (and has-relationsip-label? (= (.-valueType ^js rowData) "relationship")))
+                           :onClick (fn [event rowData]
+                                      (.stopPropagation event)
+                                      (reset-local-label! labels-atom (or (.-parentId ^js rowData) "na") (.-id ^js rowData))
+                                      (swap! (r/cursor labels-atom [(.-id ^js rowData) :enabled]) not)
+                                      (sync-to-server))})))])
          :onRowClick (fn [_event rowData]
                        (when self-email
                          (dispatch [::set :editing-root-label-id (.-parentId ^js rowData)])

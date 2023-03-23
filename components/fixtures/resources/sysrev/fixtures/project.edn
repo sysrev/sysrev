@@ -17,4 +17,4 @@
   :enabled true
   :name "GPT"
   :project-uuid #uuid "92efbc58-e4c3-4309-b33e-edad6975f06a"
-  :settings [:lift {:public-access true :second-review-prob 0.5}]}]
+  :settings [:lift {:gpt-access true :public-access true :second-review-prob 0.5}]}]

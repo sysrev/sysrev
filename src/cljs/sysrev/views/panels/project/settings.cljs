@@ -182,6 +182,7 @@
     :blind-reviewers    (boolean value)
     :auto-save-labels   (boolean value)
     :freeze-model       (boolean value)
+    :gpt-access         (boolean value)
     nil))
 
 (defn- render-setting [skey]
@@ -355,6 +356,21 @@
       :value true
       :tooltip "Model frozen"}]}])
 
+(defn- GPTAccessField []
+  [SettingsField
+   {:setting :gpt-access
+    :label "GPT Access"
+    :disabled? false
+    :entries
+    [{:key :false
+      :label [:span "No"]
+      :value false
+      :tooltip "GPT access not enabled"}
+     {:key :true
+      :label [:span "Yes"]
+      :value true
+      :tooltip "GPT access enabled"}]}])
+
 (defn ProjectNameField []
   (let [skey :project-name
         admin? (admin?)
@@ -432,7 +448,9 @@
           [UnlimitedReviewsField]
           [AutoSaveLabelsField]
           [BlindReviewersField project-id]
-          [FreezeModelField]]
+          [FreezeModelField]
+          (when (re-matches #".*@insilica.co" @(subscribe [:self/email]))
+            [GPTAccessField])]
          (when (admin?)
            [:div
             [:div.ui.divider]

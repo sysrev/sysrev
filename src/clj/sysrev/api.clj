@@ -98,13 +98,15 @@
 
 (declare set-user-group!)
 
+(def premium-settings #{:gpt-access :public-access})
+
 (defn change-project-settings [project-id changes]
   (with-transaction
     (doseq [{:keys [setting value]} changes]
-      (cond (and (= setting :public-access)
+      (cond (and (premium-settings setting)
                  (pplan/project-unlimited-access? project-id))
             (project/change-project-setting project-id (keyword setting) value)
-            (and (= setting :public-access)
+            (and (premium-settings setting)
                  (= value false)
                  (= "Basic" (pplan/project-owner-plan project-id))) nil
             :else (project/change-project-setting project-id (keyword setting) value)))

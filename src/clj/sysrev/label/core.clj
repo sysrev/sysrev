@@ -148,7 +148,7 @@
                           [:= :root-label-id-local root-label-id-local]]))
       (q/modify :label {:label-id label-id}
                 (-> (assoc values-map :project-ordering ordering)
-                    (select-keys #{:category :consensus :definition :enabled :name :project-ordering :question :required :short-label :value-type})))
+                    (select-keys #{:category :consensus :definition :enabled :name :predict-with-gpt :project-ordering :question :required :short-label :value-type})))
       ;; Update shared labels
       (let [shared-in-project-ids (map :project-id (-> (select :%distinct.project-id)
                                                        (from :label)
@@ -497,7 +497,7 @@
   [project-id m]
   (db/with-clear-project-cache project-id
     (db/with-transaction
-      (let [{:keys [enabled value-type name short-label required category label-id definition]} m
+      (let [{:keys [enabled value-type name short-label required category label-id definition predict-with-gpt]} m
             label-existed? (not (string? label-id)) ; remember: new labels are strings
             uuid (when-not label-existed? (random-uuid))
             current-label (if label-existed?
@@ -521,7 +521,8 @@
                                           :question "N/A"
                                           :definition definition
                                           :label-id uuid
-                                          :global-label-id uuid}])
+                                          :global-label-id uuid
+                                          :predict-with-gpt (boolean predict-with-gpt)}])
                                 (psqlh/returning :*)
                                 do-query
                                 first))
