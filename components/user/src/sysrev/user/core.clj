@@ -10,8 +10,7 @@
             [honeysql.core :as sql]
             [honeysql.helpers
              :as sqlh
-             :refer [from join merge-join order-by select
-                     where]]
+             :refer [from join order-by select where]]
             [medley.core :as medley]
             [orchestra.core :refer [defn-spec]]
             [sysrev.db.core :as db :refer [do-query with-transaction]]
@@ -205,21 +204,7 @@
   "Returns a map of values with various user account information.
   This result is sent to client for the user's own account upon login."
   [user-id]
-  (let [project-url-ids (-> (select :purl.url-id :purl.project-id)
-                            (from [:project-member :m])
-                            (join [:project :p]
-                                  [:= :p.project-id :m.project-id])
-                            (merge-join [:project-url-id :purl]
-                                        [:= :purl.project-id :p.project-id])
-                            (where [:and
-                                    [:= :m.user-id user-id]
-                                    [:= :p.enabled true]
-                                    [:= :m.enabled true]])
-                            (order-by [:purl.date-created :desc])
-                            (->> do-query
-                                 (group-by :project-id)
-                                 (medley/map-vals #(mapv :url-id %))))
-        projects (-> (select :p.project-id :p.name :p.date-created
+  (let [projects (-> (select :p.project-id :p.name :p.date-created
                              :m.join-date :m.access-date
                              [:p.enabled :project-enabled]
                              [:m.enabled :member-enabled]
@@ -241,7 +226,6 @@
                           reverse
                           (mapv #(-> %
                                      (assoc :member? true
-                                            :url-ids (get project-url-ids (:project-id %))
                                             :public-access (-> % :settings :public-access)
                                             :project-owner (project/get-project-owner (:project-id %)))
                                      (dissoc :settings)))))]
@@ -353,7 +337,3 @@
       (if (empty? user-ids)
         user-ids
         (get-users-public-info user-ids)))))
-
-(defn user-id-from-url-id [url-id]
-  ;; TODO: implement url-id strings for users
-  (util/parse-integer url-id))

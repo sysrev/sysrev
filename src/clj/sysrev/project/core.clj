@@ -176,14 +176,6 @@
                   do-query first :count)
               0)))
 
-(defn project-url-ids [project-id]
-  (vec (q/find :project-url-id {:project-id project-id} [:url-id :user-id :date-created]
-               :order-by [:date-created :desc])))
-
-(defn project-id-from-url-id [url-id]
-  (or (util/parse-integer url-id)
-      (first (q/find :project-url-id {:url-id url-id} :project-id))))
-
 (defn member-count [project-id]
   (q/find-count :project-member {:project-id project-id}))
 

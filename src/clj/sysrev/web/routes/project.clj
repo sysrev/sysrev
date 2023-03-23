@@ -112,7 +112,7 @@
 (defn project-info [sr-context project-id]
   (with-project-cache project-id [:project-info]
     (let [[[fields users labels keywords members predict
-            url-ids files owner plan subscription-lapsed?]
+            files owner plan subscription-lapsed?]
            [_ [_status-counts progress]]
            [articles sources]
            parent-project-info
@@ -124,10 +124,6 @@
                     (label/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
-                    (try (project/project-url-ids project-id)
-                         (catch Throwable _
-                           (log/info "exception in project-url-ids")
-                           []))
                     (doc-file/list-project-documents project-id)
                     (project/get-project-owner project-id)
                     (pplan/project-owner-plan project-id)
@@ -154,8 +150,7 @@
                   :stats {:articles articles
                           :predict predict
                           :progress progress}
-                  :subscription-lapsed? subscription-lapsed?
-                  :url-ids url-ids))
+                  :subscription-lapsed? subscription-lapsed?))
        :users users})))
 
 ;;;
@@ -309,10 +304,10 @@
         {:result (let [url-id (-> request :params :url-id util/read-transit-str)
                        [project-url-id {:keys [user-url-id org-url-id]}] url-id
                           ;; TODO: lookup project-id from combination of owner/project names
-                       project-id (project/project-id-from-url-id project-url-id)
+                       project-id (parse-long project-url-id)
                        owner (some-> project-id project/get-project-owner)
-                       user-id (some-> user-url-id user/user-id-from-url-id)
-                       org-id (some-> org-url-id group/group-id-from-url-id)
+                       user-id (some-> user-url-id parse-long)
+                       org-id (some-> org-url-id parse-long)
                        user-match? (and user-id (= user-id (:user-id owner)))
                        org-match? (and org-id (= org-id (:group-id owner)))
                        owner-url? (boolean (or user-url-id org-url-id))

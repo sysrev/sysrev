@@ -116,11 +116,6 @@
   [user-id verify-code]
   (user/user-email-status user-id verify-code))
 
-(defn user-id-from-url-id
-  "Not really implemented - just a parse-integer call."
-  [url-id]
-  (user/user-id-from-url-id url-id))
-
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id]

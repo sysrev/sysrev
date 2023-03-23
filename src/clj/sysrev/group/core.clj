@@ -163,10 +163,6 @@
       {:error {:message
                (str "No customer id returned by stripe.com for group-id: " group-id)}})))
 
-(defn group-id-from-url-id [url-id]
-  ;; TODO: implement url-id strings for groups
-  (util/parse-integer url-id))
-
 (defn search-groups
   "Return groups whose name matches search term q"
   [q & {:keys [limit] :or {limit 5}}]
