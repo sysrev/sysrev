@@ -113,6 +113,17 @@
    :required true
    :value-type "boolean"})
 
+(defn project-name-error [name]
+  (cond
+    (str/blank? name)
+    "Project name cannot be blank"
+
+    (< 40 (count name))
+    "Project name must be 40 characters or less."
+
+    (not (re-matches re-project-name name))
+    "Project name may only contain letters, numbers, and hyphens. It may not start or end with a hyphen."))
+
 (defn create-project! [context args _]
   (with-tx-context [context context]
     (let [user-id (current-user-id context)
@@ -120,16 +131,8 @@
       (cond
         (not user-id) (resolve/resolve-as nil {:message "Invalid API token"})
 
-        (str/blank? name)
-        (resolve/resolve-as nil {:message "Project name cannot be blank"
-                                 :name name})
-
-        (< 40 (count name))
-        (resolve/resolve-as nil {:message "Project name must be 40 characters or less."
-                                 :name name})
-
-        (not (re-matches re-project-name name))
-        (resolve/resolve-as nil {:message "Project name may only contain letters, numbers, and hyphens. It may not start or end with a hyphen."
+        (project-name-error name)
+        (resolve/resolve-as nil {:message (project-name-error name)
                                  :name name})
 
         :else

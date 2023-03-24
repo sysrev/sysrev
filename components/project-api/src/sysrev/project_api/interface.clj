@@ -16,3 +16,8 @@
    :Mutation {:createProject #'core/create-project!
               :createProjectLabel #'core/create-project-label!
               :createProjectSource #'source/create-project-source!}})
+
+(defn project-name-error
+  "Returns an error message if the project name is valid, or else nil."
+  [name]
+  (core/project-name-error name))
