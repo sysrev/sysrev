@@ -689,14 +689,14 @@
               files (doc-file/list-project-documents project-id)]
           {:result (vec files)}))))
 
-(dr (GET "/api/files/:project-id/download/:file-key"
+(dr (GET "/api/files/:project-id/download/:s3-id"
       {:keys [params sr-context] :as request}
       (with-authorize request {:allow-public true}
         (let [project-id (active-project request)
-              {:keys [file-key]} params
-              {:keys [filename]} (doc-file/lookup-document-file project-id file-key)]
+              {:keys [s3-id]} params
+              {:keys [filename key]} (doc-file/lookup-document-file project-id (parse-long s3-id))]
           (when filename
-            (-> (response/response (s3-file/get-file-stream sr-context file-key :document))
+            (-> (response/response (s3-file/get-file-stream sr-context key :document))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename))))))))
 
@@ -710,11 +710,11 @@
           (doc-file/save-document-file sr-context project-id user-id filename tempfile)
           {:result 1}))))
 
-(dr (POST "/api/files/:project-id/delete/:file-key" request
+(dr (POST "/api/files/:project-id/delete/:s3-id" request
       (with-authorize request {:roles ["member"]}
         (let [project-id (active-project request)
-              {:keys [file-key]} (:params request)]
-          {:result (doc-file/mark-document-file-deleted project-id file-key)}))))
+              {:keys [s3-id]} (:params request)]
+          {:result (doc-file/mark-document-file-deleted project-id (parse-long s3-id))}))))
 
 ;;
 ;; Project export files

@@ -14,8 +14,8 @@
 (s/def ::document map?)
 
 (defn-spec lookup-document-file (s/nilable ::document)
-  [project-id int?, file-key string?]
-  (q/find-one [:project-document :pd] {:pd.project-id project-id :s3.key file-key :delete-time nil}
+  [project-id int?, s3-id int?]
+  (q/find-one [:project-document :pd] {:pd.project-id project-id :pd.s3-id s3-id :delete-time nil}
               [:pd.* :s3.key :s3.filename :s3.created]
               :join [[:s3store :s3] :pd.s3-id]))
 
@@ -26,12 +26,12 @@
           :join [[:s3store :s3] :pd.s3-id]
           :order-by :s3.created))
 
-(defn mark-document-file-deleted
+(defn-spec mark-document-file-deleted ::document
   "Sets `delete-time` to make the file invisible to users while keeping
   the entries in database and S3."
-  [project-id file-key]
+  [project-id int?, s3-id int?]
   (db/with-clear-project-cache project-id
-    (when-let [{:keys [pdoc-id]} (lookup-document-file project-id file-key)]
+    (when-let [{:keys [pdoc-id]} (lookup-document-file project-id s3-id)]
       (q/modify :project-document {:pdoc-id pdoc-id} {:delete-time :%now}))))
 
 (defn-spec save-document-file map?

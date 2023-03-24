@@ -21,8 +21,8 @@
 (defn- get-file-class [fname]
   (get file-types (-> fname (str/split #"\.") last) "text"))
 
-(defn- get-file-url [project-id key _name]
-  (str "/api/files/" project-id "/download/" key))
+(defn- get-file-url [project-id s3-id]
+  (str "/api/files/" project-id "/download/" s3-id))
 
 (reg-sub ::editing-files
          :<- [:panel-field :editing]
@@ -47,7 +47,7 @@
               (let [date (from-date (:created file))
                     parts (mapv #(% date) [t/month t/day t/year])]
                 (apply goog.string/format "%d/%d/%d" parts)))
-            (delete-file [file-key] (dispatch [:action [:project/delete-file project-id file-key]]))
+            (delete-file [s3-id] (dispatch [:action [:project/delete-file project-id s3-id]]))
             (pull-files [] (dispatch [:fetch [:project/files project-id]]))]
       (with-loader [[:project project-id]
                     [:project/files project-id]] {}
@@ -56,18 +56,18 @@
            [:h4.ui.dividing.header "Project Documents"]
            [:div.ui.middle.aligned.divided.list
             (doall
-             (for [{:keys [key filename] :as file} @files]
-               [:div.icon.item {:key key}
+             (for [{:keys [filename s3-id] :as file} @files]
+               [:div.icon.item {:key (str s3-id)}
                 [:div.right.floated.content
                  [:div.ui.small.label (show-date file)]]
                 (if @editing-files
                   [:i.ui.middle.aligned.red.times.circle.outline.icon
-                   {:on-click #(delete-file key)
+                   {:on-click #(delete-file s3-id)
                     :style {:cursor "pointer"}}]
                   [:i.ui.middle.aligned.outline.blue.file.icon
                    {:class (get-file-class filename)}])
                 [:div.content.file-link
-                 [:a {:href (get-file-url project-id key filename) :target "_blank"
+                 [:a {:href (get-file-url project-id s3-id) :target "_blank"
                       :download filename}
                   filename]]]))]
            (when member?

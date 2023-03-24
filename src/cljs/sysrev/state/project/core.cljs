@@ -72,7 +72,7 @@
                                 [:project/navigate project-id])}))
 
 (def-action :project/delete-file
-  :uri (fn [project-id file-key] (str "/api/files/" project-id "/delete/" file-key))
+  :uri (fn [project-id s3-id] (str "/api/files/" project-id "/delete/" s3-id))
   :process (fn [_ [project-id _] _]
              {:dispatch [:reload [:project/files project-id]]}))
 
