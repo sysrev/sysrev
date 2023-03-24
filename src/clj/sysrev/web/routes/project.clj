@@ -34,6 +34,7 @@
                      set-project-description!]]
             [sysrev.project.member :as member]
             [sysrev.project.plan :as pplan]
+            [sysrev.project-api.interface :as project-api]
             [sysrev.shared.keywords :as keywords]
             [sysrev.source.core :as source]
             [sysrev.source.files :as files]
@@ -553,9 +554,13 @@
 (dr (POST "/api/change-project-name" request
       (with-authorize request {:roles ["admin"]}
         (let [project-id (active-project request)
-              {:keys [project-name]} (:body request)]
-          (project/change-project-name project-id project-name)
-          {:success true, :project-name project-name}))))
+              {:keys [project-name]} (:body request)
+              error (project-api/project-name-error project-name)]
+          (if error
+            {:error {:message error}}
+            (do
+              (project/change-project-name project-id project-name)
+              {:success true, :project-name project-name}))))))
 
 (dr (POST "/api/change-project-permissions" request
       (with-authorize request {:roles ["admin"]}

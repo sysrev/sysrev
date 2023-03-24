@@ -1,17 +1,19 @@
 (ns sysrev.views.panels.project.settings
-  (:require [clojure.string :as str]
+  (:require ["@material-ui/icons/Block$default" :as BlockIcon]
+            [clojure.string :as str]
+            [re-frame.core :refer [dispatch reg-event-db reg-sub subscribe
+                                   trim-v]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-event-db]]
             [sysrev.action.core :as action :refer [def-action run-action]]
             [sysrev.data.core :as data]
+            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.nav :as nav]
             [sysrev.state.identity :refer [current-user-id]]
+            [sysrev.util :as util :refer [css in? parse-integer when-test]]
             [sysrev.views.components.core :as ui :refer [CursorMessage]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.semantic :as S :refer [Modal ModalContent ModalDescription ModalHeader]]
-            [sysrev.util :as util :refer [in? css parse-integer when-test]]
-            [sysrev.macros :refer-macros [setup-panel-state def-panel]]
-            ["@material-ui/icons/Block$default" :as BlockIcon]))
+            [sysrev.views.semantic :as S :refer [Divider Modal ModalContent
+                                                 ModalDescription ModalHeader]]))
 
 ;; for clj-kondo
 (declare panel state)
@@ -20,6 +22,10 @@
                    :state state :get [panel-get] :set [panel-set])
 
 (reg-event-db :project-settings/reset-state! #(panel-set % nil {}))
+
+(reg-sub      ::error-message #(panel-get % :error-message))
+(reg-event-db ::error-message [trim-v]
+              (fn [db [msg]] (panel-set db :error-message msg)))
 
 (defn- parse-input [skey input]
   (case skey
@@ -149,7 +155,9 @@
                {:dispatch-n
                 (list [:reload [:identity]]
                       [:reload [:public-projects]]
-                      [:reload [:project project-id]])})))
+                      [:reload [:project project-id]])}))
+  :on-error (fn [{:keys [db error]} _ _]
+              {:db (panel-set db :error-message (:message error))}))
 
 (defn save-changes [project-id]
   (let [values (current-values)
@@ -374,7 +382,8 @@
 (defn ProjectNameField []
   (let [skey :project-name
         admin? (admin?)
-        current (misc-current skey)]
+        current (misc-current skey)
+        error @(subscribe [::error-message])]
     [:div.field.project-name {:class (misc-field-class skey)}
      [:label "Project Name"]
      [:textarea {:readOnly (not admin?)
@@ -382,7 +391,12 @@
                  :value current
                  :on-change (when admin?
                               (util/wrap-prevent-default
-                               #(edit-misc skey (-> % .-target .-value))))}]]))
+                               #(edit-misc skey (-> % .-target .-value))))}]
+     (when error
+       [:<>
+        [Divider]
+        [:div.ui.error.message {:style {:display "block"}}
+         error]])]))
 
 (defn- DisableProjectForm []
   (let [confirming-disable (r/cursor state [:confirming-disable])
