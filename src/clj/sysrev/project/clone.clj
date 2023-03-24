@@ -142,21 +142,6 @@
             (values (vec entry-group))
             do-execute)))))
 
-(defn copy-project-keywords [src-project-id dest-project-id]
-  (let [src-id-to-name  (q/find-label {:project-id src-project-id}
-                                      :name, :index-by :label-id, :include-disabled true)
-        name-to-dest-id (q/find-label {:project-id dest-project-id}
-                                      :label-id, :index-by :name, :include-disabled true)
-        convert-label-id #(-> % src-id-to-name name-to-dest-id)
-        entries (->> (q/find :project-keyword {:project-id src-project-id})
-                     (map #(when-let [label-id (convert-label-id (:label-id %))]
-                             (-> (dissoc % :keyword-id :label-id :project-id)
-                                 (assoc :label-id label-id
-                                        :project-id dest-project-id)
-                                 (update :label-value to-jsonb))))
-                     (filterv some?))]
-    (q/create :project-keyword entries)))
-
 (defn copy-article-source-defs!
   "Given a src-project-id and dest-project-id, create source entries in dest-project-id and return a map of
   {<src-source-id> <dest-source-id>
@@ -258,7 +243,6 @@
         (label/add-label-overall-include dest-project-id)
         (do
           (copy-project-label-defs src-project-id dest-project-id)
-          (copy-project-keywords src-project-id dest-project-id)
           (when copy-answers?
             (copy-project-article-labels src-project-id dest-project-id)
             (predict-api/schedule-predict-update dest-project-id))))
