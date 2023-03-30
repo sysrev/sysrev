@@ -283,7 +283,7 @@
                 [(labels-synced?) "disabled"])
     :on-click (fn [ev]
                 (dispatch [:alert {:content "Saving..." :opts {:success true}}])
-                (on-click ev))}
+                (when on-click (on-click ev)))}
    [:i.check.circle.outline.icon] "Save"])
 
 (def-action :labels/get-share-code
