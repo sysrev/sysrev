@@ -1,6 +1,5 @@
 (ns sysrev.pdf
-  (:require ["jquery" :as $]
-            [re-frame.core :refer [dispatch subscribe]]
+  (:require [re-frame.core :refer [dispatch subscribe]]
             ["react-pdf" :refer [Document Page] :as react-pdf]
             [reagent.core :as r]
             [sysrev.action.core :refer [def-action]]
@@ -272,7 +271,7 @@
                     :width width}]]])
       :component-did-mount
       (fn [_]
-        (reset! width (-> ($ (str "#" dom-id)) (.width))))
+        (reset! width (-> (js/getElementById dom-id) .-width)))
       :component-did-update
       (fn [this [_ old-props]]
         (when (not= (:content (r/props this)) (:content old-props))

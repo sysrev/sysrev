@@ -1,7 +1,6 @@
 (ns sysrev.views.components.core
   (:require ["clipboard" :as Clipboard]
             ["dropzone" :as Dropzone]
-            ["jquery" :as $]
             ["@material-ui/core" :as mui]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
@@ -178,7 +177,7 @@
                                 :else             "primary")
                           " icon button"))
             get-domid #(str domid "_" (pr-str %))
-            set-focus #(-> (fn [] (.focus ($ (str "#" (get-domid %)))))
+            set-focus #(-> (fn [] (.focus (js/document.getElementById (get-domid %))))
                            (js/setTimeout 25))
             set-value-focus #(do (set-answer! %) (set-focus %))
             render

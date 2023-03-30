@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.login
-  (:require ["jquery" :as $]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [goog.uri.utils :as uri-utils]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-fx trim-v]]
@@ -122,12 +121,12 @@
          #(or % ""))
 
 (defn- email-input []
-  (let [val (.val ($ "#login-email-input"))]
+  (let [val (.-value (js/document.getElementById "login-email-input"))]
     (dispatch [::set-email val])
     val))
 
 (defn- password-input []
-  (let [val (.val ($ "#login-password-input"))]
+  (let [val (.-value (js/document.getElementById "login-password-input"))]
     (dispatch [::set-password val])
     val))
 

@@ -33,7 +33,6 @@
     "dompurify": "2.3.6",
     "dropzone": "5.7.6",
     "form-data": "4.0.0",
-    "jquery": "3.6.0",
     "jspdf": "^2.3.1",
     "jspdf-autotable": "^3.5.20",
     "moment": "2.29.1",

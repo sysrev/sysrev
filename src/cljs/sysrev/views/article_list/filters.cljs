@@ -1,7 +1,6 @@
 (ns sysrev.views.article-list.filters
   (:require [clojure.set :as set]
             [clojure.string :as str]
-            ["jquery" :as $]
             [medley.core :as medley]
             [re-frame.core :refer
              [dispatch dispatch-sync reg-event-db
@@ -642,7 +641,7 @@
         [:div.ui.tiny.fluid.icon.button {:on-click #(dispatch-sync [::set-text-search context nil])}
          [:i.times.icon]]]
        [:div.middle.aligned.fourteen.wide.column
-        [:button.ui.tiny.fluid.button {:on-click #(.focus ($ "#article-search"))}
+        [:button.ui.tiny.fluid.button {:on-click #(.focus (js/document.getElementById "article-search"))}
          (space-join ["text contains" (->> (str/split text-search #"[ \t\r\n]+")
                                            (map pr-str)
                                            (str/join " AND "))])]]])))

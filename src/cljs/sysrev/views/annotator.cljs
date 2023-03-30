@@ -1,6 +1,5 @@
 (ns sysrev.views.annotator
-  (:require ["jquery" :as $]
-            [clojure.data.xml :as dxml]
+  (:require [clojure.data.xml :as dxml]
             [goog.dom :as gdom]
             [medley.core :as medley]
             [sysrev.views.semantic :as S]
@@ -106,7 +105,7 @@
                      (set-ann [:semantic-class] v)
                      (set-ann [:value] selection)
                      (when (not touchscreen?)
-                       (-> #(.select ($ ".annotation-view.new-annotation .field.value input"))
+                       (-> #(.select (js/document.querySelector ".annotation-view.new-annotation .field.value input"))
                            (js/setTimeout 50))))}])
      [:form.ui.small.form.edit-annotation
       {:on-submit (util/wrap-user-event on-save :prevent-default true)}

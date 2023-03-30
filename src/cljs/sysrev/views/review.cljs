@@ -1,6 +1,5 @@
 (ns sysrev.views.review
-  (:require ["jquery" :as $]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
@@ -335,8 +334,8 @@
                               #(js/setTimeout
                                 (fn []
                                   (some->
-                                   ($ (str "." (class-for-idx value-idx) ":visible"))
-                                   (.focus)))
+                                   (js/document.querySelector (str "." (class-for-idx value-idx) ":visible"))
+                                   .focus))
                                 25))
                   focus-prev (focus-elt (dec i))
                   focus-next (focus-elt (inc i))
@@ -579,8 +578,8 @@
 
 (defn- review-task-ready-for-action? []
   (and (loading/ajax-status-inactive? 50)
-       (zero? (-> ($ "div.view-pdf.rendering") .-length))
-       (zero? (-> ($ "div.view-pdf.updating") .-length))))
+       (zero? (-> (js/document.querySelectorAll "div.view-pdf.rendering") .-length))
+       (zero? (-> (js/document.querySelectorAll "div.view-pdf.updating") .-length))))
 
 (defn SaveButton [article-id & [small? fluid?]]
   (r/with-let [can-auto-save? (r/atom "NOT_SET")]

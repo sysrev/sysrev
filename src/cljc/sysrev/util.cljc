@@ -24,8 +24,7 @@
                        [crypto.random]
                        [venia.core :as venia]
                        [sysrev.stacktrace :refer [print-cause-trace-custom]]]
-                :cljs [["jquery" :as $]
-                       ["moment" :as moment]
+                :cljs [["moment" :as moment]
                        ["dropzone" :as Dropzone]
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
@@ -657,10 +656,10 @@
 #?(:cljs (reg-fx :scroll-top (fn [_] (scroll-top))))
 
 #?(:cljs (defn viewport-width []
-           (. ($ js/window) (width))))
+           js/window.innerWidth))
 
 #?(:cljs (defn viewport-height []
-           (. ($ js/window) (height))))
+           js/window.innerHeight))
 
 #?(:cljs (defn mobile? []
            (< (viewport-width) 768)))
@@ -785,8 +784,7 @@
 
 #?(:cljs (defn input-focused? []
            (when-let [el js/document.activeElement]
-             (when (or (.is ($ el) "input")
-                       (.is ($ el) "textarea"))
+             (when (#{"INPUT" "TEXTAREA"} (.-tagName el))
                el))))
 
 ;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
@@ -902,33 +900,31 @@
 ;; https://www.kirupa.com/html5/get_element_position_using_javascript.htm
 #?(:cljs (defn get-element-position [el]
            (letfn [(get-position [el x y]
-                     (let [next-el ($ el :offsetParent)
+                     (let [next-el (.-offsetParent el)
                            [next-x next-y]
-                           (if (= ($ el :tagName) "BODY")
-                             (let [xscroll (if (number? ($ el :scrollLeft))
-                                             ($ el :scrollLeft)
-                                             (-> ($ js/document :documentElement)
-                                                 ($ :scrollLeft)))
-                                   yscroll (if (number? ($ el :scrollTop))
-                                             ($ el :scrollTop)
-                                             (-> ($ js/document :documentElement)
-                                                 ($ :scrollTop)))]
+                           (if (= (.-tagName el) "BODY")
+                             (let [xscroll (if (number? (.-scrollLeft el))
+                                             (.-scrollLeft el)
+                                             js/document.documentElement.scrollLeft)
+                                   yscroll (if (number? (.-scrollTop el))
+                                             (.-scrollTop el)
+                                             js/document.documentElement.scrollTop)]
                                [(+ x
-                                   ($ el :offsetLeft)
+                                   (.-offsetLeft el)
                                    (- xscroll)
-                                   ($ el :clientLeft))
+                                   (.-clientLeft el))
                                 (+ y
-                                   ($ el :offsetTop)
+                                   (.-offsetTop el)
                                    (- yscroll)
-                                   ($ el :clientTop))])
+                                   (.-clientTop el))])
                              [(+ x
-                                 ($ el :offsetLeft)
-                                 (- ($ el :scrollLeft))
-                                 ($ el :clientLeft))
+                                 (.-offsetLeft el)
+                                 (- (.-scrollLeft el))
+                                 (.-clientLeft el))
                               (+ y
-                                 ($ el :offsetTop)
-                                 (- ($ el :scrollTop))
-                                 ($ el :clientTop))])]
+                                 (.-offsetTop el)
+                                 (- (.-scrollTop el))
+                                 (.-clientTop el))])]
                        (if (or (nil? next-el) (undefined? next-el))
                          {:top next-y :left next-x}
                          (get-position next-el next-x next-y))))]
@@ -936,10 +932,10 @@
                (get-position el 0 0)))))
 
 #?(:cljs (defn get-scroll-position []
-           {:top  (or ($ js/window :pageYOffset)
-                      (-> ($ js/document :documentElement) ($ :scrollTop)))
-            :left (or ($ js/window :pageXOffset)
-                      (-> ($ js/document :documentElement) ($ :scrollLeft)))}))
+           {:top  (or js/window.pageYOffset
+                      js/document.documentElement.scrollTop)
+            :left (or js/window.pageXOffset
+                      js/document.documentElement.scrollLeft)}))
 
 #?(:cljs (defn get-url-path []
            (str js/window.location.pathname
@@ -951,12 +947,20 @@
 #?(:cljs (defn parse-css-px [px-str]
            (parse-integer (second (re-matches #"(\d+)px" px-str)))))
 
+#?(:cljs (defn get-css-property [el property]
+           (some-> el
+                   js/window.getComputedStyle
+                   (.getPropertyValue property))))
+
 #?(:cljs (defn update-sidebar-height []
-           (when (pos? (.-length ($ ".column.panel-side-column")))
+           (when (js/document.querySelector ".column.panel-side-column")
              (let [total-height (viewport-height)
-                   header-height (or (some-> ($ "div.menu.site-menu") (.height)) 0)
-                   footer-height (or (some-> ($ "div#footer") (.height)) 0)
-                   body-font (or (some-> ($ "body") (.css "font-size") parse-css-px) 14)
+                   header-height (or (some-> (js/document.querySelector "div.menu.site-menu") .-height) 0)
+                   footer-height (or (some-> (js/document.querySelector "div#footer") .-height) 0)
+                   body-font (or (some-> (js/document.querySelector "body")
+                                         (get-css-property "font-size")
+                                         parse-css-px)
+                                 14)
                    max-height-px (- total-height
                                     (+ header-height footer-height
                                        ;; "Labels / Annotations" menu
@@ -967,14 +971,14 @@
                                        (* 4 body-font)))
                    label-css ".panel-side-column .ui.segments.label-editor-view"
                    annotate-css ".ui.segments.annotation-menu.abstract"
-                   label-font (or (some-> ($ label-css) (.css "font-size") parse-css-px)
+                   label-font (or (some-> (js/document.querySelector label-css) (get-css-property "font-size") parse-css-px)
                                   body-font)
-                   annotate-font (or (some-> ($ annotate-css) (.css "font-size") parse-css-px)
+                   annotate-font (or (some-> (js/document.querySelector annotate-css) (get-css-property "font-size") parse-css-px)
                                      body-font)
                    label-height-em (/ (* 1.0 max-height-px) label-font)
                    annotate-height-em (/ (* 1.0 max-height-px) annotate-font)]
-               (-> ($ label-css)    (.css "max-height" (str label-height-em "em")))
-               (-> ($ annotate-css) (.css "max-height" (str annotate-height-em "em")))))))
+               (some-> (js/document.querySelector label-css) .-style.-maxHeight (js/set! (str label-height-em "em")))
+               (some-> (js/document.querySelector annotate-css) .-style.-maxHeight (js/set! (str annotate-height-em "em")))))))
 
 #?(:cljs (defn unix-epoch->date-string [unix]
            (-> unix (moment/unix) (.format "YYYY-MM-DD HH:mm:ss"))))
@@ -987,9 +991,9 @@
              (str i))))
 
 #?(:cljs (defn ui-theme-from-dom-css []
-           (cond (pos? (.-length ($ "link[href='/css/style.dark.css']")))
+           (cond (pos? (.-length (js/document.querySelectorAll "link[href='/css/style.dark.css']")))
                  "Dark"
-                 (pos? (.-length ($ "link[href='/css/style.default.css']")))
+                 (pos? (.-length (js/document.querySelectorAll "link[href='/css/style.default.css']")))
                  "Default")))
 
 #?(:cljs (defn log-err

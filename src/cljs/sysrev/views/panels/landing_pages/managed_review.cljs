@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.landing-pages.managed-review
-  (:require ["jquery" :as $]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.action.core :refer [def-action run-action]]
             [sysrev.data.core :refer [reload load-data]]
             [sysrev.views.components.core :refer [UrlLink]]
@@ -25,9 +24,9 @@
 
 (defn- request-review []
   (run-action :request-managed-review
-              {:name (.val ($ "form.request-review input.xname"))
-               :email (.val ($ "form.request-review input.xemail"))
-               :description (.val ($ "form.request-review textarea.xdesc"))}))
+              {:name (.-value (js/document.querySelector "form.request-review input.xname"))
+               :email (.-value (js/document.querySelector "form.request-review input.xemail"))
+               :description (.-value (js/document.querySelector "form.request-review textarea.xdesc"))}))
 
 (defn- InputForm []
   (let [on-submit (util/wrap-prevent-default

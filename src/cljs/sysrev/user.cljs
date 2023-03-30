@@ -9,7 +9,6 @@
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             ["chart.js" :as Chart]
-            ["jquery" :as $]
             sysrev.base
             sysrev.core
             sysrev.util
