@@ -73,27 +73,6 @@
 
               :else [:div])])))
 
-#_[project-id @(subscribe [:active-project-id])
-   article-values (->> @(subscribe [:article/labels article-id user-id])
-                       (medley/map-vals :answer))
-   active-values @(subscribe [:review/active-labels article-id])
-   user-status @(subscribe [:article/user-status article-id user-id])
-   unconfirmed? (or (= user-status :unconfirmed)
-                    (= user-status :none))
-   resolving? @(subscribe [:review/resolving?])
-   article-loading? (sysrev.loading/data-loading? [:article project-id article-id])
-   send-labels? (and unconfirmed?
-                     (not resolving?)
-                     (not article-loading?)
-                     (not= active-values article-values))]
-;; not sure this should occur here anymore, labels should
-;; be manually saved and this causes errors in the console
-#_(when send-labels?
-    (dispatch [:action [:review/send-labels
-                        project-id {:article-id article-id
-                                    :label-values active-values
-                                    :confirm? false :resolve? false :change? false}]]))
-
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]
     (let [user-id @(subscribe [:self/user-id])

@@ -1,6 +1,5 @@
 (ns sysrev.views.review
   (:require ["jquery" :as $]
-            [clojure.set :as set]
             [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
@@ -60,22 +59,6 @@
                   {:db (set-label-value db article-id root-label-id label-id ith
                                         (-> (concat current-values [label-value])
                                             distinct vec))
-                   :fx [[:dispatch
-                         [:review/record-reviewer-event
-                          [kw {:article-id article-id
-                               :project-id (nav/active-project-id db)}]]]]})))
-
-;; Removes a value from an active label answer vector
-(reg-event-fx ::remove-label-value
-              (fn [{:keys [db]} [kw article-id root-label-id label-id ith label-value]]
-                (let [current-values
-                      (if (= root-label-id "na")
-                        (get @(subscribe [:review/active-labels article-id]) label-id)
-                        (get-in @(subscribe [:review/active-labels article-id])
-                                [root-label-id :labels ith label-id]))]
-                  {:db (set-label-value db article-id root-label-id label-id ith
-                                        (vec (->> current-values
-                                                  (remove (partial = label-value)))))
                    :fx [[:dispatch
                          [:review/record-reviewer-event
                           [kw {:article-id article-id
@@ -266,12 +249,7 @@
             all-values     @(subscribe [:label/all-values root-label-id label-id])
             current-values @(subscribe [:review/active-labels
                                         article-id root-label-id label-id ith])
-            touchscreen?   @(subscribe [:touchscreen?])
-            _unsel-values  (vec (set/difference (set all-values)
-                                                (set current-values)))
-            _on-deselect    (fn [v] #(dispatch [::remove-label-value
-                                                article-id root-label-id label-id
-                                                ith v]))]
+            touchscreen?   @(subscribe [:touchscreen?])]
         [S/Dropdown {:key [:dropdown dom-class]
                      :class dom-class
                      :size "small" :fluid true
@@ -283,11 +261,6 @@
                                       :text v}))
                      :value (into [] current-values)
                      :close-on-change true
-                     #_ :render-label #_ (fn [x]
-                                           (js/console.log "x is" x)
-                                           {:icon "delete"
-                                            :content (str (.-text x))
-                                            :on-click (on-deselect (js->clj (.-value x)))})
                      :placeholder (when (empty? current-values)
                                     (str "No answer selected"
                                          (when required? " (required)")))
@@ -695,11 +668,6 @@
                      (fn []
                        (when @on-review-task?
                          (sync-article-notes article-id)
-                         ;; skip article should not SAVE labels!
-                         #_ (dispatch [:review/send-labels {:project-id project-id
-                                                            :article-id article-id
-                                                            :confirm? false
-                                                            :resolve? false}])
                          (dispatch [:fetch [:review/task project-id]])
                          (dispatch [:review/reset-ui-labels]))))))]
     (list ^{:key :skip-article}

@@ -375,9 +375,6 @@
             current-position (r/cursor state [:current-position])
             multi? (subscribe [:label/multi? "na" group-label-id])]
         [Table {:striped true
-                ;;:compact true
-                ;;:collapsing true
-                ;;:singleLine true
                 :celled true
                 :style {:margin-bottom "0"
                         :border-bottom-left-radius "0"
@@ -548,7 +545,7 @@
   (r/as-element
     (if-not (aget (.-cell data) "valid?")
       [:div {:style {:color "red"}} "Invalid"]
-      [:div {:class (case (aget (.-cell data) "inclusion") 
+      [:div {:class (case (aget (.-cell data) "inclusion")
                       true "green-text"
                       false "orange-text"
                       nil)}
