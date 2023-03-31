@@ -49,25 +49,6 @@
 
 (reg-sub :active-project-url active-project-url)
 
-;; checks if current project url should be redirected
-;; (TODO: handle redirect on ownership transfer?)
-(reg-sub :project-redirect-needed
-         (fn [db]
-           (let [url-id (active-project-url db)
-                 [project-id-url owner-url] url-id
-                 full-id (some->> url-id
-                                  (lookup-project-url db)
-                                  (when-test map?))
-                 project-id-full (when-test integer? (:project-id full-id))
-                 user-id-full (when-test integer? (:user-id full-id))
-                 org-id-full (when-test integer? (:org-id full-id))
-                 full-id-valid? (and project-id-full (or user-id-full org-id-full))]
-             ;; redirect on legacy url for owned project
-             (when (and (parse-integer project-id-url)
-                        (nil? owner-url)
-                        full-id-valid?)
-               project-id-full))))
-
 (defn active-project-id [db]
   (let [url-id (get-in db [:state :active-project-url])]
     (some->> (lookup-project-url db url-id)

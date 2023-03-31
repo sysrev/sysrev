@@ -134,11 +134,6 @@
 
 (defn ProjectPanel [child]
   (when @(subscribe [:have? [:identity]])
-    ;; redirect to standard project url if needed
-    (when-let [redirect-id @(subscribe [:project-redirect-needed])]
-      (let [[_ suburi] (re-matches #".*/p/[\d]+(.*)" @active-route)
-            std-uri @(subscribe [:project/uri redirect-id suburi])]
-        (dispatch [:nav std-uri :redirect true])))
     (when-let [url-id @(subscribe [:active-project-url])]
       ;; make sure we've queried for translation from url -> project-id
       (with-loader [[:lookup-project-url url-id]] {}
