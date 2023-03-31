@@ -88,7 +88,7 @@
   :value-type "string"}
  {:category "extra"
   :consensus false
-  :definition [:lift {:all-values ["promotes susceptibility to" "inhibits susceptilibity to"]
+  :definition [:lift {:all-values ["promotes susceptibility to" "inhibits susceptibility to"]
                       :inclusion-values []
                       :multi? true}]
   :enabled true
