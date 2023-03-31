@@ -47,21 +47,48 @@
         {:uses "github:insilica/sfac/86e9e5a5b813773cddfa36070d8c2fa31d7d4859#gpt4-label"
          :labels [label-name]}]}}}))
 
+(defn get-projects-to-update [sr-context]
+  (-> sr-context
+      (db/execute!
+       {:select-distinct :project.project-id
+        :from :project
+        :join [:project-source [:= :project.project-id :project-source.project-id]]
+        :where [:and
+                [:raw "(settings->>'gpt-access')::boolean"]
+                [:or
+                 [:= :last-gpt-run nil]
+                 [:>= :project-source.date-created :project.last-gpt-run]
+                 [:and
+                  [:not= :project-source.import-date nil]
+                  [:>= :project-source.import-date :project.last-gpt-run]]]]})
+      (->> (map :project/project-id))))
+
 (defn get-gpt-enabled-labels [sr-context]
   (db/with-tx [sr-context sr-context]
-    (-> sr-context
-        (db/execute!
-         {:select :label/*
-          :from :label
-          :join [:project [:= :label.project-id :project.project-id]]
-          :where [:and :predict-with-gpt
-                  [:raw "(project.settings->>'gpt-access')::boolean"]]}))))
+    (let [project-ids (get-projects-to-update sr-context)]
+      (when (seq project-ids)
+        (-> sr-context
+            (db/execute!
+             {:select :*
+              :from :label
+              :where [:and
+                      [:not= :predict-with-gpt nil]
+                      [:in :project-id project-ids]]}))))))
+
+; Make sure we don't waste money with concurrent runs
+(defonce run-lock (Object.))
 
 (defn run [sr-context]
-  (doseq [{:label/keys [name project-id]} (get-gpt-enabled-labels sr-context)]
-    (let [config (gpt4-config sr-context project-id name)
-          {:keys [process]} (flow-process sr-context config)]
-      @process)))
+  (locking run-lock
+    (doseq [{:label/keys [name project-id]} (get-gpt-enabled-labels sr-context)]
+      (let [config (gpt4-config sr-context project-id name)
+            {:keys [process]} (flow-process sr-context config)]
+        (db/execute-one!
+         sr-context
+         {:update :project
+          :set {:last-gpt-run [:now]}
+          :where [:= :project-id project-id]})
+        @process))))
 
 #_:clj-kondo/ignore
 (j/defjob Job [ctx]

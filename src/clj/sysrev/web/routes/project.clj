@@ -88,10 +88,11 @@
       (assoc :journal-render
              (keywords/process-keywords secondary-title keywords)))))
 
-(defn article-info-full [project-id article-id]
+(defn article-info-full [_sr-context project-id article-id]
   (let [resolve (label/article-resolved-status project-id article-id)
-        resolve-labels (label/article-resolved-labels project-id article-id)]
-    {:article (-> (article/get-article article-id)
+        resolve-labels (label/article-resolved-labels project-id article-id)
+        article (article/get-article article-id)]
+    {:article (-> article
                   prepare-article-response
                   (assoc :pdfs (:files (api/article-pdfs article-id))
                          :predictions (article/article-predictions article-id)
@@ -341,11 +342,12 @@
                 {:project {:name name :project-id project-id}})))))))
 
 ;; Returns map with full information on an article
-(dr (GET "/api/article-info/:article-id" request
+(dr (GET "/api/article-info/:article-id" {:keys [sr-context] :as request}
       (with-authorize request {:allow-public true}
         (let [project-id (active-project request)
               article-id (-> request :params :article-id parse-integer)
-              {:keys [article] :as result} (article-info-full project-id article-id)]
+              {:keys [article] :as result}
+              (article-info-full sr-context project-id article-id)]
           (when (= (:project-id article) project-id)
             result)))))
 
@@ -475,14 +477,16 @@
 ;;; Article review
 ;;;
 
-(dr (GET "/api/label-task" request
+(dr (GET "/api/label-task" {:keys [sr-context] :as request}
       (with-authorize request {:roles ["member"]}
         (if-let [{:keys [article-id today-count]}
                  (assign/get-user-label-task (active-project request) (current-user-id request))]
-          (do
+          (let [{:keys [article] :as article-info} (article-info-full sr-context (active-project request) article-id)]
             (assign/record-last-assigned article-id)
-            {:result (merge (article-info-full (active-project request) article-id)
-                            {:today-count today-count})})
+            {:result
+             (-> article-info
+                 (assoc-in [:article :gpt-answers] (article/gpt-answers sr-context article))
+                 (assoc :today-count today-count))})
           {:result :none}))))
 
 (dr (POST "/api/set-labels" request

@@ -174,3 +174,32 @@
   (doseq [id-group (partition-all 100 article-ids)]
     (when (seq id-group)
       (q/modify :article {:article-id id-group} values))))
+
+(defn gpt-answers [sr-context {:keys [project-id uri] :as _article}]
+  (when uri
+    (let [docs (-> sr-context
+                   (db/execute!
+                    {:select :srvc-document/hash
+                     :from :srvc-document
+                     :join [:srvc-document-to-project
+                            [:= :srvc-document/hash :srvc-document-to-project/hash]]
+                     :where [:and
+                             [:= :uri uri]
+                             [:= :srvc-document-to-project/project-id project-id]]})
+                   (->> (map :srvc-document/hash)))]
+      (when (seq docs)
+        (-> sr-context
+            (db/execute!
+             {:select [:srvc-label.data :srvc-label.hash :srvc-label-answer.answer]
+              :from :srvc-label-answer
+              :join [:srvc-label [:= :srvc-label.hash :srvc-label-answer.label]]
+              :where [:and
+                      [:= :reviewer "https://github.com/insilica/sfac/tree/master/gpt4-label"]
+                      [:in :document docs]]
+              :order-by [[:timestamp :desc]]})
+            (->>
+             (reduce
+              (fn [m {:srvc-label/keys [data hash]
+                      :srvc-label-answer/keys [answer]}]
+                (update m (keyword (:id data)) #(or % answer)))
+              {})))))))

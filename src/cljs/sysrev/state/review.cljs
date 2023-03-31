@@ -45,21 +45,66 @@
       (assoc-in [:data :review project-id :task-id] article-id)
       (assoc-in [:data :review project-id :today-count] today-count)))
 
-(reg-event-fx :review/set-default-values [trim-v]
-              (fn [_ []]
-                (let [article-id @(subscribe [:review/task-id])
-                      user-id @(subscribe [:self/user-id])
-                      project-id @(subscribe [:active-project-id])
-                      article-labels @(subscribe [:article/labels article-id])]
-                  {:dispatch-n (when (empty? (get-in article-labels [user-id] {}))
-                                 (let [project-labels @(subscribe [:project/labels-raw project-id])
-                                       default-values (->> project-labels
-                                                           (map #(vector (first %) (-> % second :definition :default-value)))
-                                                           (filter second))]
-                                   (map
-                                     (fn [[label-id default-value]]
-                                       [:review/set-label-value article-id "na" label-id nil default-value])
-                                     default-values)))})))
+(defn label-names->labels [project-labels]
+  (->> project-labels
+       (reduce
+        (fn [m [_label-id {:keys [name] :as label}]]
+          (assoc m (keyword name) label))
+        {})))
+
+(defn merge-gpt-answers [{:keys [gpt-answers]} project-labels merged-vals]
+  (if (or (empty? gpt-answers) (seq merged-vals))
+    merged-vals
+    (let [label-map (label-names->labels project-labels)]
+      (->> gpt-answers
+           (reduce
+            (fn [m [label-name v]]
+              (let [{:keys [labels value-type]} (label-map label-name)]
+                (if (not= "group" value-type)
+                  m
+                  (let [sublabel-map (label-names->labels labels)]
+                    (->> v
+                         (map-indexed
+                          (fn [i row]
+                            {(str i)
+                             (reduce
+                              (fn [m2 [sublabel-name v2]]
+                                (assoc m2 (:label-id (sublabel-map sublabel-name)) v2))
+                              {}
+                              row)}))
+                         (apply merge)
+                         (hash-map :labels)
+                         (assoc m (:label-id (label-map label-name))))))))
+            {})))))
+
+(reg-event-fx
+ :review/set-default-values [trim-v]
+ (fn [_ []]
+   (let [article-id @(subscribe [:review/task-id])
+         user-id @(subscribe [:self/user-id])
+         project-id @(subscribe [:active-project-id])
+         article @(subscribe [:article/raw article-id])]
+     {:dispatch-n (when (empty? (get-in article [:labels user-id] {}))
+                    (let [project-labels @(subscribe [:project/labels-raw project-id])
+                          default-values (->> project-labels
+                                              (map #(vector (first %) (-> % second :definition :default-value)))
+                                              (filter second))]
+                      (concat
+                       (map
+                        (fn [[label-id default-value]]
+                          [:review/set-label-value article-id "na" label-id nil default-value])
+                        default-values)
+                       (mapcat
+                        (fn [[group-label-id {:keys [labels]}]]
+                          (mapcat
+                           (fn [[ith row]]
+                             (map
+                              (fn [[sublabel-id v]]
+                                [:review/set-label-value article-id group-label-id
+                                 sublabel-id ith v])
+                              row))
+                           labels))
+                        (merge-gpt-answers article project-labels {})))))})))
 
 (def-data :review/task
   :loaded? review-task-id
@@ -103,7 +148,6 @@
   :on-error
   (fn [{:keys [db error]} [_ _] _]
     (util/log-err ":review/send-labels ; error = %s" (pr-str error))
-    #_ {:reload-page [true 500]}
     {}))
 
 (reg-sub :review/today-count
@@ -277,8 +321,8 @@
                                        :change? change?
                                        :on-success on-success}]]]
                         [:dispatch                         [:review/record-reviewer-event
-                          [kw {:article-id article-id
-                               :project-id project-id}]]]]})))
+                                                            [kw {:article-id article-id
+                                                                 :project-id project-id}]]]]})))
 
 ;; Reset state of locally changed label values in review interface
 (reg-event-fx :review/reset-ui-labels
