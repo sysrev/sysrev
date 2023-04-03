@@ -80,8 +80,10 @@
 
 (defn run [sr-context]
   (locking run-lock
-    (doseq [{:label/keys [name project-id]} (get-gpt-enabled-labels sr-context)]
-      (let [config (gpt4-config sr-context project-id name)
+    (doseq [{:label/keys [project-id]
+             label-name :label/name}
+            (get-gpt-enabled-labels sr-context)]
+      (let [config (gpt4-config sr-context project-id label-name)
             {:keys [process]} (flow-process sr-context config)]
         (db/execute-one!
          sr-context
