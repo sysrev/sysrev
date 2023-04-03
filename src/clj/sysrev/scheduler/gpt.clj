@@ -72,7 +72,7 @@
              {:select :*
               :from :label
               :where [:and
-                      [:not= :predict-with-gpt nil]
+                      [:= :predict-with-gpt true]
                       [:in :project-id project-ids]]}))))))
 
 ; Make sure we don't waste money with concurrent runs
