@@ -43,7 +43,8 @@
      :flows
      {:gpt4-label
       {:steps
-       [{:run-embedded (str "generator " server-url "/web-api/srvc-events?project-id=" project-id)}
+       [{:run-embedded (str "generator " server-url "/web-api/srvc-events?project-id=" project-id)
+         :env ["SRVC_TOKEN"]}
         {:uses "github:insilica/sfac/86e9e5a5b813773cddfa36070d8c2fa31d7d4859#gpt4-label"
          :labels [label-name]}]}}}))
 
