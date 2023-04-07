@@ -942,8 +942,6 @@
                 js/window.location.search
                 js/window.location.hash)))
 
-
-
 #?(:cljs (defn parse-css-px [px-str]
            (parse-integer (second (re-matches #"(\d+)px" px-str)))))
 

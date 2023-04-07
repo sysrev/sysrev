@@ -34,8 +34,8 @@
         medley/medley {:mvn/version "1.3.0"}
 
         ;;; Cider
-        cider/cider-nrepl {:mvn/version "0.28.3"}
-        refactor-nrepl/refactor-nrepl {:mvn/version "3.5.2"}
+        cider/cider-nrepl {:mvn/version "0.30.0"}
+        refactor-nrepl/refactor-nrepl {:mvn/version "3.6.0"}
 
         ;;; Needed for CLJ macro compilation (sysrev.util)
         clj-time/clj-time {:mvn/version "0.15.2"}
