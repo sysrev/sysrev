@@ -1,5 +1,6 @@
 (ns sysrev.project.clone
   (:require [clojure.set :refer [difference]]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer [from insert-into join select
                                                values where]]
@@ -219,7 +220,12 @@
   (when (and copy-answers? (not (and copy-articles? copy-labels? copy-members?)))
     (throw (IllegalArgumentException. "copy-articles?, copy-labels?, and copy-members? must be true when copy-answers? is true")))
   (with-transaction
-    (let [project-name (or project-name (:name (q/find-one :project {:project-id src-project-id})))
+    (let [project-name (or project-name
+                           (->
+                            (q/find-one :project {:project-id src-project-id})
+                            :name
+                            str/trim
+                            (str/replace #"[^\w\d]" "-")))
           dest-project-id
           (:project-id (project/create-project
                         project-name :parent-project-id src-project-id))]
