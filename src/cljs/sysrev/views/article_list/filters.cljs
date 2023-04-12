@@ -329,16 +329,6 @@
        value on-change false
        identity])))
 
-(defn- ContentTypeDropdown [_context value on-change]
-  [FilterDropdown
-   [nil :labels :annotations]
-   #(case %
-      :labels "Labels"
-      :annotations "Annotations"
-      "Any")
-   value on-change false
-   keyword])
-
 (defn- BooleanDropdown [_context value on-change]
   [FilterDropdown
    [nil true false]
