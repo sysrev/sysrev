@@ -95,7 +95,7 @@
                  (assoc :title title))
         {:keys [abstract content]} data
         abstract (or abstract
-                     ; ctgov
+                     ;; ctgov
                      (-> content :ProtocolSection :DescriptionModule :DetailedDescription)
                      (-> content :ProtocolSection :DescriptionModule :BriefSummary))
         data (if abstract (assoc data :abstract abstract) data)]
@@ -382,7 +382,6 @@
      val
      (srvc-label-id->sysrev-label sr-context project-id))))
 
-
 (defmulti sink-event
   (fn [_request _project-id event]
     (:type event)))
@@ -527,3 +526,5 @@
         (do
           (sink-event request project-id body)
           {:status 201})))))
+
+nil

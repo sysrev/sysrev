@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.articles
   (:require [re-frame.core :refer
              [dispatch reg-event-fx reg-fx reg-sub
-                                   reg-sub-raw subscribe trim-v]]
+              reg-sub-raw subscribe trim-v]]
             [reagent.ratom :refer [reaction]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.state.nav :refer [active-project-id project-uri]]
@@ -87,9 +87,8 @@
                  :show-notes false}
         filters [{:consensus {:status nil
                               :inclusion nil}}
-                 {:has-user {:user user-id
-                             :content :labels
-                             :confirmed true}}]]
+                 {:has-label {:users [user-id]
+                              :confirmed true}}]]
     (load-settings-and-navigate
      {:filters filters
       :display display

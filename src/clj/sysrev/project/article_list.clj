@@ -182,17 +182,6 @@
     (fn [{:keys [article-id]}]
       (contains? search-ids article-id))))
 
-(defn article-user-filter
-  [{:keys [project-id] :as _context} {:keys [user content confirmed]}]
-  (let [all-labels (project-article-labels project-id)]
-    (fn [{:keys [article-id]}]
-      (let [article-labels (get all-labels article-id)]
-        (when (in? [nil :labels] content)
-          (as-> article-labels $
-            (if user (filter-labels-by-users [user] $) $)
-            (filter-labels-confirmed confirmed $)
-            seq))))))
-
 (defn article-labels-filter
   [{:keys [project-id] :as _context} {:keys [label-id users values inclusion confirmed]}]
   (let [all-labels (project-article-labels project-id)]
@@ -251,7 +240,6 @@
           make-filter (case filter-name
                         :text-search       article-text-filter
                         :source            article-source-filter
-                        :has-user          article-user-filter
                         :consensus         article-consensus-filter
                         :has-label         article-labels-filter
                         :prediction        article-prediction-filter

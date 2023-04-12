@@ -25,7 +25,6 @@
 
 (defn create-filter [db filter-type]
   {filter-type (merge (case filter-type
-                        :has-user    {:user nil, :content nil, :confirmed nil}
                         :source      {:source-ids nil}
                         :has-label   {:label-id nil, :users nil, :values nil, :inclusion nil, :confirmed nil}
                         :consensus   {:status nil, :inclusion nil}
@@ -34,10 +33,10 @@
                       {:editing? true})})
 
 (defn- filter-presets-impl [self-id]
-  {:self       {:filters [{:has-user {:user self-id, :content nil, :confirmed nil}}]
+  {:self       {:filters [{:has-label {:users [self-id], :confirmed nil}}]
                 :display {:self-only true, :show-inclusion false, :show-labels true
                           :show-notes true, :show-unconfirmed true}}
-   :content    {:filters [{:has-user {:user nil, :content nil, :confirmed nil}}]
+   :content    {:filters [{:has-label {:confirmed true}}]
                 :display {:self-only false, :show-inclusion false
                           :show-labels true, :show-notes true}}
    :inclusion  {:filters [{:consensus {:status nil, :inclusion nil}}]
@@ -132,8 +131,6 @@
 (defn- process-filter-input [ifilter]
   (let [[[filter-type value]] (vec ifilter)]
     (->> (case filter-type
-           :has-user    (let [{:keys [user]} value]
-                          {filter-type (merge value {:user (when (integer? user) user)})})
            :consensus   {filter-type value}
            :has-label   {filter-type value}
            :source      (when (not-empty (:source-ids value))
@@ -407,27 +404,6 @@
       [:button.ui.tiny.fluid.button
        (space-join ["editing filter" (some-> ftype pr-str wrap-parens)])]]]))
 
-(defmethod FilterEditorFields :has-user [context _filter-idx ifilter update-filter]
-  (let [[[_ value]] (vec ifilter)
-        {:keys [user content confirmed]} value]
-    [:div.ui.small.form
-     [:div.field>div.fields
-      [:div.eight.wide.field
-       [:label "User"]
-       [SelectUserDropdown context user
-        (fn [new-value] (update-filter #(assoc % :user new-value)))
-        false]]
-      [:div.eight.wide.field
-       [:label "Content Type"]
-       [ContentTypeDropdown context content
-        (fn [new-value] (update-filter #(assoc % :content new-value)))]]]
-     (when (or (= content :labels) (in? [true false] confirmed))
-       [:div.field>div.fields
-        [:div.eight.wide.field
-         [:label "Confirmed"]
-         [BooleanDropdown context confirmed
-          (fn [new-value] (update-filter #(assoc % :confirmed new-value)))]]])]))
-
 (defmethod FilterEditorFields :source [context _filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [source-ids]} value]
@@ -548,21 +524,6 @@
 (defmethod filter-description :default [_context ftype _value]
   (space-join ["unknown filter" (some-> ftype pr-str wrap-parens)]))
 
-(defmethod filter-description :has-user [_context _ftype value]
-  (let [{:keys [user content confirmed]} value
-        confirmed-str (cond (= content :annotations)  nil
-                            (true? confirmed)         "confirmed"
-                            (false? confirmed)        "unconfirmed"
-                            :else                     nil)
-        content-str (case content
-                      :labels       "labels"
-                      :annotations  "annotations"
-                      "content")
-        user-name (and (integer? user) @(subscribe [:user/username user]))
-        user-str (if-not (integer? user) "any user"
-                         (space-join ["user" (pr-str user-name)]))]
-    (space-join ["has" confirmed-str content-str "from" user-str])))
-
 (defmethod filter-description :source [_context _ftype value]
   (let [{:keys [source-ids]} value]
     (space-join ["is present in source" (->> (mapv describe-source source-ids)
@@ -651,7 +612,6 @@
     (let [items [[:source "Source" "list"]
                  [:consensus "Consensus" "users"]
                  [:has-label "Labels" "tags"]
-                 [:has-user "User Content" "user"]
                  [:prediction "Prediction" "chart bar"]
                  #_[:has-annotation "Annotation" "quote left"]]]
       [:div.ui.small.form.new-filter
@@ -771,7 +731,8 @@
    :user-answers     [{:has-label {:confirmed true}}]
    :endnote-xml      []
    :articles-csv     []
-   :annotations-csv  [{:has-user {:content :annotations}}]})
+   ;; TODO: filter this to articles with annotations
+   :annotations-csv  [{:has-label {:confirmed true}}]})
 
 (defn- ExportFiltersInfo [context]
   (let [article-count @(al/sub-article-count (al/cached context))]
