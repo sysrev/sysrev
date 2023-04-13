@@ -225,7 +225,12 @@
                             (q/find-one :project {:project-id src-project-id})
                             :name
                             str/trim
-                            (str/replace #"[^\w\d]" "-")))
+                            ;; The rules for project names have changed, but old
+                            ;; projects still have their original names. This
+                            ;; converts them to new-style project names.
+                            (str/replace #"[^\w\d]" "-")
+                            (str/replace #"^-+" "")
+                            (str/replace #"-+$" "")))
           dest-project-id
           (:project-id (project/create-project
                         project-name :parent-project-id src-project-id))]
