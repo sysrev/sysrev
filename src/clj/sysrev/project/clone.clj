@@ -229,6 +229,7 @@
                             ;; projects still have their original names. This
                             ;; converts them to new-style project names.
                             (str/replace #"[^\w\d]" "-")
+                            (str/replace #"-{2,}" "-")
                             (str/replace #"^-+" "")
                             (str/replace #"-+$" "")))
           dest-project-id
