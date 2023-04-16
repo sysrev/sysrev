@@ -192,33 +192,40 @@
 (defn SearchBar
   "The search input for a pubmed query"
   []
-  (let [current-search-term (r/cursor state [:current-search-term])
-        on-change-search-term (r/cursor state [:on-change-search-term])
-        page-number (r/cursor state [:page-number])
-        show-results? (r/cursor state [:show-results?])
-        import-error (r/cursor state [:import-error])
-        fetch-results
-        #(do (reset! current-search-term @on-change-search-term)
-             (reset! page-number 1)
-             (reset! show-results? true)
-             (reset! import-error nil)
-             (dispatch [:require [:pubmed-search @current-search-term 1]]))]
-    [:form {:on-submit (wrap-prevent-default fetch-results)
-            :id "search-bar"
-            :style {:margin-top "1em"
-                    :margin-bottom "1em"}}
-     [:div.ui.fluid.left.icon.action.input
-      [:input {:type "text"
-               :placeholder "PubMed Search..."
-               :value @on-change-search-term
-               :on-change (fn [event]
-                            (reset! on-change-search-term
-                                    (-> event
-                                        (aget "target")
-                                        (aget "value"))))}]
-      [:i.search.icon]
-      [:button.ui.button {:type "submit" :tabIndex "-1"}
-       "Search"]]]))
+  (r/create-class
+   {:component-did-mount
+    (fn [_]
+      (let [input (js/document.querySelector "#search-bar input")]
+        (.focus input)))
+    :reagent-render
+    (fn [_]
+      (let [current-search-term (r/cursor state [:current-search-term])
+            on-change-search-term (r/cursor state [:on-change-search-term])
+            page-number (r/cursor state [:page-number])
+            show-results (r/cursor state [:show-results?])
+            import-error (r/cursor state [:import-error])
+            fetch-results
+            #(do (reset! current-search-term @on-change-search-term)
+                 (reset! page-number 1)
+                 (reset! show-results true)
+                 (reset! import-error nil)
+                 (dispatch [:require [:pubmed-search @current-search-term 1]]))]
+        [:form {:on-submit (wrap-prevent-default fetch-results)
+                :id "search-bar"
+                :style {:margin-top "1em"
+                        :margin-bottom "1em"}}
+         [:div.ui.fluid.left.icon.action.input
+          [:input {:type "text"
+                   :placeholder "PubMed Search..."
+                   :value @on-change-search-term
+                   :on-change (fn [event]
+                                (reset! on-change-search-term
+                                        (-> event
+                                            (aget "target")
+                                            (aget "value"))))}]
+          [:i.search.icon]
+          [:button.ui.button {:type "submit" :tabIndex "-1"}
+           "Search"]]]))}))
 
 (defn SearchActions [& [disable-import?]]
   (let [current-search-term (r/cursor state [:current-search-term])
