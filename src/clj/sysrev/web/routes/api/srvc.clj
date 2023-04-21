@@ -29,6 +29,47 @@
   (.flush writer)
   (-> reader .readLine (json/read-str :key-fn keyword)))
 
+(defn project-permissions-for-user [sr-context project-id user-id]
+  (db/with-tx [sr-context sr-context]
+    (some->
+     sr-context
+     (db/execute-one!
+      {:select :permissions
+       :from :project-member
+       :where [:and
+               :enabled
+               [:= :project-id project-id]
+               [:= :user-id user-id]]})
+     :project-member/permissions .getArray set)))
+
+(defn project-admin? [perms]
+  (boolean
+   (when perms
+     (or (perms "admin") (perms "owner")))))
+
+(defn project-member? [perms]
+  (boolean
+   (when perms
+     (or (perms "member") (perms "admin") (perms "owner")))))
+
+(defn blind-reviews? [sr-context project-id]
+  (-> sr-context
+      (db/execute-one!
+       {:select [[[:cast [(keyword "->>") :settings "blind-reviewers"] :boolean] :blind]]
+        :from :project
+        :where [:= :project-id project-id]})
+      :blind
+      boolean))
+
+(defn public-project? [sr-context project-id]
+  (-> sr-context
+      (db/execute-one!
+       {:select [[[:cast [(keyword "->>") :settings "public-access"] :boolean] :public]]
+        :from :project
+        :where [:= :project-id project-id]})
+      :public
+      boolean))
+
 (defn get-articles [sr-context project-id]
   (->> (db/with-tx [sr-context sr-context]
          (db/execute!
@@ -51,17 +92,20 @@
               [:= :root-label-id-local nil]]
       :order-by [:project-ordering]})))
 
-(defn get-label-answers [sr-context label-id user-id]
+(defn get-label-answers [sr-context project-id label-id user-id & {:keys [dev-key?]}]
   (db/with-tx [sr-context sr-context]
-    (db/execute!
-     sr-context
-     {:select [:answer :article-id :email :label-id :updated-time]
-      :from :article-label
-      :where [:and
-              [:= :label-id label-id]
-              [:= :web-user.user-id user-id]]
-      :join [:web-user [:= :article-label.user-id :web-user.user-id]]
-      :order-by [:article-label.updated-time]})))
+      (db/execute!
+       sr-context
+       {:select [:answer :article-id :email :label-id :updated-time]
+        :from :article-label
+        :where [:and
+                [:= :label-id label-id]
+                (when-not (or dev-key?
+                              (not (blind-reviews? sr-context project-id))
+                              (project-admin? (project-permissions-for-user sr-context project-id user-id)))
+                  [:= :web-user.user-id user-id])]
+        :join [:web-user [:= :article-label.user-id :web-user.user-id]]
+        :order-by [:article-label.updated-time]})))
 
 (defn add-datapub-data [sr-context article]
   (let [{:keys [entity-id]} (:datapub article)]
@@ -125,34 +169,6 @@
         :type "label-answer"}
        (add-hash hasher)))
 
-(defn project-permissions-for-user [sr-context project-id user-id]
-  (db/with-tx [sr-context sr-context]
-    (some->
-     sr-context
-     (db/execute-one!
-      {:select :permissions
-       :from :project-member
-       :where [:and
-               :enabled
-               [:= :project-id project-id]
-               [:= :user-id user-id]]})
-     :project-member/permissions .getArray set)))
-
-(defn project-member? [perms]
-  (boolean
-   (when perms
-     (or (perms "member") (perms "admin") (perms "owner")))))
-
-(defn public-project? [sr-context project-id]
-  (db/with-tx [sr-context sr-context]
-    (-> sr-context
-        (db/execute-one!
-         {:select [[[:cast [(keyword "->>") :settings "public-access"] :boolean] :public]]
-          :from :project
-          :where [:= :project-id project-id]})
-        :public
-        boolean)))
-
 (def-webapi :srvc-events :get
   {:allow-public? true
    :required [:project-id]}
@@ -167,14 +183,20 @@
                                   [(:label/label-id label) (convert-label hasher label)]))
           api-token (web-api/get-api-token request)
           user-id (some-> api-token user/user-by-api-token :user-id)
-          answers (->> (mapcat #(get-label-answers sr-context (:label/label-id %) user-id) labels)
+          dev-key? (util/sysrev-dev-key? sr-context api-token)
+          answers (->> (mapcat #(get-label-answers sr-context
+                                                   project-id
+                                                   (:label/label-id %)
+                                                   user-id
+                                                   :dev-key? dev-key?)
+                               labels)
                        (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
           events (concat (vals labels-by-id) (vals articles-by-id) answers)]
       (cond
         (not (project/project-exists? project-id))
         {:status 404}
 
-        (not (or (util/sysrev-dev-key? sr-context api-token)
+        (not (or dev-key?
                  (public-project? sr-context project-id)
                  (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)))
         {:status 401}
