@@ -389,20 +389,20 @@
   (r/with-let [redirecting? (atom nil)
                error (r/atom nil)]
     (if @(subscribe [:self/member? project-id])
-      [wrap-join-project
-       [:div.ui.center.aligned.segment
-        (when-not @redirecting?
-          (js/setTimeout #(nav/nav (project-uri project-id "") 1000))
-          (js/setTimeout #(reset! redirecting? true) 0))
-        [:h4 "You are already a member of this project."]
-        [:h5 {:style {:margin-top "1em"}}
-         "Redirecting... " nbsp nbsp nbsp
-         [:div.ui.small.active.inline.loader]]]]
+      (do (when-not @redirecting?
+            (js/setTimeout #(nav/nav (project-uri project-id)) 1000)
+            (js/setTimeout #(reset! redirecting? true) 0))
+          [wrap-join-project
+           [:div.ui.center.aligned.segment
+            [:h4 "You are already a member of this project."]
+            [:h5 {:style {:margin-top "1em"}}
+             "Redirecting... " nbsp nbsp nbsp
+             [:div.ui.small.active.inline.loader]]]])
       [join-segment
        {:button-content "Join Project"
-        :error error
-        :name @(subscribe [:register/project-name])
-        :on-click #(dispatch [:action [:join-project invite-code]])}])))
+        :error          error
+        :name           @(subscribe [:register/project-name])
+        :on-click       #(dispatch [:action [:join-project invite-code]])}])))
 
 (defn- redirect-root-content []
   (nav/nav "/")
