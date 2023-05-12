@@ -480,13 +480,14 @@
                           (into {}))]
           {label-id {:labels values}})))))
 
-(defn sync-label-answer [{:keys [sr-context] :as request} project-id {{:keys [answer document label reviewer]} :data}]
+(defn sync-label-answer [{:keys [sr-context] :as request} project-id {{:keys [answer event label reviewer]} :data}]
   (let [api-token (web-api/get-api-token request)
         dev-key? (util/sysrev-dev-key? sr-context api-token)
         {:keys [email user-id]} (when-not dev-key? (user/user-by-api-token api-token))
-        article-id (hash->article-id sr-context project-id document)]
+        permissions (some->> user-id (project-permissions-for-user sr-context project-id))
+        article-id (hash->article-id sr-context project-id event)]
     (cond
-      dev-key? nil
+      (or dev-key? (project-admin? permissions)) nil
 
       (not= reviewer (str "mailto:" email))
       (throw (ex-info "Reviewer does not match user email"
