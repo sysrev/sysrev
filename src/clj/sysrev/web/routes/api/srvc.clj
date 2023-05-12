@@ -408,6 +408,10 @@
   (fn [_request _project-id event]
     (:type event)))
 
+(defmethod sink-event :default [_ _ {:keys [type] :as event}]
+  (throw (ex-info (str "Unknown event type: " type)
+                  {:event event})))
+
 (defmethod sink-event "document"
   [{:keys [sr-context]} project-id {:keys [data hash uri] :as event}]
   (db/with-tx [sr-context sr-context]
