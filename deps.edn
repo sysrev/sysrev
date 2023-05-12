@@ -128,7 +128,7 @@
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
-  :test {:extra-paths ["config/test" "test/clj" "resources/test"]
+  :test {:extra-paths ["config/test" "test/clj" "resources/test" "test-resources"]
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"

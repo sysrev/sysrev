@@ -146,6 +146,21 @@
     (->> {:data data :type "document" :uri uri}
          (add-hash hasher))))
 
+(defn get-existing-documents [sr-context project-id]
+  (->> (db/execute!
+        sr-context
+        {:select [:sd.data :sd.extra :sd.hash :sd.uri]
+         :from [[:srvc-document :sd]]
+         :join [[:srvc-document-to-project :sdtp] [:= :sd.hash :sdtp.hash]]
+         :where [:= :sdtp.project-id project-id]})
+       (map
+        (fn [{:srvc-document/keys [data extra hash uri]}]
+          (assoc extra
+                 :data data
+                 :hash hash
+                 :type "document"
+                 :uri uri)))))
+
 (defn convert-label [hasher {:label/keys [definition name question required value-type]}]
   (let [{:keys [all-values inclusion-values]} definition
         label (cond-> {}
@@ -158,16 +173,52 @@
           :type "label"}
          (add-hash hasher))))
 
+(defn get-existing-labels [sr-context project-id]
+  (->> (db/execute!
+        sr-context
+        {:select [:sl.data :sl.extra :sl.hash :sl.uri]
+         :from [[:srvc-label :sl]]
+         :join [[:srvc-label-to-project :sltp] [:= :sl.hash :sltp.hash]]
+         :where [:= :sltp.project-id project-id]})
+       (map
+        (fn [{:srvc-label/keys [data extra hash uri]}]
+          (assoc extra
+                 :data data
+                 :hash hash
+                 :type "label"
+                 :uri uri)))))
+
 (defn convert-label-answer [hasher articles-by-id labels-by-id
                             {:article-label/keys [answer article-id label-id updated-time]
                              :web-user/keys [email]}]
   (->> {:data {:answer answer
-               :document (:hash (articles-by-id article-id))
+               :event (:hash (articles-by-id article-id))
                :label (:hash (labels-by-id label-id))
                :reviewer (str "mailto:" email)
                :timestamp (-> updated-time .getTime (quot 1000))}
         :type "label-answer"}
        (add-hash hasher)))
+
+(defn get-existing-label-answers [sr-context project-id]
+  (->> (db/execute!
+        sr-context
+        {:select [:sla.answer :sla.event :sla.extra :sla.extra-data :sla.hash
+                  :sla.label :sla.reviewer :sla.timestamp :sla.uri]
+         :from [[:srvc-label-answer :sla]]
+         :join [[:srvc-label-answer-to-project :slatp] [:= :sla.hash :slatp.hash]]
+         :where [:= :slatp.project-id project-id]})
+       (map
+        (fn [{:srvc-label-answer/keys [answer event extra extra-data hash label reviewer timestamp uri]}]
+          (assoc extra
+                 :data (assoc extra-data
+                              :answer answer
+                              :event event
+                              :label label
+                              :reviewer reviewer
+                              :timestamp timestamp)
+                 :hash hash
+                 :type "label-answer"
+                 :uri uri)))))
 
 (def-webapi :srvc-events :get
   {:allow-public? true
@@ -191,7 +242,12 @@
                                                    :dev-key? dev-key?)
                                labels)
                        (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
-          events (concat (vals labels-by-id) (vals articles-by-id) answers)]
+          events (->> (concat (vals labels-by-id) (vals articles-by-id) answers
+                              (get-existing-documents sr-context project-id)
+                              (get-existing-labels sr-context project-id)
+                              (get-existing-label-answers sr-context project-id))
+                      (medley/distinct-by :hash)
+                      (map #(medley/filter-vals (complement nil?) %)))]
       (cond
         (not (project/project-exists? project-id))
         {:status 404}
@@ -494,7 +550,7 @@
                       {:email email
                        :reviewer reviewer}))
 
-      :else
+      article-id
       (answer/set-user-article-labels
        user-id
        article-id
@@ -503,16 +559,16 @@
 
 (defmethod sink-event "label-answer"
   [{:keys [sr-context] :as request} project-id
-   {:keys [data hash uri] :as event
-    {:keys [answer document label reviewer timestamp]} :data}]
+   {:keys [data hash uri] :as la
+    {:keys [answer event label reviewer timestamp]} :data}]
   (db/with-tx [sr-context sr-context]
     (db/execute-one!
      sr-context
      {:insert-into :srvc-label-answer
       :values [{:answer [:cast (json/write-str answer) :jsonb]
-                :document document
-                :extra [:lift (dissoc event :data :hash :type :uri)]
-                :extra-data [:lift (dissoc data :answer :document :label :reviewer :timestamp)]
+                :event event
+                :extra [:lift (dissoc la :data :hash :type :uri)]
+                :extra-data [:lift (dissoc data :answer :event :label :reviewer :timestamp)]
                 :hash hash
                 :label label
                 :reviewer reviewer
@@ -529,7 +585,7 @@
             :on-conflict [:hash :project-id]
             :do-nothing []})]
       (when (= 1 update-count)
-        (sync-label-answer request project-id event)))))
+        (sync-label-answer request project-id la)))))
 
 (def-webapi :srvc-upload :post
   {:allow-public? false
