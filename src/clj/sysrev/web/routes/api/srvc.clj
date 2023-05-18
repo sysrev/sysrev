@@ -369,7 +369,7 @@
     (let [hasher (hash-process)
           project-id (-> params :project-id parse-long)
           labels (get-project-root-labels sr-context project-id)
-          events-url (str (util/server-url sr-context) "/web-api/srvc-events?project-id=" project-id)
+          events-url (str (util/server-url sr-context) "/web-api/srvc-project/" project-id "/api/v1/events")
           api-token (web-api/get-api-token request)
           user (some-> api-token user/user-by-api-token)
           {:keys [user-id]} user]
