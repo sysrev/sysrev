@@ -220,47 +220,56 @@
                  :type "label-answer"
                  :uri uri)))))
 
+(defn srvc-events [{:keys [params sr-context] :as request}]
+  (let [hasher (hash-process)
+        project-id (-> params :project-id parse-long)
+        articles (get-articles sr-context project-id)
+        articles-by-id (into {} (for [[article-id article] articles]
+                                  [article-id (convert-article sr-context hasher article)]))
+        labels (get-project-root-labels sr-context project-id)
+        labels-by-id (into {} (for [label labels]
+                                [(:label/label-id label) (convert-label hasher label)]))
+        api-token (web-api/get-api-token request)
+        user-id (some-> api-token user/user-by-api-token :user-id)
+        dev-key? (util/sysrev-dev-key? sr-context api-token)
+        answers (->> (mapcat #(get-label-answers sr-context
+                                                 project-id
+                                                 (:label/label-id %)
+                                                 user-id
+                                                 :dev-key? dev-key?)
+                             labels)
+                     (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
+        events (->> (concat (vals labels-by-id) (vals articles-by-id) answers
+                            (get-existing-documents sr-context project-id)
+                            (get-existing-labels sr-context project-id)
+                            (get-existing-label-answers sr-context project-id))
+                    (medley/distinct-by :hash)
+                    (map #(medley/filter-vals (complement nil?) %)))]
+    (cond
+      (not (project/project-exists? project-id))
+      {:status 404}
+
+      (not (or dev-key?
+               (public-project? sr-context project-id)
+               (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)))
+      {:status 401}
+
+      :else
+      {:headers {"Content-Type" "application/ndjson"}
+       :body (-> (map json/write-str events)
+                 (interleave (repeat "\n")))})))
+
+(def-webapi :api-srvc-events :get
+  {:allow-public? true
+   :path "/web-api/srvc-project/:project-id/api/v1/events"
+   :required [:project-id]}
+  srvc-events)
+
+;; Deprecated endpoint
 (def-webapi :srvc-events :get
   {:allow-public? true
    :required [:project-id]}
-  (fn [{:keys [params sr-context] :as request}]
-    (let [hasher (hash-process)
-          project-id (-> params :project-id parse-long)
-          articles (get-articles sr-context project-id)
-          articles-by-id (into {} (for [[article-id article] articles]
-                                    [article-id (convert-article sr-context hasher article)]))
-          labels (get-project-root-labels sr-context project-id)
-          labels-by-id (into {} (for [label labels]
-                                  [(:label/label-id label) (convert-label hasher label)]))
-          api-token (web-api/get-api-token request)
-          user-id (some-> api-token user/user-by-api-token :user-id)
-          dev-key? (util/sysrev-dev-key? sr-context api-token)
-          answers (->> (mapcat #(get-label-answers sr-context
-                                                   project-id
-                                                   (:label/label-id %)
-                                                   user-id
-                                                   :dev-key? dev-key?)
-                               labels)
-                       (map #(convert-label-answer hasher articles-by-id labels-by-id %)))
-          events (->> (concat (vals labels-by-id) (vals articles-by-id) answers
-                              (get-existing-documents sr-context project-id)
-                              (get-existing-labels sr-context project-id)
-                              (get-existing-label-answers sr-context project-id))
-                      (medley/distinct-by :hash)
-                      (map #(medley/filter-vals (complement nil?) %)))]
-      (cond
-        (not (project/project-exists? project-id))
-        {:status 404}
-
-        (not (or dev-key?
-                 (public-project? sr-context project-id)
-                 (some->> user-id (project-permissions-for-user sr-context project-id) project-member?)))
-        {:status 401}
-
-        :else
-        {:headers {"Content-Type" "application/ndjson"}
-         :body (-> (map json/write-str events)
-                   (interleave (repeat "\n")))}))))
+  srvc-events)
 
 (defn multify [{:label/keys [question]
                 {:keys [multi?]} :label/definition}
