@@ -392,7 +392,8 @@
                                    :labels (mapv :label/name labels)}]}}
                  :labels (into {} (for [label labels]
                                     [(:label/name label) (sryaml-label sr-context hasher label)]))
-                 :reviewer (str "mailto:" (:email user))})}))))
+                 :reviewer (str "mailto:" (:email user))
+                 :sources [{:uri events-url}]})}))))
 
 (defn get-schema [sr-context hash]
   (-> (db/with-tx [sr-context sr-context]
