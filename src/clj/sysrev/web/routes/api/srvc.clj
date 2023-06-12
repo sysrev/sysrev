@@ -265,6 +265,12 @@
    :required [:project-id]}
   srvc-events)
 
+(def-webapi :srvc-project-root :get
+  {:allow-public? true
+   :path "/web-api/srvc-project/:project-id"
+   :required [:project-id]}
+  srvc-events)
+
 ;; Deprecated endpoint
 (def-webapi :srvc-events :get
   {:allow-public? true
