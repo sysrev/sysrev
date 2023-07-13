@@ -292,7 +292,7 @@
 (defmulti label-schema
   (fn [_sr-context {:label/keys [value-type]}] value-type))
 
-(defmethod label-schema "bolean" [_ label]
+(defmethod label-schema "boolean" [_ label]
   (multify label {:type "boolean"}))
 
 (defmethod label-schema "categorical" [_ {:label/keys [required]
