@@ -15,7 +15,7 @@
             [sysrev.util :as util]
             [sysrev.web.routes.api.core :as web-api :refer [def-webapi]]))
 
-(declare label-schema)
+(declare get-schema json-event-label-data label-schema)
 
 (defn hash-process []
   (let [{:keys [in out] :as proc} (p/process "sr" "hash")]
@@ -161,17 +161,10 @@
                  :type "document"
                  :uri uri)))))
 
-(defn convert-label [hasher {:label/keys [definition name question required value-type]}]
-  (let [{:keys [all-values inclusion-values]} definition
-        label (cond-> {}
-                (seq all-values) (assoc :categories all-values)
-                (seq inclusion-values) (assoc :inclusion-values inclusion-values))]
-    (->> {:data (assoc label
-                       :id name
-                       :question question
-                       :required required)
-          :type "label"}
-         (add-hash hasher))))
+(defn convert-label [sr-context hasher label]
+  (->> {:data (json-event-label-data sr-context hasher label)
+        :type "label"}
+       (add-hash hasher)))
 
 (defn get-existing-labels [sr-context project-id]
   (->> (db/execute!
@@ -228,7 +221,7 @@
                                   [article-id (convert-article sr-context hasher article)]))
         labels (get-project-root-labels sr-context project-id)
         labels-by-id (into {} (for [label labels]
-                                [(:label/label-id label) (convert-label hasher label)]))
+                                [(:label/label-id label) (convert-label sr-context hasher label)]))
         api-token (web-api/get-api-token request)
         user-id (some-> api-token user/user-by-api-token :user-id)
         dev-key? (util/sysrev-dev-key? sr-context api-token)
@@ -367,6 +360,32 @@
              :required (boolean required)}
       (seq inclusion-values) (assoc :inclusion-values inclusion-values)
       true (merge json-schema))))
+
+(def json-schema-aliases
+  {"boolean"
+   {"$schema" "http://json-schema.org/draft-07/schema",
+    "$id" "https://docs.sysrev.com/schema/label-answer/boolean-v2.json",
+    "title" "Boolean answer",
+    "description" "A boolean label answer",
+    "type" "boolean"}
+   "string"
+   {"$schema" "http://json-schema.org/draft-07/schema",
+    "$id" "https://docs.sysrev.com/schema/label-answer/string-v2.json",
+    "title" "String answer",
+    "description" "A string label answer up to 1 MB in size",
+    "type" "string",
+    "minLength" 1,
+    "maxLength" 1048576}})
+
+(defn json-event-label-data [sr-context hasher label]
+  (let [{:as lbl :keys [json-schema json-schema-uri]} (-> (sryaml-label sr-context hasher label)
+                                                          (assoc :id (:label/name label)))]
+    (cond
+      json-schema (assoc lbl :json-schema (json-schema-aliases json-schema json-schema))
+      json-schema-uri (let [[_ hash] (str/split json-schema-uri #"hash=")]
+                        (-> (dissoc lbl :json-schema-uri)
+                            (assoc :json-schema (get-schema sr-context hash))))
+      :else lbl)))
 
 (def-webapi :srvc-config :get
   {:allow-public? true

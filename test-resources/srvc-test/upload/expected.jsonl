@@ -1,4 +1,4 @@
-{"data":{"id":"overall include","inclusion-values":[true],"question":"Include this article?","required":true},"hash":"QmRMSS1TzWDpWt5L7tZCVE82kVp4GXVwE7yuRxZodcj6WV","type":"label"}
+{"data":{"id":"overall include","inclusion-values":[true],"json-schema":{"$id":"https:\/\/docs.sysrev.com\/schema\/label-answer\/boolean-v2.json","$schema":"http:\/\/json-schema.org\/draft-07\/schema","description":"A boolean label answer","title":"Boolean answer","type":"boolean"},"question":"Include this article?","required":true},"hash":"QmdWABsmMF3EuckttZThqv3Be9F6H1gDUbnhY55yqgZN9L","type":"label"}
 {"data":{"id":"correct","question":"Is this answer correct?","required":false},"hash":"QmaBo6ZmxnmJ6MfCEqH2gqGdjYTjfWwdYqCCV11iaqYWwG","type":"label"}
 {"data":{"id":"useful","question":"Is this label useful?","required":false},"hash":"QmZWzBWq3fwUFw9F3tDTkUrHy6ouQdqj2pP2QBPgznNhcB","type":"label"}
 {"data":{"id":"acute_tox","question":"Acute toxicity?","required":false,"type":"boolean"},"hash":"QmNwc9b1NnNwGEcMhguAJ9yV7YULp8z3S4rEjjefyXb8Ct","type":"label"}
