@@ -217,7 +217,7 @@
 (defn create-ris-file
   "Given a file and filename, create a RIS file citation on datasource."
   [{:keys [file filename]}]
-  (let [{:keys [body]}
+  (let [{:keys [body] :as response}
         (http/post (str (ds-host) "/files/ris")
                    {:headers (auth-header)
                     :multipart [{:name "filename" :content filename}
@@ -225,7 +225,7 @@
                     :as :byte-array, :throw-exceptions false})
         s (String. body "UTF-8")]
     (try
-      (json/read-str s)
+      (assoc response :body (json/read-str s))
       (catch Exception e
         (log-slack-custom [(format "*JSON Parsing Exception (%s)*:\n```%s```"
                                    (class e)
