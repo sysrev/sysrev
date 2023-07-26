@@ -8,14 +8,14 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
+            [sysrev.slack :refer [log-slack-custom]]
             [sysrev.util
              :as
              util
              :refer
              [assert-pred gquery index-by opt-keys
               parse-integer req-un url-join]]
-            [venia.core :as venia])
-  (:import [com.fasterxml.jackson.core JsonParseException JsonProcessingException]))
+            [venia.core :as venia]))
 
 ;; for clj-kondo
 (declare fetch-pubmed-articles get-articles-content fetch-ris-articles-by-ids)
@@ -217,15 +217,23 @@
 (defn create-ris-file
   "Given a file and filename, create a RIS file citation on datasource."
   [{:keys [file filename]}]
-  (try (http/post (str (ds-host) "/files/ris")
-                  {:headers (auth-header)
-                   :multipart [{:name "filename" :content filename}
-                               {:name "file" :content file}]
-                   :as :json, :coerce :always, :throw-exceptions false})
-       (catch JsonParseException _
-         {:status 500 :body {:error "JsonParseException"}})
-       (catch JsonProcessingException _
-         {:status 500 :body {:error "JsonProcessingException"}})))
+  (let [{:keys [body]}
+        (http/post (str (ds-host) "/files/ris")
+                   {:headers (auth-header)
+                    :multipart [{:name "filename" :content filename}
+                                {:name "file" :content file}]
+                    :as :byte-array, :throw-exceptions false})
+        s (String. body "UTF-8")]
+    (try
+      (json/read-str s)
+      (catch Exception e
+        (log-slack-custom [(format "*JSON Parsing Exception (%s)*:\n```%s```"
+                                   (class e)
+                                   (util/pp-str {:filename filename
+                                                 :file (str file)
+                                                 :body s}))]
+                          " failed")
+        {:status 500 :body {:error "JsonParseException"}}))))
 
 (defn download-file
   "Given a filename and hash, download a file from datasource"
