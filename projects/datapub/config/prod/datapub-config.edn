@@ -1,7 +1,5 @@
 {:env :prod
  :pedestal {:host "0.0.0.0"
             :port 8888}
- :postgres {:dbname "datapub"
-            :dbtype "postgres"}
- :system-config-file "/home/admin/datapub/datapub-config.local.edn"
+ :system-config-file "/data/datapub/datapub-config.local.edn"
  :tesseract {:enabled? true}}
