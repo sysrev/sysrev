@@ -1,0 +1,146 @@
+TY  - JOUR
+TI  - Soft robot perception using embedded soft sensors and recurrent neural networks
+AU  - Thuruthel, Thomas George
+AU  - Shih, Benjamin
+AU  - Laschi, Cecilia
+AU  - Tolley, Michael Thomas
+T2  - Science Robotics
+AB  - Recent work has begun to explore the design of biologically inspired soft robots composed of soft, stretchable materials for applications including the handling of delicate materials and safe interaction with humans. However, the solid-state sensors traditionally used in robotics are unable to capture the high-dimensional deformations of soft systems. Embedded soft resistive sensors have the potential to address this challenge. However, both the soft sensors—and the encasing dynamical system—often exhibit nonlinear time-variant behavior, which makes them difficult to model. In addition, the problems of sensor design, placement, and fabrication require a great deal of human input and previous knowledge. Drawing inspiration from the human perceptive system, we created a synthetic analog. Our synthetic system builds models using a redundant and unstructured sensor topology embedded in a soft actuator, a vision-based motion capture system for ground truth, and a general machine learning approach. This allows us to model an unknown soft actuated system. We demonstrate that the proposed approach is able to model the kinematics of a soft continuum actuator in real time while being robust to sensor nonlinearities and drift. In addition, we show how the same system can estimate the applied forces while interacting with external objects. The role of action in perception is also presented. This approach enables the development of force and deformation models for soft robotic systems, which can be useful for a variety of applications, including human-robot interaction, soft orthotics, and wearable robotics.
+Recurrent neural networks with an unstructured redundant soft sensor topology allow robust multimodal proprioceptive capabilities.
+Recurrent neural networks with an unstructured redundant soft sensor topology allow robust multimodal proprioceptive capabilities.
+DA  - 2019/01/30/
+PY  - 2019
+DO  - 10.1126/scirobotics.aav1488
+DP  - robotics.sciencemag.org
+VL  - 4
+IS  - 26
+SP  - eaav1488
+LA  - en
+SN  - 2470-9476
+UR  - https://robotics.sciencemag.org/content/4/26/eaav1488
+Y2  - 2019/10/29/18:46:13
+L2  - files/3/eaav1488.html
+ER  - 
+
+TY  - JOUR
+TI  - Deep reinforcement learning for de novo drug design
+AU  - Popova, Mariya
+AU  - Isayev, Olexandr
+AU  - Tropsha, Alexander
+T2  - Science Advances
+AB  - We have devised and implemented a novel computational strategy for de novo design of molecules with desired properties termed ReLeaSE (Reinforcement Learning for Structural Evolution). On the basis of deep and reinforcement learning (RL) approaches, ReLeaSE integrates two deep neural networks—generative and predictive—that are trained separately but are used jointly to generate novel targeted chemical libraries. ReLeaSE uses simple representation of molecules by their simplified molecular-input line-entry system (SMILES) strings only. Generative models are trained with a stack-augmented memory network to produce chemically feasible SMILES strings, and predictive models are derived to forecast the desired properties of the de novo–generated compounds. In the first phase of the method, generative and predictive models are trained separately with a supervised learning algorithm. In the second phase, both models are trained jointly with the RL approach to bias the generation of new chemical structures toward those with the desired physical and/or biological properties. In the proof-of-concept study, we have used the ReLeaSE method to design chemical libraries with a bias toward structural complexity or toward compounds with maximal, minimal, or specific range of physical properties, such as melting point or hydrophobicity, or toward compounds with inhibitory activity against Janus protein kinase 2. The approach proposed herein can find a general use for generating targeted chemical libraries of novel compounds optimized for either a single desired property or multiple properties.
+We introduce an artificial intelligence approach to de novo design of molecules with desired physical or biological properties.
+We introduce an artificial intelligence approach to de novo design of molecules with desired physical or biological properties.
+DA  - 2018/07/01/
+PY  - 2018
+DO  - 10.1126/sciadv.aap7885
+DP  - advances.sciencemag.org
+VL  - 4
+IS  - 7
+SP  - eaap7885
+LA  - en
+SN  - 2375-2548
+UR  - https://advances.sciencemag.org/content/4/7/eaap7885
+Y2  - 2019/10/29/18:47:35
+L1  - files/7/Popova et al. - 2018 - Deep reinforcement learning for de novo drug desig.pdf
+L2  - files/8/eaap7885.html
+ER  - 
+
+TY  - JOUR
+TI  - LiSep LSTM: A Machine Learning Algorithm for Early Detection of Septic Shock
+AU  - Fagerström, Josef
+AU  - Bång, Magnus
+AU  - Wilhelms, Daniel
+AU  - Chew, Michelle S.
+T2  - Scientific Reports
+AB  - Sepsis is a major health concern with global estimates of 31.5 million cases per year. Case fatality rates are still unacceptably high, and early detection and treatment is vital since it significantly reduces mortality rates for this condition. Appropriately designed automated detection tools have the potential to reduce the morbidity and mortality of sepsis by providing early and accurate identification of patients who are at risk of developing sepsis. In this paper, we present “LiSep LSTM”; a Long Short-Term Memory neural network designed for early identification of septic shock. LSTM networks are typically well-suited for detecting long-term dependencies in time series data. LiSep LSTM was developed using the machine learning framework Keras with a Google TensorFlow back end. The model was trained with data from the Medical Information Mart for Intensive Care database which contains vital signs, laboratory data, and journal entries from approximately 59,000 ICU patients. We show that LiSep LSTM can outperform a less complex model, using the same features and targets, with an AUROC 0.8306 (95% confidence interval: 0.8236, 0.8376) and median offsets between prediction and septic shock onset up to 40 hours (interquartile range, 20 to 135 hours). Moreover, we discuss how our classifier performs at specific offsets before septic shock onset, and compare it with five state-of-the-art machine learning algorithms for early detection of sepsis.
+DA  - 2019/10/22/
+PY  - 2019
+DO  - 10.1038/s41598-019-51219-4
+DP  - www.nature.com
+VL  - 9
+IS  - 1
+SP  - 1
+EP  - 8
+J2  - Sci Rep
+LA  - en
+SN  - 2045-2322
+ST  - LiSep LSTM
+UR  - https://www.nature.com/articles/s41598-019-51219-4
+Y2  - 2019/10/29/19:15:15
+L1  - files/10/Fagerström et al. - 2019 - LiSep LSTM A Machine Learning Algorithm for Early.pdf
+L2  - files/11/s41598-019-51219-4.html
+ER  - 
+
+TY  - JOUR
+TI  - Brain wave classification using long short-term memory network based OPTICAL predictor
+AU  - Kumar, Shiu
+AU  - Sharma, Alok
+AU  - Tsunoda, Tatsuhiko
+T2  - Scientific Reports
+AB  - Brain-computer interface (BCI) systems having the ability to classify brain waves with greater accuracy are highly desirable. To this end, a number of techniques have been proposed aiming to be able to classify brain waves with high accuracy. However, the ability to classify brain waves and its implementation in real-time is still limited. In this study, we introduce a novel scheme for classifying motor imagery (MI) tasks using electroencephalography (EEG) signal that can be implemented in real-time having high classification accuracy between different MI tasks. We propose a new predictor, OPTICAL, that uses a combination of common spatial pattern (CSP) and long short-term memory (LSTM) network for obtaining improved MI EEG signal classification. A sliding window approach is proposed to obtain the time-series input from the spatially filtered data, which becomes input to the LSTM network. Moreover, instead of using LSTM directly for classification, we use regression based output of the LSTM network as one of the features for classification. On the other hand, linear discriminant analysis (LDA) is used to reduce the dimensionality of the CSP variance based features. The features in the reduced dimensional plane after performing LDA are used as input to the support vector machine (SVM) classifier together with the regression based feature obtained from the LSTM network. The regression based feature further boosts the performance of the proposed OPTICAL predictor. OPTICAL showed significant improvement in the ability to accurately classify left and right-hand MI tasks on two publically available datasets. The improvements in the average misclassification rates are 3.09% and 2.07% for BCI Competition IV Dataset I and GigaDB dataset, respectively. The Matlab code is available at 
+                  https://github.com/ShiuKumar/OPTICAL
+                  
+                .
+DA  - 2019/06/24/
+PY  - 2019
+DO  - 10.1038/s41598-019-45605-1
+DP  - www.nature.com
+VL  - 9
+IS  - 1
+SP  - 1
+EP  - 13
+J2  - Sci Rep
+LA  - en
+SN  - 2045-2322
+UR  - https://www.nature.com/articles/s41598-019-45605-1
+Y2  - 2019/10/29/19:16:25
+L1  - files/13/Kumar et al. - 2019 - Brain wave classification using long short-term me.pdf
+L2  - files/14/s41598-019-45605-1.html
+ER  - 
+
+TY  - JOUR
+TI  - Multitask learning and benchmarking with clinical time series data
+AU  - Harutyunyan, Hrayr
+AU  - Khachatrian, Hrant
+AU  - Kale, David C.
+AU  - Steeg, Greg Ver
+AU  - Galstyan, Aram
+T2  - Scientific Data
+AB  - Health care is one of the most exciting frontiers in data mining and machine learning. Successful adoption of electronic health records (EHRs) created an explosion in digital clinical data available for analysis, but progress in machine learning for healthcare research has been difficult to measure because of the absence of publicly available benchmark data sets. To address this problem, we propose four clinical prediction benchmarks using data derived from the publicly available Medical Information Mart for Intensive Care (MIMIC-III) database. These tasks cover a range of clinical problems including modeling risk of mortality, forecasting length of stay, detecting physiologic decline, and phenotype classification. We propose strong linear and neural baselines for all four tasks and evaluate the effect of deep supervision, multitask training and data-specific architectural modifications on the performance of neural models.
+DA  - 2019/06/17/
+PY  - 2019
+DO  - 10.1038/s41597-019-0103-9
+DP  - www.nature.com
+VL  - 6
+IS  - 1
+SP  - 1
+EP  - 18
+J2  - Sci Data
+LA  - en
+SN  - 2052-4463
+UR  - https://www.nature.com/articles/s41597-019-0103-9
+Y2  - 2019/10/29/19:16:50
+L1  - files/16/Harutyunyan et al. - 2019 - Multitask learning and benchmarking with clinical .pdf
+L2  - files/17/s41597-019-0103-9.html
+ER  - 
+
+TY  - JOUR
+TI  - Learning to forget: continual prediction with LSTM
+AU  - Gers, F. A.
+AU  - Schmidhuber, J.
+AU  - Cummins, F.
+AB  - Long short-term memory (LSTM) can solve many tasks not solvable by previous learning algorithms for recurrent neural networks (RNNs). We identify a weakness of LSTM networks processing continual input streams without explicitly marked sequence ends. Without resets, the internal state values may grow indefinitely and eventually cause the network to break down. Our remedy is an adaptive “forget gate” that enables an LSTM cell to learn to reset itself at appropriate times, thus releasing internal resources. We review an illustrative benchmark problem on which standard LSTM outperforms other RNN algorithms. All algorithms (including LSTM) fail to solve a continual version of that problem. LSTM with forget gates, however, easily solves it in an elegant way.
+DA  - 1999/01/01/
+PY  - 1999
+DO  - 10.1049/cp:19991218
+DP  - digital-library.theiet.org
+SP  - 850
+EP  - 855
+LA  - en
+ST  - Learning to forget
+UR  - https://digital-library.theiet.org/content/conferences/10.1049/cp_19991218
+Y2  - 2019/10/29/19:17:50
+L2  - files/19/cp_19991218.html
+ER  - 
+

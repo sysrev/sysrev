@@ -1,0 +1,4 @@
+{:paths ["src" "resources"]
+ :deps {instaparse/instaparse {:mvn/version "1.4.12"}}
+ :aliases
+ {:test {:extra-paths ["test" "test-resources"]}}}

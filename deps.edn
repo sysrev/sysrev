@@ -94,6 +94,7 @@
         poly/postgres {:local/root "components/postgres"}
         poly/project-api {:local/root "components/project-api"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
+        poly/ris {:local/root "components/ris"}
         poly/secrets-manager {:local/root "components/secrets-manager"}
         poly/shutdown {:local/root "components/shutdown"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}

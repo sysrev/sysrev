@@ -1,0 +1,89 @@
+TY  - JOUR
+TI  - Long Short-Term Memory
+T2  - Neural Computation
+SP  - 1735
+EP  - 1780
+AU  - S. Hochreiter
+AU  - J. Schmidhuber
+PY  - 1997
+DO  - 10.1162/neco.1997.9.8.1735
+JO  - Neural Computation
+IS  - 8
+SN  - 
+VO  - 9
+VL  - 9
+JA  - Neural Computation
+Y1  - 15 Nov. 1997
+AB  - Learning to store information over extended time intervals by recurrent backpropagation takes a very long time, mostly because of insufficient, decaying error backflow. We briefly review Hochreiter's (1991) analysis of this problem, then address it by introducing a novel, efficient, gradient based method called long short-term memory (LSTM). Truncating the gradient where this does not do harm, LSTM can learn to bridge minimal time lags in excess of 1000 discrete-time steps by enforcing constant error flow through constant error carousels within special units. Multiplicative gate units learn to open and close access to the constant error flow. LSTM is local in space and time; its computational complexity per time step and weight is O. 1. Our experiments with artificial data involve local, distributed, real-valued, and noisy pattern representations. In comparisons with real-time recurrent learning, back propagation through time, recurrent cascade correlation, Elman nets, and neural sequence chunking, LSTM leads to many more successful runs, and learns much faster. LSTM also solves complex, artificial long-time-lag tasks that have never been solved by previous recurrent network algorithms.
+ER  - 
+
+TY  - CONF
+TI  - Hybrid speech recognition with Deep Bidirectional LSTM
+T2  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+SP  - 273
+EP  - 278
+AU  - A. Graves
+AU  - N. Jaitly
+AU  - A. Mohamed
+PY  - 2013
+KW  - acoustic signal processing
+KW  - error statistics
+KW  - Gaussian processes
+KW  - recurrent neural nets
+KW  - speech recognition
+KW  - hybrid speech recognition
+KW  - deep bidirectional LSTM
+KW  - recurrent neural networks
+KW  - TIMIT speech database
+KW  - recurrent-neural-network-specific objective functions
+KW  - vocabulary speech recognition systems
+KW  - neural network-HMM hybrid system
+KW  - DBLSTM-HMM hybrid
+KW  - GMM
+KW  - deep network benchmarks
+KW  - Wall Street Journal corpus
+KW  - word error rate
+KW  - framelevel accuracy
+KW  - acoustic modelling
+KW  - frame-level accuracy
+KW  - Training
+KW  - Hidden Markov models
+KW  - Noise
+KW  - Acoustics
+KW  - Vectors
+KW  - Context
+KW  - Speech recognition
+KW  - DBLSTM
+KW  - HMM-RNN hybrid
+DO  - 10.1109/ASRU.2013.6707742
+JO  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+IS  - 
+SN  - 
+VO  - 
+VL  - 
+JA  - 2013 IEEE Workshop on Automatic Speech Recognition and Understanding
+Y1  - 8-12 Dec. 2013
+AB  - Deep Bidirectional LSTM (DBLSTM) recurrent neural networks have recently been shown to give state-of-the-art performance on the TIMIT speech database. However, the results in that work relied on recurrent-neural-network-specific objective functions, which are difficult to integrate with existing large vocabulary speech recognition systems. This paper investigates the use of DBLSTM as an acoustic model in a standard neural network-HMM hybrid system. We find that a DBLSTM-HMM hybrid gives equally good results on TIMIT as the previous work. It also outperforms both GMM and deep network benchmarks on a subset of the Wall Street Journal corpus. However the improvement in word error rate over the deep network is modest, despite a great increase in framelevel accuracy. We conclude that the hybrid approach with DBLSTM appears to be well suited for tasks where acoustic modelling predominates. Further investigation needs to be conducted to understand how to better leverage the improvements in frame-level accuracy towards better word error rates.
+ER  - 
+
+TY  - JOUR
+TI  - Learning to Forget: Continual Prediction with LSTM
+T2  - Neural Computation
+SP  - 2451
+EP  - 2471
+AU  - F. A. Gers
+AU  - J. Schmidhuber
+AU  - F. Cummins
+PY  - 2000
+DO  - 10.1162/089976600300015015
+JO  - Neural Computation
+IS  - 10
+SN  - 
+VO  - 12
+VL  - 12
+JA  - Neural Computation
+Y1  - 1 Oct. 2000
+AB  - Long short-term memory (LSTM; Hochreiter & Schmidhuber, 1997) can solve numerous tasks not solvable by previous learning algorithms for recurrent neural networks (RNNs). We identify a weakness of LSTM networks processing continual input streams that are not a priori segmented into subsequences with explicitly marked ends at which the network's internal state could be reset. Without resets, the state may grow indefinitely and eventually cause the network to break down. Our remedy is a novel, adaptive “forget gate” that enables an LSTM cell to learn to reset itself at appropriate times, thus releasing internal resources. We review illustrative benchmark problems on which standard LSTM outperforms other RNN algorithms. All algorithms (including LSTM) fail to solve continual versions of these problems. LSTM with forget gates, however, easily solves them, and in an elegant way.
+ER  - 
+
+

@@ -1,0 +1,479 @@
+TY  - JOUR
+AB  - Major depressive disorder (MDD) is characterized by signaling aberrations in interleukin (IL)-6, IL-10, beta-endorphins as well as μ (MOR) and κ (KOR) opioid receptors. Here we examined whether these biomarkers may aid in the classification of unknown subjects into the target class MDD. The aforementioned biomarkers were assayed in 60 first-episode, drug-naïve depressed patients and 30 controls. We used joint principal component analysis (PCA) performed on all subjects to check whether subjects cluster by classes; support vector machine (SVM) with 10-fold validation; and linear discriminant analysis (LDA) and SIMCA performed on calibration and validation sets and we computed the figures of merit and learnt from the data. PCA shows that both groups were well separated using the first three PCs, while correlation loadings show that all five biomarkers have discriminatory value. SVM and LDA yielded an accuracy of 100% in validation samples. Using SIMCA, there was a highly significant discrimination of both groups (model-to-model distance = 110.2); all biomarkers showed a significant discrimination and modeling power, while 100% of the patients were authenticated as MDD cases with a specificity of 93.3%. We have delineated that MDD is a distinct class with respect to neuro-immune and opioid biomarkers and that future unknown subjects can be authenticated as having MDD using this SIMCA fingerprint. Precision psychiatry should employ SIMCA to (a) authenticate patients as belonging to the claimed target class and identify other subjects as outsiders, members of another class, or aliens; and (b) acquire knowledge through learning from the data by constructing a biomarker fingerprint of the target class.
+AN  - 31124079
+AU  - Al-Hakeim, H. K.
+AU  - Al-Fadhel, S. Z.
+AU  - Al-Dujaili, A. H.
+AU  - Carvalho, A.
+AU  - Sriswasdi, S.
+AU  - Maes, M.
+DA  - Nov
+DO  - 10.1007/s12035-019-01647-0
+ET  - 2019/05/23
+IS  - 11
+KW  - Cytokines
+Inflammation
+Major depression
+Neuro-immune
+Opioids
+Supervised learning
+LA  - eng
+PY  - 2019
+SN  - 1559-1182
+SP  - 7822-7835
+ST  - Development of a Novel Neuro-immune and Opioid-Associated Fingerprint with a Cross-Validated Ability to Identify and Authenticate Unknown Patients with Major Depression: Far Beyond Differentiation, Discrimination, and Classification
+T2  - Mol Neurobiol
+TI  - Development of a Novel Neuro-immune and Opioid-Associated Fingerprint with a Cross-Validated Ability to Identify and Authenticate Unknown Patients with Major Depression: Far Beyond Differentiation, Discrimination, and Classification
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/31124079
+VL  - 56
+ID  - 220
+ER  - 
+
+TY  - JOUR
+AB  - To predict the need for surgical intervention in patients with primary open-angle glaucoma (POAG) using systemic data in electronic health records (EHR).|Development and evaluation of machine learning models.|Structured EHR data for 385 POAG patients from a single academic institution were incorporated into models using multivariable logistic regression, random forests, and artificial neural networks. Leave-one-out cross-validation was performed. Mean area under the receiver operating characteristic curve (AUC), sensitivity, specificity, accuracy, and Youden Index were calculated for each model to evaluate performance. Systemic variables driving predictions were identified and interpreted.|Multivariable logistic regression was most effective at discriminating patients with progressive disease requiring surgery, with an AUC of 0.67. Higher mean systolic blood pressure was associated with significantly increased odds of needing glaucoma surgery (odds ratio [OR] 1.09, p<0.001). Ophthalmic medications (OR 0.28, P<0.001), non-opioid analgesic medications (OR 0.21, P=0.002), anti-hyperlipidemic medications (OR 0.39, P=0.004), macrolide antibiotics (OR 0.40, P=0.03), and calcium blockers (OR 0.43, P=0.03) were associated with decreased odds of needing glaucoma surgery.|Existing systemic data in the EHR has some predictive value in identifying POAG patients at risk of progression to surgical intervention, even in the absence of eye-specific data. Blood pressure-related metrics and certain medication classes emerged as predictors of glaucoma progression. This approach provides an opportunity for future development of automated risk prediction within the EHR based on systemic data to assist with clinical decision-making.
+AN  - 31323204
+AU  - Baxter, S. L.
+AU  - Marks, C.
+AU  - Kuo, T. T.
+AU  - Ohno-Machado, L.
+AU  - Weinreb, R. N.
+DA  - Jul
+DO  - 10.1016/j.ajo.2019.07.005
+ET  - 2019/07/16
+LA  - eng
+PY  - 2019
+SN  - 1879-1891
+ST  - Machine learning-based predictive modeling of surgical intervention in glaucoma using systemic data from electronic health records
+T2  - Am J Ophthalmol
+TI  - Machine learning-based predictive modeling of surgical intervention in glaucoma using systemic data from electronic health records
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/31323204
+ID  - 218
+ER  - 
+
+TY  - JOUR
+AB  - Opioid use is endemic in the U.S. and is associated with morbidity and mortality. The impact of long-term opioid use on joint-replacement outcomes remains unknown. We tested the hypothesis that use of opioids is associated with adverse outcomes after total knee arthroplasty (TKA).|We performed a retrospective analysis of patients who had had TKA within the U.S. Veterans Affairs (VA) system over a 6-year period and had been followed for 1 year postoperatively. The length of time for which an opioid had been prescribed and the morphine equivalent dose were calculated for each patient. Patients for whom opioids had been prescribed for >3 months in the year prior to the TKA were assigned to the long-term opioid group. A natural language processing-based machine-learning classifier was developed to classify revisions due to infectious and non-infectious causes on the basis of the postoperative note. Survival curves for the time to knee revision or manipulation were used to compare the long-term opioid group with the patients who did not take opioids long-term. Hazard and odds ratios for knee revision and manipulation were obtained as well.|Of 32,636 patients (94.4% male; mean age [and standard deviation], 64.45 ± 9.41 years) who underwent TKA, 12,772 (39.1%) were in the long-term opioid group and 734 (2.2%) had a revision within a year after the TKA. Chronic kidney disease, diabetes, and long-term opioid use were associated with revision within 1 year-with odds ratios (95% confidence intervals [CIs]) of 1.76 (1.37 to 2.22), 1.11 (0.93 to 1.31), and 1.40 (1.19 to 1.64), respectively-and were also the leading factors associated with a revision at any time after the index TKA-with odds ratios (95% CIs) of 1.61 (1.34 to 1.92), 1.21 (1.08 to 1.36), and 1.28 (1.15 to 1.43), respectively. Long-term opioid use had a hazard ratio of 1.19 (95% CI = 1.10 to 0.24) in the analysis of its relationship with knee revision, but the hazard was not significant in the analysis of its association with knee manipulation. The accuracy of the text classifier was 0.94, with the area under the receiver operating characteristic curve being 0.99. There was no association between long-term use of opioids and the specific cause for knee revision.|Long-term opioid use prior to TKA was associated with an increased risk of knee revision during the first year after TKA among predominantly male patients treated in the VA system.|Therapeutic Level III. See Instructions for Authors for a complete description of levels of evidence.
+AN  - 28060227
+AU  - Ben-Ari, A.
+AU  - Chansky, H.
+AU  - Rozet, I.
+DA  - Jan
+DO  - 10.2106/JBJS.16.00167
+IS  - 1
+KW  - Analgesics, Opioid
+Arthroplasty, Replacement, Knee
+Female
+Humans
+Male
+Middle Aged
+Morphine
+Odds Ratio
+Preoperative Care
+Prescription Drugs
+Prosthesis Failure
+Reoperation
+Retrospective Studies
+Risk Factors
+United States
+Veterans
+LA  - eng
+PY  - 2017
+SN  - 1535-1386
+SP  - 1-9
+ST  - Preoperative Opioid Use Is Associated with Early Revision After Total Knee Arthroplasty: A Study of Male Patients Treated in the Veterans Affairs System
+T2  - J Bone Joint Surg Am
+TI  - Preoperative Opioid Use Is Associated with Early Revision After Total Knee Arthroplasty: A Study of Male Patients Treated in the Veterans Affairs System
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/28060227
+VL  - 99
+ID  - 227
+ER  - 
+
+TY  - JOUR
+AB  - Robust neuroimaging markers of neuropsychiatric disorders have proven difficult to obtain. In alcohol use disorders, profound brain structural deficits can be found in severe alcoholic patients, but the heterogeneity of unimodal MRI measurements has so far precluded the identification of selective biomarkers, especially for early diagnosis. In the present work we used a combination of multiple MRI modalities to provide comprehensive and insightful descriptions of brain tissue microstructure. We performed a longitudinal experiment using Marchigian-Sardinian (msP) rats, an established model of chronic excessive alcohol consumption, and acquired multi-modal images before and after 1 month of alcohol consumption (6.8 ± 1.4 g/kg/day, mean ± SD), as well as after 1 week of abstinence with or without concomitant treatment with the antirelapse opioid antagonist naltrexone (2.5 mg/kg/day). We found remarkable sensitivity and selectivity to accurately classify brains affected by alcohol even after the relative short exposure period. One month drinking was enough to imprint a highly specific signature of alcohol consumption. Brain alterations were regionally specific and affected both gray and white matter and persisted into the early abstinence state without any detectable recovery. Interestingly, naltrexone treatment during early abstinence resulted in subtle brain changes that could be distinguished from non-treated abstinent brains, suggesting the existence of an intermediate state associated with brain recovery from alcohol exposure induced by medication. The presented framework is a promising tool for the development of biomarkers for clinical diagnosis of alcohol use disorders, with capacity to further inform about its progression and response to treatment.
+AN  - 27273582
+AU  - Cosa, A.
+AU  - Moreno, A.
+AU  - Pacheco-Torres, J.
+AU  - Ciccocioppo, R.
+AU  - Hyytiä, P.
+AU  - Sommer, W. H.
+AU  - Moratal, D.
+AU  - Canals, S.
+DA  - Sep
+DO  - 10.1111/adb.12418
+ET  - 2016/06/08
+IS  - 5
+KW  - Alcohol Drinking
+Alcoholism
+Animals
+Brain
+Central Nervous System Depressants
+Disease Models, Animal
+Ethanol
+Longitudinal Studies
+Magnetic Resonance Imaging
+Naltrexone
+Narcotic Antagonists
+Rats
+alcohol use disorders
+classification algorithms
+machine learning
+multi-modal MRI
+naltrexone
+rat
+LA  - eng
+PY  - 2017
+SN  - 1369-1600
+SP  - 1459-1472
+ST  - Multi-modal MRI classifiers identify excessive alcohol consumption and treatment effects in the brain
+T2  - Addict Biol
+TI  - Multi-modal MRI classifiers identify excessive alcohol consumption and treatment effects in the brain
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/27273582
+VL  - 22
+ID  - 228
+ER  - 
+
+TY  - JOUR
+AB  - The opioid epidemic in the United States is averaging over 100 deaths per day due to overdose. The effectiveness of opioids as pain treatments, and the drug-seeking behavior of opioid addicts, leads physicians in the United States to issue over 200 million opioid prescriptions every year. To better understand the biomedical profile of opioid-dependent patients, we analyzed information from electronic health records (EHR) including lab tests, vital signs, medical procedures, prescriptions, and other data from millions of patients to predict opioid substance dependence.|We trained a machine learning model to classify patients by likelihood of having a diagnosis of substance dependence using EHR data from patients diagnosed with substance dependence, along with control patients with no history of substance-related conditions, matched by age, gender, and status of HIV, hepatitis C, and sickle cell disease. The top machine learning classifier using all features achieved a mean area under the receiver operating characteristic (AUROC) curve of ~ 92%, and analysis of the model uncovered associations between basic clinical factors and substance dependence. Additionally, diagnoses, prescriptions, and procedures prior to the diagnoses of substance dependence were analyzed to elucidate the clinical profile of substance-dependent patients, relative to controls.|The predictive model may hold utility for identifying patients at risk of developing dependence, risk of overdose, and opioid-seeking patients that report other symptoms in their visits to the emergency room.
+AN  - 30728857
+AU  - Ellis, R. J.
+AU  - Wang, Z.
+AU  - Genes, N.
+AU  - Ma'ayan, A.
+C2  - PMC6352440
+DO  - 10.1186/s13040-019-0193-0
+ET  - 2019/01/29
+KW  - Artificial intelligence
+Electronic health records
+Electronic medical records
+Machine learning
+Opioid dependence
+Opioid epidemic
+LA  - eng
+PY  - 2019
+SN  - 1756-0381
+SP  - 3
+ST  - Predicting opioid dependence from electronic health records with machine learning
+T2  - BioData Min
+TI  - Predicting opioid dependence from electronic health records with machine learning
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/30728857
+VL  - 12
+ID  - 221
+ER  - 
+
+TY  - JOUR
+AB  - Hospital length of stay (LOS) is an important quality metric for total hip arthroplasty. Accurately predicting LOS is important to expectantly manage bed utilization and other hospital resources. We aimed to develop a predictive model for determining patients who do not require prolonged LOS.|This was a retrospective single-institution study analyzing patients undergoing elective unilateral primary total hip arthroplasty from 2014 to 2016. The primary outcome of interest was LOS less than or equal to the expected duration, defined as ≤3 days. Multivariable logistic regression was performed to generate a model for this outcome, and a point-based calculator was designed. The model was built on a training set, and performance was assessed on a validation set. The area under the receiver operating characteristic curve and the Hosmer-Lemeshow test were calculated to determine discriminatory ability and goodness-of-fit, respectively. Predictive models using other machine learning techniques (ridge regression, Lasso, and random forest) were created, and model performances were compared.|The point-based score calculator included 9 variables: age, opioid use, metabolic equivalents score, sex, anemia, chronic obstructive pulmonary disease, hypertension, obesity, and primary anesthesia type. The area under the receiver operating characteristic curve of the calculator on the validation set was 0.735 (95% confidence interval, 0.675-0.787) and demonstrated adequate goodness-of-fit (Hosmer-Lemeshow test, P = .37). When using a score of 12 as a threshold for predicting outcome, the positive predictive value was 86.1%.|A predictive model that can help identify patients at higher odds for not requiring a prolonged hospital LOS was developed and may aid hospital administrators in strategically planning bed availability to reduce both overcrowding and underutilization when coordinating with surgical volume.
+AN  - 30234533
+AU  - Gabriel, R. A.
+AU  - Sharma, B. S.
+AU  - Doan, C. N.
+AU  - Jiang, X.
+AU  - Schmidt, U. H.
+AU  - Vaida, F.
+DA  - Jul
+DO  - 10.1213/ANE.0000000000003798
+IS  - 1
+LA  - eng
+PY  - 2019
+SN  - 1526-7598
+SP  - 43-50
+ST  - A Predictive Model for Determining Patients Not Requiring Prolonged Hospital Length of Stay After Elective Primary Total Hip Arthroplasty
+T2  - Anesth Analg
+TI  - A Predictive Model for Determining Patients Not Requiring Prolonged Hospital Length of Stay After Elective Primary Total Hip Arthroplasty
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/30234533
+VL  - 129
+ID  - 223
+ER  - 
+
+TY  - JOUR
+AB  - A growing body of research provides compelling evidence that in rats 50-kHz USVs are a form of expression of positive emotions. Context-induced 50-kHz USVs emission is variable among rats, indicating individual differences in contextual response bound up with pharmacological reward. The aims of this study were to: extract the most important neurotransmitters related to context-induced conditioned 50-kHz USVs response; find biological basis of existing inter-individual differences in context-induced conditioned 50-kHz USVs response; create a model of all-to-all neurotransmitters correlations. The data collected here confirms that re-exposure to the context of morphine administration after the withdrawal period increases the level of 50-kHz USVs and this contextual response is associated with elevated serotonin concentrations in amygdala, hippocampus and mPFC and with increased Glu/Gln ratio in nucleus accumbens. The concentration of serotonin increases simultaneously in amygdala, nucleus accumbens and hippocampus. Moreover, 5-HT concentration in amygdala is bound up with glutamate level in this structure as well as in hippocampus. Furthermore, Glu/Gln ratio in nucleus accumbens has strong associations with Glu/Gln ratio simultaneously in VTA, amygdala, striatum and hippocampus. All-to-all-analysis indicate that concentration of glutamate in hippocampus is proportional to glutamate in VTA and GABA concentration in the hippocampus. We have also demonstrated that Glu/GABA ratio in VTA and amygdala was elevated after post withdrawal re-exposure to the pharmacological reward paired context. Presented analysis indicates a strong correlation between serotonergic and glutamatergic systems in context-induced conditioned response. The strength of this co-transmission correlates with the number of 50-kHz USVs emitted in response to morphine-paired context.
+AN  - 29774428
+AU  - Hamed, A.
+AU  - Kursa, M. B.
+C2  - PMC6132671
+DA  - Sep
+DO  - 10.1007/s00429-018-1683-4
+ET  - 2018/05/17
+IS  - 7
+KW  - Animals
+Behavior, Animal
+Brain
+Conditioning (Psychology)
+Disease Models, Animal
+Glutamic Acid
+Male
+Morphine
+Opioid-Related Disorders
+Rats, Sprague-Dawley
+Reward
+Serotonin
+Substance Withdrawal Syndrome
+Synaptic Transmission
+Time Factors
+Ultrasonic Waves
+Vocalization, Animal
+gamma-Aminobutyric Acid
+5-HT
+Amygdala
+Co-transmission
+Context conditioning
+Context-induced
+GABA
+Glu/Gln ratio
+Glutamate
+Incubation of craving
+Inter-individual differences
+
+Machine learning
+Morphine
+Neurochemistry
+Nucleus accumbens
+Reward
+Serotonin
+USVs
+Ultrasonic vocalization
+LA  - eng
+PY  - 2018
+SN  - 1863-2661
+SP  - 3149-3167
+ST  - Inter-individual differences in serotonin and glutamate co-transmission reflect differentiation in context-induced conditioned 50-kHz USVs response after morphine withdrawal
+T2  - Brain Struct Funct
+TI  - Inter-individual differences in serotonin and glutamate co-transmission reflect differentiation in context-induced conditioned 50-kHz USVs response after morphine withdrawal
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/29774428
+VL  - 223
+ID  - 225
+ER  - 
+
+TY  - JOUR
+AB  - Social media use is now ubiquitous, but the growth in social media communications has also made it a convenient digital platform for drug dealers selling controlled substances, opioids, and other illicit drugs. Previous studies and news investigations have reported the use of popular social media platforms as conduits for opioid sales. This study uses deep learning to detect illicit drug dealing on the image and video sharing platform Instagram.|The aim of this study was to develop and evaluate a machine learning approach to detect Instagram posts related to illegal internet drug dealing.|In this paper, we describe an approach to detect drug dealers by using a deep learning model on Instagram. We collected Instagram posts using a Web scraper between July 2018 and October 2018 and then compared our deep learning model against 3 different machine learning models (eg, random forest, decision tree, and support vector machine) to assess the performance and accuracy of the model. For our deep learning model, we used the long short-term memory unit in the recurrent neural network to learn the pattern of the text of drug dealing posts. We also manually annotated all posts collected to evaluate our model performance and to characterize drug selling conversations.|From the 12,857 posts we collected, we detected 1228 drug dealer posts comprising 267 unique users. We used cross-validation to evaluate the 4 models, with our deep learning model reaching 95% on F1 score and performing better than the other 3 models. We also found that by removing the hashtags in the text, the model had better performance. Detected posts contained hashtags related to several drugs, including the controlled substance Xanax (1078/1228, 87.78%), oxycodone/OxyContin (321/1228, 26.14%), and illicit drugs lysergic acid diethylamide (213/1228, 17.34%) and 3,4-methylenedioxy-methamphetamine (94/1228, 7.65%). We also observed the use of communication applications for suspected drug trading through user comments.|Our approach using a combination of Web scraping and deep learning was able to detect illegal online drug sellers on Instagram, with high accuracy. Despite increased scrutiny by regulators and policymakers, the Instagram platform continues to host posts from drug dealers, in violation of federal law. Further action needs to be taken to ensure the safety of social media communities and help put an end to this illicit digital channel of sourcing.
+AN  - 31199298
+AU  - Li, J.
+AU  - Xu, Q.
+AU  - Shah, N.
+AU  - Mackey, T. K.
+C2  - PMC6598421
+DA  - Jun
+DO  - 10.2196/13803
+ET  - 2019/06/15
+IS  - 6
+KW  - artificial intelligence
+internet
+machine learning
+narcotics
+opioids
+prescription drug abuse
+social media
+substance abuse
+LA  - eng
+PY  - 2019
+SN  - 1438-8871
+SP  - e13803
+ST  - A Machine Learning Approach for the Detection and Characterization of Illicit Drug Dealers on Instagram: Model Evaluation Study
+T2  - J Med Internet Res
+TI  - A Machine Learning Approach for the Detection and Characterization of Illicit Drug Dealers on Instagram: Model Evaluation Study
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/31199298
+VL  - 21
+ID  - 219
+ER  - 
+
+TY  - JOUR
+AB  - The Centers for Disease Control and Prevention (CDC) monitor accidental and intentional deaths to answer questions that are critical for the development of effective prevention and resource allocation. CDC's National Violent Death Reporting System (NVDRS) is a major innovation in surveillance linking individual-level data from multiple sources. However, suicide underreporting is common, particularly from drug overdose deaths. This study sought to assess machine learning (ML) techniques in quantifying drug overdose suicide underreporting rates.|Clinical, sociodemographic, toxicological, and proximal stressor data on overdose decedents (n = 2,665) were extracted from Utah's NVDRS from 2012 to 2015. The existing well-determined cases were used to train and test our ML models. We assessed and compared multiple machine learning methods including Logistic Regression, Random Forest Classifier, Support Vector Machines, and Artificial Neural Networks. We applied a majority voting methodology to classify undetermined drug overdose deaths.|Overdose suicide rates were estimated to be underreported by 33% across all years, increasing yearly from 29% in 2012 to 37% in 2015. The overall test accuracies for all models ranged from 92.3% to 94.6%.|This research identifies a cost-effective, replicable, and expandable ML-based methodology to estimate the true rates of suicide which may be partially masked during the opioid epidemic.
+AN  - 31536175
+AU  - Liu, D.
+AU  - Yu, M.
+AU  - Duncan, J.
+AU  - Fondario, A.
+AU  - Kharrazi, H.
+AU  - Nestadt, P. S.
+DA  - Sep
+DO  - 10.1111/sltb.12591
+ET  - 2019/09/19
+LA  - eng
+PY  - 2019
+SN  - 1943-278X
+ST  - Discovering the Unclassified Suicide Cases Among Undetermined Drug Overdose Deaths Using Machine Learning Techniques
+T2  - Suicide Life Threat Behav
+TI  - Discovering the Unclassified Suicide Cases Among Undetermined Drug Overdose Deaths Using Machine Learning Techniques
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/31536175
+ID  - 217
+ER  - 
+
+TY  - JOUR
+AB  - On December 6 and 7, 2017, the US Department of Health and Human Services (HHS) hosted its first Code-a-Thon event aimed at leveraging technology and data-driven solutions to help combat the opioid epidemic. The authors—an interdisciplinary team from academia, the private sector, and the US Centers for Disease Control and Prevention—participated in the Code-a-Thon as part of the prevention track.|The aim of this study was to develop and deploy a methodology using machine learning to accurately detect the marketing and sale of opioids by illicit online sellers via Twitter as part of participation at the HHS Opioid Code-a-Thon event.|Tweets were collected from the Twitter public application programming interface stream filtered for common prescription opioid keywords in conjunction with participation in the Code-a-Thon from November 15, 2017 to December 5, 2017. An unsupervised machine learning–based approach was developed and used during the Code-a-Thon competition (24 hours) to obtain a summary of the content of the tweets to isolate those clusters associated with illegal online marketing and sale using a biterm topic model (BTM). After isolating relevant tweets, hyperlinks associated with these tweets were reviewed to assess the characteristics of illegal online sellers.|We collected and analyzed 213,041 tweets over the course of the Code-a-Thon containing keywords codeine, percocet, vicodin, oxycontin, oxycodone, fentanyl, and hydrocodone. Using BTM, 0.32% (692/213,041) tweets were identified as being associated with illegal online marketing and sale of prescription opioids. After removing duplicates and dead links, we identified 34 unique “live” tweets, with 44% (15/34) directing consumers to illicit online pharmacies, 32% (11/34) linked to individual drug sellers, and 21% (7/34) used by marketing affiliates. In addition to offering the “no prescription” sale of opioids, many of these vendors also sold other controlled substances and illicit drugs.|The results of this study are in line with prior studies that have identified social media platforms, including Twitter, as a potential conduit for supply and sale of illicit opioids. To translate these results into action, authors also developed a prototype wireframe for the purposes of detecting, classifying, and reporting illicit online pharmacy tweets selling controlled substances illegally to the US Food and Drug Administration and the US Drug Enforcement Agency. Further development of solutions based on these methods has the potential to proactively alert regulators and law enforcement agencies of illegal opioid sales, while also making the online environment safer for the public.
+AN  - 29613851
+AU  - Mackey, T.
+AU  - Kalyanam, J.
+AU  - Klugman, J.
+AU  - Kuzmenko, E.
+AU  - Gupta, R.
+C2  - PMC5948414
+DA  - 04
+DO  - 10.2196/10029
+ET  - 2018/04/27
+IS  - 4
+KW  - Analgesics, Opioid
+Controlled Substances
+Humans
+Internet
+Machine Learning
+Marketing
+Pharmaceutical Services, Online
+Prescription Drug Misuse
+Social Media
+online pharmacies
+drug abuse
+opioid abuse
+machine learning
+unsupervised machine learning
+prescription drug misuse
+LA  - eng
+PY  - 2018
+SN  - 1438-8871
+SP  - e10029
+ST  - Solution to Detect, Classify, and Report Illicit Online Marketing and Sales of Controlled Substances via Twitter: Using Machine Learning and Web Forensics to Combat Digital Opioid Access
+T2  - J Med Internet Res
+TI  - Solution to Detect, Classify, and Report Illicit Online Marketing and Sales of Controlled Substances via Twitter: Using Machine Learning and Web Forensics to Combat Digital Opioid Access
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/29613851
+VL  - 20
+ID  - 226
+ER  - 
+
+TY  - JOUR
+AB  - To assess the prevalence and correlates of self-reported misuse of prescribed-opioid medications in the US general population.|In 31 068 adult participants of the National Survey on Drug Use and Health (NSDUH) 2015 and 2016 who reported using opioids in the past year, we assessed the prevalence and correlates of self-reported misuse of prescribed opioids, defined as using a larger dose, more frequently, or longer than prescribed. Multivariable logistic-regression models and the machine-learning method of boosted regression were used to identify the correlates of misuse.|On the basis of weighted NSDUH estimates, of more than 89 million US adults who used prescription opioids every year, close to 3.9 million (4.4%) reported misused the prescribed medications. Prescribed-opioid misuse was most strongly associated with co-occurring misuse of opioids without a prescription, misuse of benzodiazepines, other drug-use disorders, history of illegal activity, and psychological distress. Misuse of prescribed opioids was also strongly associated with prescription opioid-use disorder, especially among those who misused more potent opioids or started misusing opioids before the current year.|Misuse of prescribed opioids is associated with other high-risk behaviors and adverse health outcomes. The findings call for better monitoring of opioid prescription in clinical practice.
+AN  - 30723973
+AU  - Mojtabai, R.
+AU  - Amin-Esmaeili, M.
+AU  - Nejat, E.
+AU  - Olfson, M.
+DA  - Mar
+DO  - 10.1002/pds.4743
+ET  - 2019/02/05
+IS  - 3
+KW  - drug use disorder
+medication misuse
+painkillers
+pharmacoepidemiology
+prescription opioid
+LA  - eng
+PY  - 2019
+SN  - 1099-1557
+SP  - 345-353
+ST  - Misuse of prescribed opioids in the United States
+T2  - Pharmacoepidemiol Drug Saf
+TI  - Misuse of prescribed opioids in the United States
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/30723973
+VL  - 28
+ID  - 222
+ER  - 
+
+TY  - JOUR
+AB  - The authors investigated if timing of medical treatment is associated with the analgesic effect of pregabalin or placebo in patients with chronic pancreatitis (CP).|Sixty-four patients received pregabalin (150-300 mg twice a day) or matching placebo for 3 consecutive weeks. Responders to treatment were defined as patients with a reduction in clinical pain scores of 30% or greater. Factors associated with timing of pain treatment (ie, duration of CP and opioid usage) were collected at baseline. In addition, other factors that potentially could influence outcome (eg, clinical pain scores prior to study medication, diabetes, and exocrine pancreatic insufficiency) were also included. Conventional groupwise logistic regression and analysis on the individual patient level with a machine learning technique were used to predict treatment response.|In the conventional statistical analysis duration of CP (odds ratio, 0.9; 95% confidence interval, 0.8-1.1; P = 0.3) and opioid treatment (odds ratio, 1.0; 95% confidence interval, 0.9-1.1; P = 0.6) were not associated with pain relief. In addition, none of the supplementary factors were associated with treatment response (all P > 0.1). Likewise, in the individual patient-level analysis, none of the included variables reached classification accuracies greater than chance level (all P > 0.1).|Pregabalin can be added as adjuvant analgesic at any time point during the disease course of CP.
+AN  - 26474430
+AU  - Olesen, S. S.
+AU  - Graversen, C.
+AU  - Bouwense, S. A.
+AU  - Wilder-Smith, O. H.
+AU  - van Goor, H.
+AU  - Drewes, A. M.
+DA  - Mar
+DO  - 10.1097/MPA.0000000000000475
+IS  - 3
+KW  - Adult
+Aged
+Analgesics
+Double-Blind Method
+Drug Administration Schedule
+Humans
+Logistic Models
+Male
+Middle Aged
+Pain
+Pain Measurement
+Pancreatitis, Chronic
+Placebos
+Pregabalin
+Risk Factors
+Time Factors
+Treatment Outcome
+LA  - eng
+PY  - 2016
+SN  - 1536-4828
+SP  - 381-7
+ST  - Is Timing of Medical Therapy Related to Outcome in Painful Chronic Pancreatitis?
+T2  - Pancreas
+TI  - Is Timing of Medical Therapy Related to Outcome in Painful Chronic Pancreatitis?
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/26474430
+VL  - 45
+ID  - 229
+ER  - 
+
+TY  - JOUR
+AB  - The recent demonstration that addiction-relevant neuronal ensembles defined by known master transcription factors and their connectome is networked throughout mesocorticolimbic reward circuits and resonates harmonically at known frequencies implies that single-cell pan-omics techniques can improve our understanding of Substance Use Disorders (SUD's). Application of machine learning algorithms to such data could find diagnostic utility as biomarkers both to define the presence of the disorder and to quantitate its severity and find myriad applications in a developmental pipeline towards therapeutics and cure. Recent epigenomic studies have uncovered a wealth of clinically important data relating to synapse-nucleus signalling, memory storage, lineage-fate determination and cellular control and are contributing greatly to our understanding of all SUD's. Epigenetics interacts extensively with glycobiology. Glycans decorate DNA, RNA and many circulating critical proteins particularly immunoglobulins. Glycosylation is emerging as a major information-laden post-translational protein modification with documented application for biomarker development. The integration of these two emerging cutting-edge technologies provides a powerful and fertile algorithmic-bioinformatic space for the development both of SUD biomarkers and novel cutting edge therapeutics.|These lines of evidence provide fertile ground for hypotheses relating to both diagnosis and treatment. They suggest that biomarkers derived from epigenomics complemented by glycobiology may potentially provide a bedside diagnostic tool which could be developed into a clinically useful biomarker to gauge both the presence and the severity of SUD's. Moreover they suggest that modern information-based therapeutics acting on the epigenome, via RNA interference or by DNA antisense oligonucleotides may provide a novel 21st century therapeutic development pipeline towards the radical cure of addictive disorders. Such techniques could be focussed and potentiated by neurotrophic vectors or the application of interfering electric or magnetic fields deep in the medial temporal lobes of the brain.
+AN  - 29857889
+AU  - Reece, A. S.
+AU  - Wang, W.
+AU  - Hulse, G. K.
+DA  - Jul
+DO  - 10.1016/j.mehy.2018.04.011
+ET  - 2018/04/12
+KW  - Algorithms
+Behavior, Addictive
+Biomarkers
+Brain
+Cell Lineage
+DNA
+DNA Methylation
+Epigenesis, Genetic
+Epigenomics
+Glycomics
+Glycosylation
+Humans
+Immunoglobulins
+Machine Learning
+Magnetic Fields
+Oligonucleotides, Antisense
+RNA
+RNA Interference
+Substance-Related Disorders
+Temporal Lobe
+Transcription Factors
+Aging
+Biomarker
+Epigenomics
+Glycobiology
+Opioid
+Single cell assays
+LA  - eng
+PY  - 2018
+SN  - 1532-2777
+SP  - 10-21
+ST  - Pathways from epigenomics and glycobiology towards novel biomarkers of addiction and its radical cure
+T2  - Med Hypotheses
+TI  - Pathways from epigenomics and glycobiology towards novel biomarkers of addiction and its radical cure
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/29857889
+VL  - 116
+ID  - 224
+ER  - 
+
+TY  - JOUR
+AB  - Automatic curation of consumer-generated, opioid-related social media big data may enable real-time monitoring of the opioid epidemic in the United States.|To develop and validate an automatic text-processing pipeline for geospatial and temporal analysis of opioid-mentioning social media chatter.|This cross-sectional, population-based study was conducted from December 1, 2017, to August 31, 2019, and used more than 3 years of publicly available social media posts on Twitter, dated from January 1, 2012, to October 31, 2015, that were geolocated in Pennsylvania. Opioid-mentioning tweets were extracted using prescription and illicit opioid names, including street names and misspellings. Social media posts (tweets) (n = 9006) were manually categorized into 4 classes, and training and evaluation of several machine learning algorithms were performed. Temporal and geospatial patterns were analyzed with the best-performing classifier on unlabeled data.|Pearson and Spearman correlations of county- and substate-level abuse-indicating tweet rates with opioid overdose death rates from the Centers for Disease Control and Prevention WONDER database and with 4 metrics from the National Survey on Drug Use and Health for 3 years were calculated. Classifier performances were measured through microaveraged F1 scores (harmonic mean of precision and recall) or accuracies and 95% CIs.|A total of 9006 social media posts were annotated, of which 1748 (19.4%) were related to abuse, 2001 (22.2%) were related to information, 4830 (53.6%) were unrelated, and 427 (4.7%) were not in the English language. Yearly rates of abuse-indicating social media post showed statistically significant correlation with county-level opioid-related overdose death rates (n = 75) for 3 years (Pearson r = 0.451, P < .001; Spearman r = 0.331, P = .004). Abuse-indicating tweet rates showed consistent correlations with 4 NSDUH metrics (n = 13) associated with nonmedical prescription opioid use (Pearson r = 0.683, P = .01; Spearman r = 0.346, P = .25), illicit drug use (Pearson r = 0.850, P < .001; Spearman r = 0.341, P = .25), illicit drug dependence (Pearson r = 0.937, P < .001; Spearman r = 0.495, P = .09), and illicit drug dependence or abuse (Pearson r = 0.935, P < .001; Spearman r = 0.401, P = .17) over the same 3-year period, although the tests lacked power to demonstrate statistical significance. A classification approach involving an ensemble of classifiers produced the best performance in accuracy or microaveraged F1 score (0.726; 95% CI, 0.708-0.743).|The correlations obtained in this study suggest that a social media-based approach reliant on supervised machine learning may be suitable for geolocation-centric monitoring of the US opioid epidemic in near real time.
+AN  - 31693125
+AU  - Sarker, A.
+AU  - Gonzalez-Hernandez, G.
+AU  - Ruan, Y.
+AU  - Perrone, J.
+DA  - Nov
+DO  - 10.1001/jamanetworkopen.2019.14672
+ET  - 2019/11/01
+IS  - 11
+LA  - eng
+PY  - 2019
+SN  - 2574-3805
+SP  - e1914672
+ST  - Machine Learning and Natural Language Processing for Geolocation-Centric Monitoring and Characterization of Opioid-Related Social Media Chatter
+T2  - JAMA Netw Open
+TI  - Machine Learning and Natural Language Processing for Geolocation-Centric Monitoring and Characterization of Opioid-Related Social Media Chatter
+UR  - https://www.ncbi.nlm.nih.gov/pubmed/31693125
+VL  - 2
+ID  - 216
+ER  - 
+
