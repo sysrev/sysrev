@@ -94,8 +94,8 @@
       },
       "original": {
         "owner": "insilica",
-        "ref": "master",
         "repo": "rs-srvc",
+        "rev": "844973dc6c45c4373d146dbfc42bbf45aee07314",
         "type": "github"
       }
     }

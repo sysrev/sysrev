@@ -10,7 +10,7 @@
       flake = false;
     };
     srvc = {
-      url = "github:insilica/rs-srvc/master";
+      url = "github:insilica/rs-srvc/844973dc6c45c4373d146dbfc42bbf45aee07314";
       inputs.flake-compat.follows = "flake-compat";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
