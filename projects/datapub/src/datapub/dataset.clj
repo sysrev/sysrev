@@ -13,6 +13,7 @@
             [sysrev.lacinia.interface :as sl]
             [sysrev.pdf-read.interface :as pdf-read]
             [sysrev.postgres.interface :as pg]
+            [sysrev.ris.interface :as ris]
             [sysrev.tesseract.interface :as tesseract])
   (:import (java.io InputStream)
            (java.nio.file Path)
@@ -22,6 +23,10 @@
            (java.util Base64)
            (org.apache.commons.io IOUtils)
            (org.postgresql.jdbc PgArray)))
+
+(def ^:const text-media-types
+  #{"applicaton/json"
+    "application/x-research-info-systems"})
 
 (defn sysrev-dev? [context]
   (let [auth (-> context :request :headers (get "authorization")
@@ -251,7 +256,7 @@
      (as-> context $
        (execute-one!
         $
-        {:select (keep cols-file ks)
+        {:select (-> (keep cols-file ks) set (conj :media-type) vec)
          :from :entity
          :where [:= :id int-id]
          :join [:content-file [:= :content-file.content-id :entity.content-id]]})
@@ -262,7 +267,7 @@
                                (get-in context [:pedestal :s3])
                                (:content-file/file-hash $))
                               :Body))
-               :mediaType "application/pdf")))
+               :mediaType (:content-file/media-type $))))
      (some->
       (execute-one!
        context
@@ -278,14 +283,17 @@
         (with-tx-context [context context]
           (some->
            (if (some #{:content :contentUrl :mediaType :metadata} ks)
-             (some-> (get-entity-content
-                      context int-id
-                      (apply conj ks (when (:contentUrl ks) [:content-hash :file-hash])))
-                     (update :content
-                             #(if (instance? InputStream %)
-                                (.encodeToString (Base64/getEncoder)
-                                                 (IOUtils/toByteArray ^InputStream %))
-                                %)))
+             (let [{:as m :keys [content mediaType]}
+                   (get-entity-content
+                    context int-id
+                    (apply conj (conj ks :mediaType) (when (:contentUrl ks) [:content-hash :file-hash])))]
+               (if (instance? InputStream content)
+                 (assoc m :content
+                        (if (text-media-types mediaType)
+                          (slurp ^InputStream content)
+                          (.encodeToString (Base64/getEncoder)
+                                           (IOUtils/toByteArray ^InputStream content))))
+                 m))
              (execute-one!
               context
               {:select (keep cols-all ks)
@@ -616,6 +624,50 @@
 
        :else
        (create-entity-pdf! context input path json)))))
+
+(defmethod create-dataset-entity! "application/x-research-info-systems"
+  [context {{:keys [content contentUpload metadata] :as input} :input} _]
+  (ensure-sysrev-dev
+   context
+   (let [content (or content
+                     (when (string? contentUpload) contentUpload)
+                     (some-> contentUpload :path io/file slurp)
+                     (some-> contentUpload :tempfile io/file slurp))
+         json (try
+                (when metadata (json/parse-string metadata))
+                (catch Exception _))
+         ;; Normalize the content
+         ris (try
+               (vec (ris/str->ris-maps content))
+               (catch Exception _))]
+     (cond
+       (empty? ris)
+       (resolve/resolve-as nil {:message "Invalid content: Not a valid RIS file."})
+
+       (and metadata (empty? json))
+       (resolve/resolve-as nil {:message "Invalid metadata: Not valid JSON."
+                                :metadata metadata})
+
+       :else
+       (let [content (ris/ris-maps->str ris)
+             file-hash (-> content .getBytes io/input-stream file/sha3-256)
+             data {:metadata json}
+             content-hash (-> {:data data
+                               :file-hash
+                               (.encode (Base64/getEncoder) file-hash)}
+                              hasch/edn-hash
+                              byte-array)]
+         (file/put-entity-content!
+          (get-in context [:pedestal :s3])
+          {:content (-> content .getBytes io/input-stream)
+           :file-hash file-hash})
+         (with-tx-context [context context]
+           (create-entity-helper!
+            context input
+            {:content-hash content-hash
+             :content-table :content-file
+             :data data
+             :file-hash file-hash})))))))
 
 (defn dataset-entities-subscription [context {{:keys [datasetId uniqueExternalIds uniqueGroupingIds]} :input} source-stream]
   (ensure-sysrev-dev

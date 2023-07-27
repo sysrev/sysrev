@@ -6,7 +6,8 @@
             [datapub.dataset :refer :all]
             [datapub.file :as file]
             [datapub.test :as test]
-            [sysrev.datapub-client.interface.queries :as dpcq])
+            [sysrev.datapub-client.interface.queries :as dpcq]
+            [sysrev.ris.interface :as ris])
   (:import java.io.InputStream
            java.net.URL
            java.util.Base64
@@ -777,6 +778,93 @@
             (is (= #{{:externalId "020978_S016_ZIAGEN.pdf"}}
                    (ex-search! (search-q ocr-text "\"tanima sinha\""))))))))))
 
+(deftest test-ris-entities
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id")
+                        {:input {:name "test-ris-entities"}})
+                    (get-in [:data :createDataset :id]))
+          create-entity-raw
+          #__ (fn [filename & [metadata]]
+                (let [content (->> (str "datapub/file-uploads/" filename)
+                                   io/resource
+                                   slurp)]
+                  {:content (try
+                              (-> content ris/str->ris-maps ris/ris-maps->str)
+                                 ;; Allow tests for invalid content
+                              (catch Exception _))
+                   :response
+                   (:body
+                    (test/execute!
+                     system
+                     (dpcq/m-create-dataset-entity #{:id :metadata})
+                     {:input
+                      {:datasetId ds-id
+                       :content content
+                       :externalId filename
+                       :mediaType "application/x-research-info-systems"
+                       :metadata (when metadata
+                                   (json/generate-string metadata))}}))}))
+          create-entity
+          #__ (fn [filename & [metadata]]
+                (let [{:keys [content response]} (create-entity-raw filename metadata)]
+                  (-> (test/throw-errors response)
+                      (get-in [:data :createDatasetEntity])
+                      (assoc :content content))))
+          one-article (create-entity "one_article.ris")
+          endnoteonline (create-entity "endnoteonline.ris" {:title "endnoteonline"})]
+      (testing "Can create and retrieve an RIS entity with one reference"
+        (is (string? (:id one-article)))
+        (is (nil? (some-> one-article :metadata json/parse-string)))
+        (is (= {:data {:datasetEntity {:content (:content one-article) :mediaType "application/x-research-info-systems"}}}
+               (ex (dpcq/q-dataset-entity "content mediaType")
+                   {:id (:id one-article)}))))
+      (testing "Can create and retrieve an RIS entity with many references"
+        (is (string? (:id endnoteonline)))
+        (is (= {"title" "endnoteonline"}
+               (some-> endnoteonline :metadata json/parse-string)))
+        (is (= {:data {:datasetEntity {:content (:content endnoteonline) :mediaType "application/x-research-info-systems"}}}
+               (ex (dpcq/q-dataset-entity "content mediaType")
+                   {:id (:id endnoteonline)}))))
+      (testing "Identical files with different metadata are separate entities, but identical files with identical metadata are the same entity"
+        (let [one-article2 (create-entity "one_article.ris" {:title "one-article2"})
+              one-article* (-> (ex (dpcq/q-dataset-entity "id metadata")
+                                   {:id (:id one-article)})
+                               (get-in [:data :datasetEntity]))]
+          (is (string? (:id one-article*)))
+          (is (string? (:id one-article2)))
+          (is (not= (:id one-article*) (:id one-article2)))
+          (is (nil? (some-> one-article* :metadata json/parse-string)))
+          (is (= {"title" "one-article2"}
+                 (some-> one-article2 :metadata json/parse-string)))
+          (is (= (:id one-article2)
+                 (:id (create-entity "one_article.ris" {:title "one-article2"}))))))
+      (testing "Invalid RIS is rejected"
+        (is (re-matches
+             #"Invalid content.*: Not a valid RIS file."
+             (-> (create-entity-raw "empty.ris")
+                 (get-in [:response :errors 0 :message]))))
+        (is (re-matches
+             #"Invalid content.*: Not a valid RIS file."
+             (-> (create-entity-raw "invalid.ris")
+                 (get-in [:response :errors 0 :message]))))
+        (is (re-matches
+             #"Invalid content.*: Not a valid RIS file."
+             (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
+                 (get-in [:response :errors 0 :message])))))
+      (testing "Invalid metadata is rejected"
+        (is (= "Invalid metadata: Not valid JSON."
+               (-> (test/execute!
+                    system
+                    (dpcq/m-create-dataset-entity "id")
+                    {:input
+                     {:datasetId ds-id
+                      :content (:content one-article)
+                      :externalId "one_article.ris"
+                      :mediaType "application/x-research-info-systems"
+                      :metadata "{"}})
+                   (get-in [:body :errors 0 :message]))))))))
+
 (deftest test-file-uploads
   (test/with-test-system [system {:config {:pedestal {:port 0}}}]
     (let [sysrev-dev-key (get-in system [:pedestal :config :secrets :sysrev-dev-key])
@@ -835,4 +923,11 @@
           (is (string? (:id phi)))
           (is (string? (:contentUrl phi)))
           (is (= (sha3-256 (upload-stream "portland-heat-island.pdf"))
-                 (some-> phi :contentUrl URL. .openStream sha3-256))))))))
+                 (some-> phi :contentUrl URL. .openStream sha3-256)))))
+      (testing "RIS uploads through contentUpload work and can be retrieved at contentUrl"
+        (let [endnoteonline (upload-entity! (upload-stream "endnoteonline.ris")
+                                            "application/x-research-info-systems")]
+          (is (string? (:id endnoteonline)))
+          (is (string? (:contentUrl endnoteonline)))
+          (is (= (-> "endnoteonline.ris" upload-stream slurp ris/str->ris-maps ris/ris-maps->str .getBytes io/input-stream sha3-256)
+                 (some-> endnoteonline :contentUrl URL. .openStream sha3-256))))))))

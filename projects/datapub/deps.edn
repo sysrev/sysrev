@@ -24,6 +24,7 @@
         poly/nrepl {:local/root "../../components/nrepl"}
         poly/pdf-read {:local/root "../../components/pdf-read"}
         poly/postgres {:local/root "../../components/postgres"}
+        poly/ris {:local/root "../../components/ris"}
         poly/shutdown {:local/root "../../components/shutdown"}
         poly/tesseract {:local/root "../../components/tesseract"}
         poly/util-lite {:local/root "../../components/util-lite"}}

@@ -1,0 +1,19 @@
+TY  - JOUR
+TI  - Long Short-Term Memory
+T2  - Neural Computation
+SP  - 1735
+EP  - 1780
+AU  - S. Hochreiter
+AU  - J. Schmidhuber
+PY  - 1997
+DO  - 10.1162/neco.1997.9.8.1735
+JO  - Neural Computation
+IS  - 8
+SN  - 
+VO  - 9
+VL  - 9
+JA  - Neural Computation
+Y1  - 15 Nov. 1997
+AB  - Learning to store information over extended time intervals by recurrent backpropagation takes a very long time, mostly because of insufficient, decaying error backflow. We briefly review Hochreiter's (1991) analysis of this problem, then address it by introducing a novel, efficient, gradient based method called long short-term memory (LSTM). Truncating the gradient where this does not do harm, LSTM can learn to bridge minimal time lags in excess of 1000 discrete-time steps by enforcing constant error flow through constant error carousels within special units. Multiplicative gate units learn to open and close access to the constant error flow. LSTM is local in space and time; its computational complexity per time step and weight is O. 1. Our experiments with artificial data involve local, distributed, real-valued, and noisy pattern representations. In comparisons with real-time recurrent learning, back propagation through time, recurrent cascade correlation, Elman nets, and neural sequence chunking, LSTM leads to many more successful runs, and learns much faster. LSTM also solves complex, artificial long-time-lag tasks that have never been solved by previous recurrent network algorithms.
+ER  - 
+
