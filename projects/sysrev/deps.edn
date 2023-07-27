@@ -1,13 +1,17 @@
 {:paths []
  :deps {org.clojure/clojure {:mvn/version "1.11.0-beta1"}
         org.clojure/tools.deps.alpha {:mvn/version "0.11.918"}
+        poly/contajners {:local/root "../../components/contajners"}
         poly/datapub-client {:local/root "../../components/datapub-client"}
         poly/flyway {:local/root "../../components/flyway"}
+        poly/json {:local/root "../../components/json"}
         poly/notification {:local/root "../../components/notification"}
         poly/postgres {:local/root "../../components/postgres"}
         poly/reviewer-time {:local/root "../../components/reviewer-time"}
+        poly/shutdown {:local/root "../../components/shutdown"}
         poly/sysrev {:local/root "."}
-        poly/user {:local/root "../../components/user"}}
+        poly/user {:local/root "../../components/user"}
+        poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:test {:extra-paths ["../../config/test"]
                   :extra-deps {poly/fixtures {:local/root "../../components/fixtures"}
                                poly/postgres {:local/root "../../components/postgres-embedded"}}}}}

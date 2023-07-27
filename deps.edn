@@ -80,6 +80,7 @@
 
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
+        poly/contajners {:local/root "components/contajners"}
         poly/datapub-client {:local/root "components/datapub-client"}
         poly/file-util {:local/root "components/file-util"}
         poly/flyway {:local/root "components/flyway"}
@@ -91,6 +92,7 @@
         poly/notification {:local/root "components/notification"}
         poly/nrepl {:local/root "components/nrepl"}
         poly/postgres {:local/root "components/postgres"}
+        poly/project-api {:local/root "components/project-api"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
         poly/secrets-manager {:local/root "components/secrets-manager"}
         poly/shutdown {:local/root "components/shutdown"}
@@ -124,7 +126,7 @@
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
                        :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "f15e08ae01ee29d59f7eb1e80f52be6bc19f8eff"}}
+                       :sha "9053b190d5f3b0680ac4fe5c5f1851f7c0d40830"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
