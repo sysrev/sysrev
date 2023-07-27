@@ -10,5 +10,5 @@ max_line_length = 120
 [Makefile]
 indent_style = tab
 
-[*.{diff,md}]
+[*.{diff,md,ris}]
 trim_trailing_whitespace = false
