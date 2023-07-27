@@ -1,5 +1,6 @@
 (ns sysrev.ris.interface
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [instaparse.core :as insta :refer [defparser]]
             [instaparse.transform :refer [transform]]))
 
@@ -91,3 +92,24 @@
                       {:parser-output parser-output}))
       (parser-output->coll parser-output))))
 
+(defn ris-map->str
+  "Given a citation map with keyword keys, returns a String."
+  [{:as m :keys [ER TY]}]
+  (let [ks (->> m keys (remove #(#{:TY :ER} %)) sort)]
+    (->>
+     (concat
+      ["TY  - " (first TY) "\n"]
+      (mapcat
+       (fn [k]
+         (for [v (m k)]
+           (str (name k)
+                "  - " v
+                "\n")))
+       ks)
+      ["ER  - " (first ER) "\n\n"])
+     (str/join ""))))
+
+(defn ris-maps->str
+  "Given a sequence of citation maps with keyword keys, returns a String."
+  [ms]
+  (str/join "" (map ris-map->str ms)))
