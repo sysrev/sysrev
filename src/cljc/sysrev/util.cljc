@@ -621,8 +621,8 @@
 
 #?(:clj (defmacro log-exception [^Throwable e & {:keys [level] :or {level :error}}]
           `(let [e# ~e]
-             (log/logf ~level "%s: %s\n%s"
-                       (current-function-name) (.getMessage e#) (print-cause-trace-custom e#)))))
+             (log/logf ~level "%s: %s %s\n%s\n%s"
+                       (current-function-name) (class e#) (ex-message e#) (ex-data e#) (print-cause-trace-custom e#)))))
 
 #?(:clj (defmacro log-errors [& body]
           `(try
@@ -637,8 +637,8 @@
              [^Thread _thread ^Throwable e]
              (log/logf
               level
-              "%s %s: %s\n%s"
-              name (current-function-name) (.getMessage e) (print-cause-trace-custom e))))))
+              "%s %s: %s %s\n%s\n%s"
+              name (current-function-name) (class e) (ex-message e) (ex-data e) (print-cause-trace-custom e))))))
 
 #?(:clj (defn gquery [query-form]
           (if (string? query-form)
