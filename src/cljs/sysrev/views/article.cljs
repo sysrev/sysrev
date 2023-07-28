@@ -387,7 +387,7 @@
   {"application/json" JSONEntity
    "application/pdf" PDFEntity})
 
-(defn DatasetEntityLoader [{:keys [article-id dataset-jwt entity-id project-id]}]
+(defn DatasetEntityLoader [{:keys [article-id context dataset-jwt entity-id project-id]}]
   (r/with-let [state (r/atom {:entity (delay nil)})]
     (let [{:keys [entity]} @state
           {:keys [mediaType]} @entity
@@ -408,17 +408,19 @@
             :datapub-auth (str "Bearer " dataset-jwt)
             :entity @entity
             :project-id project-id}]
-          (do (js/console.error "Unknown mediaType: " mediaType)
-              [:div "Unknown mediaType: " mediaType]))))))
+          [ArticleInfoMain article-id :context context])))))
 
-(defn DatasetEntity [project-id article-id]
+(defn DatasetEntity [project-id article-id & {:keys [context]}]
   (let [{:keys [dataset-id external-id]} @(subscribe [:article/raw article-id])
         _ (dispatch [:require [:dataset-jwt dataset-id]])
         dataset-jwt @(subscribe [:datapub/dataset-jwt dataset-id])]
     (when (and dataset-jwt external-id)
       [DatasetEntityLoader
-       {:article-id article-id :dataset-jwt dataset-jwt
-        :entity-id external-id :project-id project-id}])))
+       {:article-id article-id
+        :context context
+        :dataset-jwt dataset-jwt
+        :entity-id external-id
+        :project-id project-id}])))
 
 (defn FDADrugsDocs []
   (let [state (r/atom {:current-version nil :versions nil})]
@@ -589,7 +591,7 @@
               (condp = (if types
                          [(:article-type types) (:article-subtype types)]
                          (or datasource-name article-type))
-                "datapub" [DatasetEntity project-id article-id]
+                "datapub" [DatasetEntity project-id article-id :context context]
                 "entity" [Entity article-id]
                 ["json" "ctgov"]  [CTDocument article-id]
                 ["pdf" "fda-drugs-docs"] [FDADrugsDocs article-id]

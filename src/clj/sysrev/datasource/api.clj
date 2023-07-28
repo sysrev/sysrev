@@ -6,8 +6,10 @@
             [orchestra.core :refer [defn-spec]]
             [medley.core :as medley]
             [sysrev.config :refer [env]]
+            [sysrev.datapub-client.interface :as dpc]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
+            [sysrev.ris.interface :as ris]
             [sysrev.util
              :as
              util
@@ -127,6 +129,42 @@
                     (select-keys x [:article-id :article-subtype :article-type
                                     :dataset-id :external-id :project-id :title]))
              (assoc :uri (str "https://clinicaltrials.gov/ct2/show/" external-id))))))
+
+(defn prepare-ris-content [s]
+  (let [{:as ris-map :keys [A1 A2 A3 A4 AU DA JF JO PY UR]} (ris/str->ris-maps s)
+        {:keys [abstract primary-title secondary-title]} (ris/titles-and-abstract ris-map)]
+    {:abstract abstract
+     :authors (concat AU A1 A2 A3 A4)
+     :content s
+     :date (or (first DA) (first PY))
+     :journal-name (or (first JF) (first JO))
+     :journal-render (or (first JF) (first JO))
+     :primary-title primary-title
+     :secondary-title secondary-title
+     :urls UR}))
+
+(defn get-entity-content [auth-token endpoint id]
+  (let [{:keys [contentUrl mediaType]}
+        (dpc/get-dataset-entity
+         id "contentUrl externalId mediaType"
+         :auth-token auth-token
+         :endpoint endpoint)]
+    (when (= "application/x-research-info-systems" mediaType)
+      (-> (http/get contentUrl
+                    {:headers {"Authorization" (str "Bearer " auth-token)}
+                     :as :string})
+          :body
+          prepare-ris-content
+          (assoc :content-url contentUrl)))))
+
+(defmethod enrich-articles "datapub" [_ articles]
+  (let [{:keys [config]} @@(requiring-resolve 'sysrev.main/system)
+        {:keys [graphql-endpoint sysrev-dev-key]} config]
+    (vec (for [{:keys [content external-id] :as m} articles]
+           (merge content
+                  (get-entity-content sysrev-dev-key graphql-endpoint external-id)
+                  (select-keys m [:article-id :article-subtype :article-type
+                                  :dataset-id :external-id :project-id :title]))))))
 
 (defmethod enrich-articles "pubmed" [_ articles]
   (let [data (->> articles (map :external-id) (fetch-pubmed-articles))]
