@@ -91,7 +91,7 @@
         ris-maps (try
                    (ris/str->ris-maps s)
                    (catch Exception _))
-        entities (mapv
+        entities (map
                   (fn [m]
                     (let [s (ris/ris-map->str m)]
                       {:ris-map m
@@ -103,18 +103,22 @@
                            :id)}))
                   ris-maps)]
     (if (empty? entities)
-      (db/with-long-tx [sr-context sr-context]
-        (doseq [{:keys [entity-id ris-map]} entities]
-          (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
-                article-data-id (-> sr-context
-                                    (goc-article-data!
-                                     {:dataset-id dataset-id
-                                      :entity-id entity-id
-                                      :content nil
-                                      :title (or primary-title secondary-title)})
-                                    :article-data/article-data-id)]
-            (create-article! sr-context project-id source-id article-data-id)))))))
       (throw (ex-info "Invalid RIS file" {:file file}))
+      (doseq [chunk (partition-all 1000 entities)]
+        (let [chunk (vec chunk)]
+          (db/with-long-tx [sr-context sr-context]
+            (doseq [{:keys [entity-id ris-map]} chunk]
+              (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
+                    article-data-id (-> sr-context
+                                        (goc-article-data!
+                                         {:dataset-id dataset-id
+                                          :entity-id entity-id
+                                          :content nil
+                                          :title (or primary-title secondary-title)})
+                                        :article-data/article-data-id)]
+                (create-article! sr-context project-id source-id article-data-id)))
+            ;; Update import-date to avoid timing out on large imports
+            (source/set-import-date source-id)))))))
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
