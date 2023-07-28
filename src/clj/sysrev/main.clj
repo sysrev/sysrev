@@ -19,7 +19,11 @@
             [sysrev.sente :as sente]
             [sysrev.sysrev-api.main]
             [sysrev.sysrev-api.pedestal]
+            [sysrev.util :as util]
             [sysrev.web.core :as web]))
+
+(Thread/setDefaultUncaughtExceptionHandler
+ (util/uncaught-exception-handler "DefaultUncaughtExceptionHandler"))
 
 (defrecord PostgresRunAfterStart [done?]
   component/Lifecycle

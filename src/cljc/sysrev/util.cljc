@@ -631,6 +631,15 @@
                (log-exception e#)
                (throw e#)))))
 
+#?(:clj (defn uncaught-exception-handler [name & {:keys [level] :or {level :error}}]
+         (proxy [Thread$UncaughtExceptionHandler] []
+           (uncaughtException
+             [^Thread _thread ^Throwable e]
+             (log/logf
+              level
+              "%s %s: %s\n%s"
+              name (current-function-name) (.getMessage e) (print-cause-trace-custom e))))))
+
 #?(:clj (defn gquery [query-form]
           (if (string? query-form)
             query-form ; return input value when already formatted as a query string
