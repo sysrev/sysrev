@@ -8,7 +8,6 @@
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
-            [sysrev.slack :refer [log-slack-custom]]
             [sysrev.util
              :as
              util
@@ -213,27 +212,6 @@
     (->> (partition-all 1000 source-pmids)
          (map do-search)
          (apply concat))))
-
-(defn create-ris-file
-  "Given a file and filename, create a RIS file citation on datasource."
-  [{:keys [file filename]}]
-  (let [{:keys [body] :as response}
-        (http/post (str (ds-host) "/files/ris")
-                   {:headers (auth-header)
-                    :multipart [{:name "filename" :content filename}
-                                {:name "file" :content file}]
-                    :as :byte-array, :throw-exceptions false})
-        s (String. body "UTF-8")]
-    (try
-      (assoc response :body (json/read-str s))
-      (catch Exception e
-        (log-slack-custom [(format "*JSON Parsing Exception (%s)*:\n```%s```"
-                                   (class e)
-                                   (util/pp-str {:filename filename
-                                                 :file (str file)
-                                                 :body s}))]
-                          " failed")
-        {:status 500 :body {:error "JsonParseException"}}))))
 
 (defn download-file
   "Given a filename and hash, download a file from datasource"

@@ -28,7 +28,6 @@
         sysrev.source.core
         sysrev.source.endnote
         sysrev.source.pdf-zip
-        sysrev.source.ris
         sysrev.payment.paypal
         sysrev.payment.stripe
         sysrev.payment.plans

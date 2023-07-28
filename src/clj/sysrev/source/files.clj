@@ -5,6 +5,7 @@
             [sysrev.db.core :as db]
             [sysrev.json.interface :as json]
             [sysrev.postgres.interface :as pg]
+            [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
             [sysrev.util :as util]))
 
@@ -73,31 +74,70 @@
 (defn create-entity! [{:keys [datapub-opts dataset-id file]}]
   (let [{:keys [content-type filename tempfile]} file
         fname (fs/base-name filename)]
-    (-> {:contentUpload (if (= "application/json" content-type)
-                          (slurp tempfile)
-                          tempfile)
-         :datasetId dataset-id
-         :mediaType content-type
-         :metadata (when (not= "application/json" content-type)
-                     (json/write-str {:filename fname}))}
-        (dpc/create-dataset-entity! "id" datapub-opts)
-        :id)))
+    [(-> {:contentUpload (if (= "application/json" content-type)
+                           (slurp tempfile)
+                           tempfile)
+          :datasetId dataset-id
+          :mediaType content-type
+          :metadata (when (not= "application/json" content-type)
+                      (json/write-str {:filename fname}))}
+          (dpc/create-dataset-entity! "id" datapub-opts)
+          :id)]))
 
-(defn create-entities! [sr-context project-id source-id dataset-id files]
-  (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
-    (doseq [{:keys [filename] :as file} files]
-      (let [entity-id (create-entity! {:datapub-opts datapub-opts
-                                       :dataset-id dataset-id
-                                       :file file})]
-        (db/with-long-tx [sr-context sr-context]
-          (let [article-data-id (-> sr-context
+(defn create-ris-entities!
+  [sr-context {:keys [datapub-opts dataset-id project-id source-id]
+               {:keys [filename tempfile]} :file}]
+  (let [s (slurp tempfile)
+        ris-maps (try
+                   (ris/str->ris-maps s)
+                   (catch Exception _))
+        entities (mapv
+                  (fn [m]
+                    (let [s (ris/ris-map->str m)]
+                      {:ris-map m
+                       :entity-id
+                       (-> {:contentUpload s
+                            :datasetId dataset-id
+                            :mediaType "application/x-research-info-systems"}
+                           (dpc/create-dataset-entity! "id" datapub-opts)
+                           :id)}))
+                  ris-maps)]
+    (if (empty? entities)
+      (throw (ex-info "Invalid RIS file" {:s s}))
+      (db/with-long-tx [sr-context sr-context]
+        (doseq [{:keys [entity-id ris-map]} entities]
+          (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
+                article-data-id (-> sr-context
                                     (goc-article-data!
                                      {:dataset-id dataset-id
                                       :entity-id entity-id
                                       :content nil
-                                      :title (fs/base-name filename)})
+                                      :title (or primary-title secondary-title)})
                                     :article-data/article-data-id)]
             (create-article! sr-context project-id source-id article-data-id)))))))
+
+(defn create-entities! [sr-context project-id source-id dataset-id files]
+  (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
+    (doseq [{:keys [content-type filename] :as file} files]
+      (if (= "application/octet-stream" content-type)
+        (create-ris-entities! sr-context {:datapub-opts datapub-opts
+                                          :dataset-id dataset-id
+                                          :file file
+                                          :project-id project-id
+                                          :source-id source-id})
+        (let [entity-ids (create-entity! {:datapub-opts datapub-opts
+                                          :dataset-id dataset-id
+                                          :file file})]
+          (db/with-long-tx [sr-context sr-context]
+            (doseq [entity-id entity-ids]
+              (let [article-data-id (-> sr-context
+                                        (goc-article-data!
+                                         {:dataset-id dataset-id
+                                          :entity-id entity-id
+                                          :content nil
+                                          :title (fs/base-name filename)})
+                                        :article-data/article-data-id)]
+                (create-article! sr-context project-id source-id article-data-id)))))))))
 
 (defn import! [sr-context project-id files & {:keys [sync?]}]
   (let [dataset-id (:id (dpc/create-dataset!

@@ -261,36 +261,6 @@
       :post-error-text "Try editing your file to fit the upload instructions above
 or contact us at info@insilica.co with a copy of your zip file."]]))
 
-(defn ImportRISView []
-  (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui
-     [:h3 "2. Import an RIS / RefMan file"
-      [Popup {:hoverable true
-              :trigger (r/as-element [Icon {:name "question circle"}])
-              :content (r/as-element
-                        [:div
-                         [:h5 "Supported Exports"]
-                         [ListUI
-                          [ListItem "Scopus"]
-                          [ListItem "IEEE Explore"]
-                          [ListItem "EndNote Online"]
-                          [ListItem "Zotero"]
-                          [ListItem "...and many more"]]
-                         [:b "Note: Make sure to include abstracts when exporting files!"]])}]
-      [:a {:href "https://www.youtube.com/watch?v=N_Al2NfIUCw"
-           :target "_blank"} [Icon {:name "video camera"}]]]
-     [:p "Having difficulties? We recommend using the free citation manager "
-      [:a {:href "https://zotero.org" :target "_blank"} "Zotero"] "."]
-     [ui/UploadButton
-      (str "/api/import-articles/ris/" project-id)
-      #(dispatch [:on-add-source project-id])
-      "Upload RIS file..."
-      (cond-> "fluid"
-        (any-source-processing?) (str " disabled"))
-      {}
-      :post-error-text "Try processing your file with Zotero using the
-'Having difficulties importing your RIS file?' instructions above."]]))
-
 (def-action :project/import-project-articles
   :uri (fn [] "/api/import-project-articles")
   :content (fn [project-id urls]
@@ -671,7 +641,7 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
           :json      [:div [:h3 "2. JSON file"] [ImportFilesView ["application/json"]]]
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
-          :ris-file  [ImportRISView]
+          :ris-file  [ImportFilesView ["*/*"]]
           :ctgov [:div
                   [:h3 "2. Search and import clinicaltrials.gov documents."]
                   [ctgov/SearchBar]]

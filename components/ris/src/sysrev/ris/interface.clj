@@ -113,3 +113,9 @@
   "Given a sequence of citation maps with keyword keys, returns a String."
   [ms]
   (str/join "" (map ris-map->str ms)))
+
+(defn titles-and-abstract [{:keys [AB BT CT ST T1 T2 T3 TI TT]}]
+  (let [f (fn [[x]] (when (some-> x str/blank? not) x))]
+    {:abstract (f AB)
+     :primary-title (or (f T1) (f TI) (f ST) (f CT) (f TT))
+     :secondary-title (or (f T2) (f BT) (f T3))}))

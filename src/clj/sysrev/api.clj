@@ -58,7 +58,6 @@
             sysrev.source.pmid
             [sysrev.source.project-filter :as project-filter]
             sysrev.source.pubmed
-            sysrev.source.ris
             [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.sysrev-api-client.interface.queries :as sacq]
             [sysrev.user.interface :as user :refer [user-by-email]]
@@ -258,12 +257,6 @@
   title."
   [sr-context project-id file filename & {:keys [threads] :as options}]
   (wrap-import-api #(src/import-source sr-context :pdf-zip project-id % options)
-                   {:file file :filename filename}))
-
-(defn import-articles-from-ris-file
-  "Import articles from a RIS file."
-  [sr-context project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source sr-context :ris project-id % options)
                    {:file file :filename filename}))
 
 (defn import-trials-from-search

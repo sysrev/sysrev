@@ -444,13 +444,6 @@
            (app/active-project request)
            (if (map? files) [files] files))))))
 
-(dr (POST "/api/import-articles/ris/:project-id" request
-      (with-authorize request {:roles ["admin"]}
-        (let [project-id (active-project request)
-              {:keys [tempfile filename]} (get-in request [:params :file])
-              user-id (current-user-id request)]
-          (api/import-articles-from-ris-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
-
 (dr (POST "/api/import-trials/ctgov" request
       (with-authorize request {:roles ["admin"]}
         (let [{:keys [entity-ids query]} (:body request)
