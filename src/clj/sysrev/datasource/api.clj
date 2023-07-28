@@ -136,7 +136,7 @@
     {:abstract abstract
      :authors (concat AU A1 A2 A3 A4)
      :content s
-     :date (or (first DA) (first PY))
+     :date (or (first PY) (first DA))
      :journal-name (or (first JF) (first JO))
      :journal-render (or (first JF) (first JO))
      :primary-title primary-title
