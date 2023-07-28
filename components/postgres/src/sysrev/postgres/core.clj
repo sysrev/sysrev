@@ -6,7 +6,8 @@
             [next.jdbc.result-set :as result-set]
             [sysrev.flyway.interface :as flyway]
             [sysrev.json.interface :as json]
-            [sysrev.postgres.embedded :as embedded])
+            [sysrev.postgres.embedded :as embedded]
+            [sysrev.util-lite.interface :as ul])
   (:import (org.postgresql.util PGobject PSQLException)))
 
 (defn jsonb-pgobject [x]
@@ -18,6 +19,16 @@
   (and (or (instance? PSQLException e)
            (some->> e ex-cause (instance? PSQLException)))
        (->> e ex-message (re-find #"could not serialize access") boolean)))
+
+(defmacro retry-serial
+  [retry-opts & body]
+  `(ul/retry
+    (merge
+     {:interval-ms 100
+      :n 4
+      :throw-pred (complement serialization-error?)}
+     ~retry-opts)
+    ~@body))
 
 (defn make-datasource
   "Creates a Postgres db pool object to use with JDBC."

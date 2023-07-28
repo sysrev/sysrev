@@ -7,6 +7,7 @@
             [sysrev.db.core :as db :refer [*conn*]]
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :refer [create-notification]]
+            [sysrev.postgres.interface :as pg]
             [sysrev.slack :refer [log-slack-custom]]
             [sysrev.source.core :as source]
             [sysrev.stacktrace :as strace]
@@ -85,7 +86,7 @@
    & [{:keys [user-id] :as _opts}]]
   (assert (map? sr-context))
   (letfn [(import-group [articles]
-                        (db/retry-serial
+                        (pg/retry-serial
                          {}
                          (db/with-long-transaction [_ (:postgres sr-context)]
                            (let [{:keys [new-articles existing-article-ids]}
@@ -154,7 +155,7 @@
 (defn after-source-import
   "Handles success or failure after an import attempt has finished."
   [sr-context project-id source-id user-id success?]
-  (db/retry-serial
+  (pg/retry-serial
    {}
    (db/with-long-transaction [_ (:postgres sr-context)]
     ;; update source metadata

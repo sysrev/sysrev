@@ -48,10 +48,18 @@
   [postgres]
   (core/recreate-db! postgres))
 
+(defmacro retry-serial
+  "Retry the body on serialization errors from postgres.
+
+   retry-opts are passed to `sysrev.util-lite.interface/retry`
+   The default is 4 retries with a 100 ms starting interval."
+  [retry-opts & body]
+  `(core/retry-serial ~retry-opts ~@body))
+
 (defn serialization-error?
   "Returns true if e is caused by a postgres serialization error.
    See https://wiki.postgresql.org/wiki/SSI
-   
+
    The transaction can often be successfully retried when these errors occur."
   [^Throwable e]
   (core/serialization-error? e))
