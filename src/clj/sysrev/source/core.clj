@@ -316,7 +316,7 @@
                  :notes notes}))))
 
 (defn-spec set-import-date some?
-  "Set enabled status for source-id."
+  "Set import date for source-id."
   [source-id int?]
   (with-transaction
     (q/modify :project-source {:source-id source-id} {:import-date :%now})))
