@@ -872,13 +872,13 @@
           ds-id (-> (ex (dpcq/m-create-dataset "id") {:input {:name "test-file-uploads"
                                                               :public true}})
                     (get-in [:data :createDataset :id]))
-          upload-entity! (fn [content mediaType]
+          upload-entity! (fn [content mediaType & {:keys [return]}]
                            (-> {:headers {"Authorization" (str "Bearer " sysrev-dev-key)}
                                 :multipart
                                 [{:name "operations"
                                   :content
                                   (json/generate-string
-                                   {:query (dpcq/m-create-dataset-entity "content contentUrl id")
+                                   {:query (dpcq/m-create-dataset-entity (or return "contentUrl id"))
                                     :variables
                                     {:input
                                      {:datasetId ds-id
@@ -903,7 +903,7 @@
                          (->> (.encode (Base64/getEncoder)))
                          String.))]
       (testing "JSON uploads through contentUpload work and can be retrieved at contentUrl"
-        (let [entity-a (upload-entity! (json/generate-string {"a" [0]}) "application/json")]
+        (let [entity-a (upload-entity! (json/generate-string {"a" [0]}) "application/json" :return "content contentUrl id")]
           (is (string? (:id entity-a)))
           (is (string? (:contentUrl entity-a)))
           (is (= {"a" [0]}
