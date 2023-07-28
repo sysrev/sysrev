@@ -69,11 +69,13 @@
   `(let [context# ~context]
      (if-let [tx# (:tx context#)]
        (let [~name-sym context#] ~@body)
-       (jdbc/with-transaction [tx# (get-in context# [:pedestal :postgres :datasource])
-                               {:isolation :serializable}]
-         (let [context# (assoc context# :tx tx#)
-               ~name-sym (assoc context# :memos (context-memos context#))]
-           ~@body)))))
+       (pg/retry-serial
+        (merge {:n 0} (:tx-retry-opts context#))
+        (jdbc/with-transaction [tx# (get-in context# [:pedestal :postgres :datasource])
+                                {:isolation :serializable}]
+          (let [context# (assoc context# :tx tx#)
+                ~name-sym (assoc context# :memos (context-memos context#))]
+            ~@body))))))
 
 (let [cols {:created :created
             :description :description
@@ -83,7 +85,7 @@
 
   (defn resolve-dataset [context {:keys [id]} _]
     (when-let [int-id (sl/parse-int-id id)]
-      (with-tx-context [context context]
+      (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
         (when-not (or (public-dataset? context int-id)
                       (auth/can-read-dataset? context int-id))
                   (ensure-sysrev-dev context))
@@ -102,7 +104,7 @@
   (defn create-dataset! [context {:keys [input]} _]
     (ensure-sysrev-dev
      context
-     (with-tx-context [context context]
+     (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
        (let [{:dataset/keys [id]}
              #__ (execute-one!
                   context
@@ -116,7 +118,7 @@
     (when-let [int-id (sl/parse-int-id id)]
       (ensure-sysrev-dev
        context
-       (with-tx-context [context context]
+       (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
          (let [set (medley/map-keys cols (dissoc input :id))
                {:dataset/keys [id]}
                #__ (if (empty? set)
@@ -147,7 +149,7 @@
 
 (defn resolve-Dataset#indices [context _ {:keys [id]}]
   (when-let [int-id (sl/parse-int-id id)]
-    (with-tx-context [context context]
+    (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
       (when-not (public-dataset? context int-id)
         (ensure-sysrev-dev context))
       (->> (execute!
@@ -170,29 +172,28 @@
 
   Look at list-datasets for an example implementation."
   [context {first* :first :keys [after]} {:keys [count-f edges-f]}]
-  (with-tx-context [context context]
-    (let [cursor (if (empty? after) 0 (parse-long after))]
-      (if (and after (not (and cursor (nat-int? cursor))))
-        (resolve/resolve-as nil {:message "Invalid cursor."
-                                 :cursor after})
-        (with-tx-context [context context]
-          (let [ks (sl/current-selection-names context)
-                ct (when (:totalCount ks)
-                     (count-f {:context context}))
-                limit (inc (min 100 (or first* 100)))
-                [edges more] (when (and (or (nil? first*) (pos? first*))
-                                        (or (:edges ks) (:pageInfo ks)))
-                               (edges-f {:context context
-                                         :cursor cursor
-                                         :limit limit}))]
-            {:edges edges
-             :pageInfo
-             {:endCursor (:cursor (last edges))
-              :hasNextPage (boolean (seq more))
+  (let [cursor (if (empty? after) 0 (parse-long after))]
+    (if (and after (not (and cursor (nat-int? cursor))))
+      (resolve/resolve-as nil {:message "Invalid cursor."
+                               :cursor after})
+      (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
+        (let [ks (sl/current-selection-names context)
+              ct (when (:totalCount ks)
+                   (count-f {:context context}))
+              limit (inc (min 100 (or first* 100)))
+              [edges more] (when (and (or (nil? first*) (pos? first*))
+                                      (or (:edges ks) (:pageInfo ks)))
+                             (edges-f {:context context
+                                       :cursor cursor
+                                       :limit limit}))]
+          {:edges edges
+           :pageInfo
+           {:endCursor (:cursor (last edges))
+            :hasNextPage (boolean (seq more))
               ;; The spec allows hasPreviousPage to return true when unknown.
-              :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
-              :startCursor (:cursor (first edges))}
-             :totalCount ct}))))))
+            :hasPreviousPage (not (or (zero? cursor) (= ct (count edges))))
+            :startCursor (:cursor (first edges))}
+           :totalCount ct})))))
 
 (defn list-datasets [context args _]
   (connection-helper
@@ -280,7 +281,7 @@
   (defn resolve-dataset-entity [context {:keys [id]} _]
     (when-let [int-id (sl/parse-int-id id)]
       (let [ks (conj (sl/current-selection-names context) :dataset-id)]
-        (with-tx-context [context context]
+        (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
           (some->
            (if (some #{:content :contentUrl :mediaType :metadata} ks)
              (let [{:as m :keys [content mediaType]}
@@ -384,7 +385,7 @@
   (let [request (:request context)
         entity-id (some-> request :path-params :entity-id parse-long)]
     (when entity-id
-      (with-tx-context [context context]
+      (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
         (let [{:keys [content] :as entity}
               #__ (get-entity-content
                    context entity-id
@@ -471,7 +472,7 @@
    {:keys [content content-hash content-table data file-hash]}]
   (ensure-sysrev-dev
    context
-   (with-tx-context [context context]
+   (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
      (if (empty? (execute-one! context {:select :id
                                         :from :dataset
                                         :where [:= :id (sl/parse-int-id datasetId)]}))
@@ -557,7 +558,7 @@
        (resolve/resolve-as nil {:message "Invalid content: Not valid JSON."})
        (if (seq metadata)
          (resolve/resolve-as nil {:message "JSON entities cannot have metadata."})
-         (with-tx-context [context context]
+         (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
            (create-entity-helper!
             context input
             {:content json
@@ -582,7 +583,7 @@
         (file/put-entity-content! (get-in context [:pedestal :s3])
                                   {:content (-> ^Path path .toUri .toURL .openStream)
                                    :file-hash file-hash})
-        (with-tx-context [context context]
+        (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
           (create-entity-helper!
            context input
            {:content-hash content-hash
@@ -661,7 +662,7 @@
           (get-in context [:pedestal :s3])
           {:content (-> content .getBytes io/input-stream)
            :file-hash file-hash})
-         (with-tx-context [context context]
+         (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
            (create-entity-helper!
             context input
             {:content-hash content-hash
@@ -690,7 +691,7 @@
                (if-not int-id
                  (source-stream nil)
                  (try
-                   (with-tx-context [context context]
+                   (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
                      (reduce
                       (fn [_ row]
                         (source-stream
@@ -712,7 +713,7 @@
 
 (defn get-index-spec [context path-vec type]
   (let [path-vec (internal-path-vec path-vec)]
-    (with-tx-context [context context]
+    (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
       (execute-one!
        context
        {:select :*
@@ -723,7 +724,7 @@
 (defn get-or-create-index-spec! [context path-vec type]
   (or (get-index-spec context path-vec type)
       (let [path-vec (internal-path-vec path-vec)]
-        (with-tx-context [context context]
+        (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
           (execute-one!
            context
            {:insert-into :index-spec
@@ -736,7 +737,7 @@
   (when-let [dataset-int-id (sl/parse-int-id datasetId)]
     (let [path-vec (try (edn/read-string path) (catch Exception _))]
       (when (valid-index-path? path-vec)
-        (with-tx-context [context context]
+        (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
           (when-not (public-dataset? context dataset-int-id)
             (ensure-sysrev-dev context))
           (some->
@@ -762,7 +763,7 @@
      (if-not (valid-index-path? path-vec)
        (resolve/resolve-as nil {:message "Invalid index path."
                                 :path path})
-       (with-tx-context [context context]
+       (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
          (if (or (not dataset-int-id)
                  (empty? (execute-one! context {:select :id
                                                 :from :dataset
@@ -910,7 +911,7 @@
 
       (not (and dataset-int-id
                 (or (sysrev-dev? context)
-                    (with-tx-context [context context]
+                    (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
                       (public-dataset? context dataset-int-id)))))
       (fail-subscription
        source-stream
@@ -920,7 +921,7 @@
       :else
       (let [fut (future
                   (try
-                    (with-tx-context [context context]
+                    (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
                       (let [q (search-dataset-query->select context input)]
                         (when (some identity (rest q))
                           (reduce
