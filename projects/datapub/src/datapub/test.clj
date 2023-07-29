@@ -9,6 +9,7 @@
    [com.walmartlabs.lacinia.parser :as parser]
    [com.walmartlabs.lacinia.selection :as selection]
    [datapub.auth :as auth]
+   [datapub.dataset :as dataset]
    [datapub.main :as main]
    [io.pedestal.test :as test]
    [medley.core :as medley]
@@ -234,3 +235,13 @@
                   :steps [{:name "Root"
                            :request content-url-request}]}]}
     {:concurrency concurrency}))
+
+(defn subscribe-search-dataset! [system return-keys variables & [opts]]
+  {:pre [(coll? return-keys)]}
+  (->> (execute-subscription!
+        system
+        dataset/search-dataset-subscription
+        (dpcq/s-search-dataset return-keys)
+        variables
+        (merge {:timeout-ms 1000} opts))
+       (map #(select-keys % return-keys))))

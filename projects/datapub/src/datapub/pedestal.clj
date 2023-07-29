@@ -2,10 +2,32 @@
   (:require [clojure.core.async :refer [chan]]
             [com.walmartlabs.lacinia.pedestal2 :as pedestal2]
             [datapub.dataset :as dataset]
+            [datapub.dataset.entity :as entity]
+            [datapub.util :as util]
             [io.pedestal.http :as http]
             [sysrev.lacinia.interface :as sl]
             [sysrev.lacinia-pedestal.interface :as slp]
             [taoensso.timbre :as t]))
+
+(def resolvers
+  {:Dataset {:entities #'dataset/resolve-Dataset#entities
+             :indices #'dataset/resolve-Dataset#indices}
+   :DatasetEntitiesEdge {:node #'dataset/resolve-DatasetEntitiesEdge#node}
+   :ListDatasetsEdge {:node #'dataset/resolve-ListDatasetsEdge#node}
+   :Query {:dataset #'dataset/resolve-dataset
+           :datasetEntitiesById #'entity/resolve-datasetEntitiesById
+           :datasetEntity #'entity/resolve-dataset-entity
+           :listDatasets #'dataset/list-datasets}
+   :Mutation {:createDataset #'dataset/create-dataset!
+              :createDatasetEntity #'entity/create-dataset-entity!
+              :createDatasetIndex #'dataset/create-dataset-index!
+              :updateDataset #'dataset/update-dataset!}
+   :Subscription {:datasetEntities sl/resolve-value
+                  :searchDataset sl/resolve-value}})
+
+(def streamers
+  {:Subscription {:datasetEntities #'entity/dataset-entities-subscription
+                  :searchDataset #'dataset/search-dataset-subscription}})
 
 (defn allowed-origins [env]
   {:allowed-origins
@@ -18,7 +40,7 @@
    :max-age 86400})
 
 (defn throw-exception [context]
-  (if (dataset/sysrev-dev? context)
+  (if (util/sysrev-dev? context)
     (let [message (str "Exception induced by developer: "
                        (get-in context [:request :params :message]))]
       (t/error message)
@@ -28,14 +50,14 @@
 (defn service-map [{:keys [env host port] :as opts} pedestal]
   (let [compiled-schema (sl/load-schema ["datapub/schema.graphql"
                                          "datapub/schema-subscription.graphql"]
-                                        :resolvers dataset/resolvers
-                                        :streamers dataset/streamers)
+                                        :resolvers resolvers
+                                        :streamers streamers)
         app-context {:opts opts :pedestal pedestal}
         json-error-interceptors [pedestal2/json-response-interceptor
                                  pedestal2/error-response-interceptor
                                  slp/error-logging-interceptor]
         download-interceptors (conj json-error-interceptors
-                                    #(dataset/download-DatasetEntity-content
+                                    #(entity/download-DatasetEntity-content
                                       (assoc app-context :request %)
                                       (allowed-origins env)))
         routes (into #{["/api"
