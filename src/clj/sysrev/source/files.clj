@@ -1,5 +1,6 @@
 (ns sysrev.source.files
-  (:require [me.raynes.fs :as fs]
+  (:require [clojure.string :as str]
+            [me.raynes.fs :as fs]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.db.core :as db]
@@ -7,7 +8,8 @@
             [sysrev.postgres.interface :as pg]
             [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.util-lite.interface :as ul]))
 
 (defn create-source! [sr-context project-id dataset-id]
   (->> {:insert-into :project-source
@@ -106,19 +108,25 @@
       (throw (ex-info "Invalid RIS file" {:file file}))
       (doseq [chunk (partition-all 1000 entities)]
         (let [chunk (vec chunk)]
-          (db/with-long-tx [sr-context sr-context]
-            (doseq [{:keys [entity-id ris-map]} chunk]
-              (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
-                    article-data-id (-> sr-context
-                                        (goc-article-data!
-                                         {:dataset-id dataset-id
-                                          :entity-id entity-id
-                                          :content nil
-                                          :title (or primary-title secondary-title)})
-                                        :article-data/article-data-id)]
-                (create-article! sr-context project-id source-id article-data-id)))
+          (ul/retry
+           {:interval-ms 60000
+            :n 5
+            :throw-pred (fn [e]
+                          (not (some-> e ex-message (str/includes? "clj-http: status 500"))))}
             ;; Update import-date to avoid timing out on large imports
-            (source/set-import-date source-id)))))))
+           (source/set-import-date source-id)
+           (db/with-long-tx [sr-context sr-context]
+             (doseq [{:keys [entity-id ris-map]} chunk]
+               (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
+                     article-data-id (-> sr-context
+                                         (goc-article-data!
+                                          {:dataset-id dataset-id
+                                           :entity-id entity-id
+                                           :content nil
+                                           :title (or primary-title secondary-title)})
+                                         :article-data/article-data-id)]
+                 (create-article! sr-context project-id source-id article-data-id))))
+           (db/clear-project-cache project-id)))))))
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
