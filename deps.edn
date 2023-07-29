@@ -76,7 +76,7 @@
         kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
-        rs.shaffe/salmon {:mvn/version "0.8.0"}
+        rs.shaffe/salmon {:mvn/version "0.10.1"}
 
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
