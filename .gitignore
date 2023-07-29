@@ -9,6 +9,7 @@
 
 !.carve
 !.clj-kondo/config.edn
+!.codescene
 !.dir-locals.el
 !.editorconfig
 !.envrc
