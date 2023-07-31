@@ -1,15 +1,4 @@
 {:Env "prod"
  :global {:DatapubZoneApex "datapub.dev"
           :InsilicaZoneApex "insilica.co"
-          :SysrevZoneApex "sysrev.com"}
-
- :datapub
- {:AutoScalingMaxSize 2
-  :AutoScalingMinSize 1
-  ; We currently have credits for t3.medium, but this can be changed once the credits run out.
-  :InstanceType "t3.medium"
-  :KeyName "john-20.04"
-  :RDSAllocatedStorage 500
-  :RDSInstanceClass "db.m6g.large"
-  :RDSStorageType "io1"
-  :RDSIops 3000}}
+          :SysrevZoneApex "sysrev.com"}}

@@ -63,24 +63,20 @@
                  :template regional/template})}
     :datapub
     {:params
-     (call (fn [env config global regional]
+     (call (fn [{:keys [env config global regional]}]
              (-> config
                  (merge
-                  (select-keys global [:CloudFrontOAI :DatapubBucket :DatapubHostedZoneId
-                                       :DatapubZoneApex])
-                  (select-keys regional [:CredentialsKeyId :CredentialsKeyUsePolicyArn
-                                         :LoadBalancerCanonicalHostedZoneId :LoadBalancerDNSName
-                                         :LoadBalancerHTTPSListenerArn :LoadBalancerSecurityGroupId
-                                         :LogsKeyArn :RDSSubnetGroupName
-                                         :VpcId :VpcSubnetIds]))
-                 (assoc :AMI (System/getenv "DATAPUB_AMI")
-                        :Env env
-                        :FilesDomainName (str "files." (:DatapubZoneApex global))
-                        :SlackToken (System/getenv "DATAPUB_SLACK_TOKEN"))))
-           (ds/ref [:common :config :Env])
-           (config-val :datapub)
-           global-outputs
-           regional-outputs)
+                  (select-keys global [:CloudFrontOAI :DatapubBucket :DatapubHostedZoneId])
+                  (select-keys regional [:CredentialsKeyId :LogsKeyArn]))
+                 (assoc :FilesDomainName (str "files." (:DatapubZoneApex global)))))
+           {:env
+            (ds/ref [:common :config :Env])
+            :config
+            (config-val :datapub)
+            :global
+            global-outputs
+            :regional
+            regional-outputs})
      :stack
      (cfn/stack {:capabilities capabilities
                  :lint? true
