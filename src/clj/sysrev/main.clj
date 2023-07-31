@@ -178,3 +178,14 @@
 (defn -main []
   (start-nrepl! env)
   (start!))
+
+(comment
+  ;; List active transactions
+  (db/execute!
+   (:sr-context @system)
+   {:select [:pid [[:- [:now] :query-start] :duration]
+             :query :state]
+    :from :pg-stat-activity
+    :where [:and [:= :state "active"]
+            ;; Don't include self
+            [:> [:- [:now] :query-start] [:interval "1 millisecond"]]]}))
