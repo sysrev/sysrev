@@ -26,14 +26,14 @@
        (mapv (fn [{:keys [primary-title secondary-title abstract keywords]}]
                (->> [primary-title secondary-title abstract (str/join " \n " keywords)]
                     (remove empty?)
-                    (str/join " \n " ))))))
+                    (str/join " \n "))))))
 
 (defn- upsert-terms-and-join-term-id [terms]
   (-> (insert-into :important-terms)
       (values (mapv (fn [term] {:term (:term term)}) terms))
       (psqlh/upsert (-> (psqlh/on-conflict :term) (psqlh/do-nothing)))
       db/do-execute)
-  (-> (select :term-id :term)(from :important-terms)
+  (-> (select :term-id :term) (from :important-terms)
       (where [:in :term (mapv :term terms)])
       db/do-query
       (clojure.set/join terms)))
@@ -42,8 +42,8 @@
   (when (seq term-tfidf)
     (let [term-id-tfidf (upsert-terms-and-join-term-id term-tfidf)
           insert-vals (mapv (fn [t] {:project-id project-id :term-id (:term-id t) :tfidf (:tfidf t)}) term-id-tfidf)]
-      (-> (sqlh/delete-from :project-important-terms)(where [:= :project-id project-id]) db/do-execute)
-      (-> (insert-into :project-important-terms)(values insert-vals)db/do-execute))))
+      (-> (sqlh/delete-from :project-important-terms) (where [:= :project-id project-id]) db/do-execute)
+      (-> (insert-into :project-important-terms) (values insert-vals) db/do-execute))))
 
 (defn- project-last-source-update [project-id]
   (some-> (select [:%max.date-created :max-date])
@@ -75,34 +75,27 @@
       :else (> last-source-update last-term-update)))) ; if sources updated more recently than terms, then terms need update
 
 (defn update-project-terms [project-id]
-  (try (let [article-ids (project-sample-article-ids project-id)
-             text (get-article-text article-ids)
-             min-count (* 0.05 (count article-ids))
-             {:keys [body]}
-             (http/post (str api-host "/service/run/importance-2/importance")
-                        {:content-type "application/json"
-                         :body (json/write-str text)})]
-         (cond (str/ends-with? body "Connection refused")
-               {:error {:message "importance service is temporarily down"}}
-               (< (count text) 5)
-               {:terms nil}
-               #_ {:error {:message "not enough text to build important terms"}}
-               :else
-               (replace-project-important-term-tfidf project-id
-                                                     (->> (util/read-json body)
-                                                          (filter #(> (:count %) min-count))
-                                                          (sort-by :tfidf >)))))
-       (catch Throwable e
-         (if-let [{:keys [status reason-phrase body]} (ex-data e)]
-           (do (log/warn "error in fetch-important-terms")
-               (when (or status reason-phrase)      (log/warn status reason-phrase))
-               (when ((some-fn string? nil?) body)  (log/warn body))
-               nil)
-           (do (log/warn "unexpected error in fetch-important-terms")
-               (throw e))))))
+  (let [article-ids (project-sample-article-ids project-id)
+        text (get-article-text article-ids)
+        min-count (* 0.05 (count article-ids))
+        {:keys [body]}
+        (http/post (str api-host "/service/run/importance-2/importance")
+                   {:content-type "application/json"
+                    :body (json/write-str text)})]
+    (cond (str/ends-with? body "Connection refused")
+          {:error {:message "importance service is temporarily down"}}
+
+          (< (count text) 5)
+          {:terms nil} ;; not enough text to build important terms
+
+          :else
+          (replace-project-important-term-tfidf project-id
+                                                (->> (util/read-json body)
+                                                     (filter #(> (:count %) min-count))
+                                                     (sort-by :tfidf >))))))
 
 (defn lookup-important-terms [project-id max-terms]
-  (-> (select :term :tfidf)(from [:project-important-terms :pit])
+  (-> (select :term :tfidf) (from [:project-important-terms :pit])
       (sqlh/join [:important-terms :it] [:= :pit.term-id :it.term-id])
       (where [:= :project-id project-id])
       (order-by [:tfidf :desc])
