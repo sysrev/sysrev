@@ -127,7 +127,7 @@
 
 (defn log-web-event [sr-context event]
   (when (not= :test (:profile env))
-    (db/with-tx [sr-context sr-context]
+    (db/with-long-tx [sr-context sr-context]
       (->> {:insert-into :web-event :values [event]}
            (db/execute-one! sr-context)))))
 
