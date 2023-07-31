@@ -571,28 +571,6 @@
             (io/copy (io/input-stream x) out)
             (.toByteArray out))))
 
-#?(:clj (defn wrap-retry
-          [f & {:keys [fname max-retries retry-delay throttle-delay]
-                :or {max-retries 3, retry-delay 1000, throttle-delay nil}}]
-          (letfn [(result-fn [retry-count]
-                    (when throttle-delay
-                      (Thread/sleep throttle-delay))
-                    (try
-                      (f)
-                      (catch Throwable e
-                        (if (> (inc retry-count) max-retries)
-                          (do (log/warn (format "wrap-retry [%s]: failed (%d retries)"
-                                                (if fname (str fname) "unknown")
-                                                max-retries))
-                              (throw e))
-                          (do (log/info (format "wrap-retry [%s]: retrying (%d / %d)"
-                                                (if fname (str fname) "unknown")
-                                                (inc retry-count)
-                                                max-retries))
-                              (Thread/sleep retry-delay)
-                              (result-fn (inc retry-count)))))))]
-            (result-fn 0))))
-
 #?(:clj (defn create-tempfile [& {:keys [suffix]}]
           (let [file (File/createTempFile "sysrev-" suffix)]
             (.deleteOnExit file)

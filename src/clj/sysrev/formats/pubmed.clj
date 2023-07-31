@@ -56,17 +56,17 @@
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
   [pmids]
-  (util/wrap-retry
-   (fn []
-     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-                   {:query-params {"db" "pubmed"
-                                   "retmode" "json"
-                                   "id" (str/join "," pmids)
-                                   "api_key" e-util-api-key}})
-         :body
-         (json/read-str :key-fn #(or (parse-integer %) (keyword %)))
-         :result))
-   :fname "get-pmids-summary"))
+  (ul/retry
+   {:interval-ms 1000
+    :n 3}
+   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                 {:query-params {"db" "pubmed"
+                                 "retmode" "json"
+                                 "id" (str/join "," pmids)
+                                 "api_key" e-util-api-key}})
+       :body
+       (json/read-str :key-fn #(or (parse-integer %) (keyword %)))
+       :result)))
 
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
@@ -87,17 +87,17 @@
   "Returns an ftp url (if exists) for a Pubmed PMCID pdf reference."
   [pmcid]
   (when pmcid
-    (util/wrap-retry
-     (fn []
-       (let [parsed-html (-> (http/get oa-root-link {:query-params {"id" pmcid}})
-                             :body
-                             hickory/parse
-                             hickory/as-hickory)]
-         (-> (hs/select (hs/child (hs/attr :format #(= % "pdf")))
-                        parsed-html)
-             first
-             (get-in [:attrs :href]))))
-     :fname "pdf-ftp-link" :retry-delay 1000)))
+    (ul/retry
+     {:interval-ms 1000
+      :n 3}
+     (let [parsed-html (-> (http/get oa-root-link {:query-params {"id" pmcid}})
+                           :body
+                           hickory/parse
+                           hickory/as-hickory)]
+       (-> (hs/select (hs/child (hs/attr :format #(= % "pdf")))
+                      parsed-html)
+           first
+           (get-in [:attrs :href]))))))
 
 (defn article-pmcid-pdf-filename
   "Return filename of the pdf for a pmcid (\"PMC*\") if exists."
