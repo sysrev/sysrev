@@ -126,24 +126,11 @@
 (defn request-url [request]
   (some-> (:uri request) (str/split #"\?") first))
 
-(defn log-web-event [{:keys [event-type logged-in user-id project-id skey client-ip
-                             browser-url request-url request-method is-error meta]
-                      :as event}
-                     & {:keys [force-log]}]
-  (when (or force-log (not= :test (:profile env)))
-    (letfn [(create-event []
-              (let [;; avoid SQL exceptions from missing referenced entries
-                    event (cond-> event
-                            user-id (assoc :user-id
-                                           (q/find-one :web-user {:user-id user-id} :user-id))
-                            project-id (assoc :project-id
-                                              (q/find-one :project {:project-id project-id}
-                                                          :project-id)))]
-                (try (q/create :web-event event)
-                     (catch Throwable _e (log/warn "log-web-event failed" #_(.getMessage _e))))))]
-      (if db/*conn*
-        (create-event)
-        (future (db/with-transaction (create-event)))))))
+(defn log-web-event [sr-context event]
+  (when (not= :test (:profile env))
+    (db/with-tx [sr-context sr-context]
+      (->> {:insert-into :web-event :values [event]}
+           (db/execute-one! sr-context)))))
 
 (defn make-web-request-event [request & {:keys [error exception]}]
   {:event-type "ajax"
@@ -170,7 +157,7 @@
                                        (print-cause-trace-custom exception))}}))})
 
 (defn wrap-sysrev-response [handler]
-  (fn [request]
+  (fn [{:as request :keys [sr-context]}]
     (try
       (let [{{{:keys [status type message exception]
                :or {status 500, type :api, message "Error processing request"}
@@ -207,7 +194,7 @@
               :else response)
             session-meta (or (-> body meta :session)
                              (-> response meta :session))]
-        (log-web-event (make-web-request-event request :error error))
+        (log-web-event sr-context (make-web-request-event request :error error))
         (cond-> response
           ;; If the request handler attached a :session meta value to
           ;; the result, set that session value in the response.
@@ -216,7 +203,7 @@
           (and (map? body) build/build-id)    (assoc-in [:body :build-id] build/build-id)
           (and (map? body) build/build-time)  (assoc-in [:body :build-time] build/build-time)))
       (catch Throwable e
-        (log-web-event (make-web-request-event request :exception e))
+        (log-web-event sr-context (make-web-request-event request :exception e))
         (slack/log-request-exception request e)
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))

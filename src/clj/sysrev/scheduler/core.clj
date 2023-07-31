@@ -3,8 +3,9 @@
             [com.stuartsierra.component :as component]
             [sysrev.scheduler.gpt :as gpt]
             [sysrev.scheduler.job-queue :as job-queue]
+            [sysrev.scheduler.living-data-sources :refer [schedule-living-data-sources]]
             [sysrev.scheduler.stripe-jobs :refer [schedule-plans-job schedule-subscriptions-job]]
-            [sysrev.scheduler.living-data-sources :refer [schedule-living-data-sources]]))
+            [sysrev.scheduler.trim-web-events :as trim-web-events]))
 
 (defrecord Scheduler [quartz-scheduler schedule-f]
   component/Lifecycle
@@ -30,8 +31,8 @@
                      (job-queue/job scheduler)
                      (schedule-plans-job scheduler)
                      (schedule-subscriptions-job scheduler)
-                     (schedule-living-data-sources scheduler))}))
-
+                     (schedule-living-data-sources scheduler)
+                     (trim-web-events/job scheduler))}))
 
 (defn mock-scheduler []
   (map->Scheduler {:schedule-f :noop}))
