@@ -130,29 +130,31 @@
 (def jdbc-opts
   {:builder-fn result-set/as-kebab-maps})
 
+(def sql-opts {:checking :strict})
+
 (defmacro wrap-ex-info [sqlmap & body]
   `(try
      ~@body
      (catch PSQLException e#
        (let [sqlmap# ~sqlmap]
          (throw (ex-info (str "Error during SQL execution: " (.getMessage e#))
-                         {:sqlmap sqlmap# :sqlstr (sql/format sqlmap#)}
+                         {:sqlmap sqlmap# :sqlstr (sql/format sqlmap# sql-opts)}
                          e#))))))
 
 (defn execute! [connectable sqlmap]
   (wrap-ex-info
    sqlmap
-   (jdbc/execute! connectable (sql/format sqlmap) jdbc-opts)))
+   (jdbc/execute! connectable (sql/format sqlmap sql-opts) jdbc-opts)))
 
 (defn execute-one! [connectable sqlmap]
   (wrap-ex-info
    sqlmap
-   (jdbc/execute-one! connectable (sql/format sqlmap) jdbc-opts)))
+   (jdbc/execute-one! connectable (sql/format sqlmap sql-opts) jdbc-opts)))
 
 (defn plan [connectable sqlmap]
   (wrap-ex-info
    sqlmap
-   (jdbc/plan connectable (sql/format sqlmap) jdbc-opts)))
+   (jdbc/plan connectable (sql/format sqlmap sql-opts) jdbc-opts)))
 
 (defn recreate-db! [{:keys [bound-port config datasource
                             query-cache query-cache-enabled]

@@ -21,11 +21,13 @@
 (def jdbc-opts
   {:builder-fn result-set/as-kebab-maps})
 
+(def sql-opts {:checking :strict})
+
 (defn execute! [connectable sqlmap]
-  (jdbc/execute! connectable (sql/format sqlmap) jdbc-opts))
+  (jdbc/execute! connectable (sql/format sqlmap sql-opts) jdbc-opts))
 
 (defn execute-one! [connectable sqlmap]
-  (jdbc/execute-one! connectable (sql/format sqlmap) jdbc-opts))
+  (jdbc/execute-one! connectable (sql/format sqlmap sql-opts) jdbc-opts))
 
 (defn plan [connectable sqlmap]
-  (jdbc/plan connectable (sql/format sqlmap) jdbc-opts))
+  (jdbc/plan connectable (sql/format sqlmap sql-opts) jdbc-opts))
