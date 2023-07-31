@@ -135,6 +135,7 @@
                        "components/ris/test-resources"]
          :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
                                              :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
+                      com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
                                            :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.1.89"}
@@ -152,7 +153,8 @@
                       poly/junit {:local/root "components/junit"}
                       poly/pdf-read {:local/root "components/pdf-read"}
                       poly/tesseract {:local/root "components/tesseract"}}
-         :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
+         :jvm-opts ["-Djdk.attach.allowAttachSelf" ; For clj-async-profiler
+                    "-XX:-OmitStackTraceInFastThrow"]}
   :test-staging {:extra-paths ["config/test-staging"]}
   :test-prod {:extra-paths ["config/test-prod"]}
   :test-s3-dev {:extra-paths ["config/test-s3-dev"]}}}

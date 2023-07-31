@@ -57,7 +57,8 @@
         sysrev.init
         sysrev.shared.keywords
         sysrev.stacktrace)
-  (:require [clj-http.client :as http]
+  (:require [clj-async-profiler.core :as prof]
+            [clj-http.client :as http]
             [clj-time.coerce :as tc]
             [clj-time.core :as time]
             [clj-time.format :as tf]
@@ -122,3 +123,8 @@
             (log/error e)
             (System/exit 1))
           (throw e))))))
+
+(comment
+  (do ; Flamegraph
+    (prof/start {:event :wall}) ; Record wall time to find code that holds db connections or other rescource contention
+    (prof/serve-ui 8061)))
