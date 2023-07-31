@@ -1291,7 +1291,7 @@
 
 (defn clone-project-for-org! [sr-context {:keys [src-project-id user-id org-id]}]
   (if (member/clone-authorized? sr-context src-project-id user-id)
-    (with-transaction
+    (db/with-long-transaction [_ (:postgres sr-context)]
       (let [dest-project-id (clone/clone-project
                              src-project-id
                              :copy-articles? true
