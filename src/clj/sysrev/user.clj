@@ -11,7 +11,6 @@
         sysrev.article.core
         sysrev.article.assignment
         sysrev.label.core
-        sysrev.label.migrate
         sysrev.datasource.core
         sysrev.datasource.api
         sysrev.notification.interface

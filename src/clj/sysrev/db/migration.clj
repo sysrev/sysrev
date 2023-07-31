@@ -2,7 +2,6 @@
   (:require [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.group.core :as group]
-            [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.payment.stripe :as stripe :refer [update-stripe-plans-table]]
             [sysrev.util :as util]))
 
@@ -17,8 +16,7 @@
   "Runs everything to update database entries to latest format."
   []
   (doseq [migrate-fn [#'update-stripe-plans-table
-                      #'ensure-groups
-                      #'migrate-all-project-article-resolve]]
+                      #'ensure-groups]]
     (log/info "Running " (str migrate-fn))
     (time (try ((var-get migrate-fn))
                (catch Throwable e
