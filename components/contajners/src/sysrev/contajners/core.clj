@@ -70,14 +70,14 @@
     :op :ContainerStart
     :params {:id name})))
 
-(defn stop-container! [name & {:as op-map}]
+(defn kill-container! [name & {:as op-map}]
   (log/info "Stopping" name)
   (try
     (invoke!
      (assoc
       op-map
       :category :containers
-      :op :ContainerStop
+      :op :ContainerKill
       :params {:id name}))
     (catch ExceptionInfo e
       (if (= 404 (:status (ex-data e)))
@@ -128,7 +128,7 @@
     (if name
       this
       (let [name (str base-name (random-uuid))
-            shutdown (shut/add-hook! #(stop-container! name))
+            shutdown (shut/add-hook! #(kill-container! name))
             _ (up! name container-config)
             ports (ul/wait-timeout
                    #(container-ipv4-ports name)

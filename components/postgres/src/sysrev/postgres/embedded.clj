@@ -41,7 +41,7 @@
 (defn start! [{:keys [image port timeout-ms]}]
   (let [cfg (container-config image (or port 0))
         name (str "tmp-sysrev-pg-" (random-uuid))
-        shutdown (shut/add-hook! #(con/stop-container! name))
+        shutdown (shut/add-hook! #(con/kill-container! name))
         _ (con/up! name cfg)
         bound-port (ul/wait-timeout
                     #(get-port name)

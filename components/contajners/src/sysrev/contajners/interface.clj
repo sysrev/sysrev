@@ -6,10 +6,10 @@
   [name & {:as op-map}]
   (core/container-ipv4-ports name op-map))
 
-(defn stop-container!
+(defn kill-container!
   "Stops the container."
   [name & {:as op-map}]
-  (core/stop-container! name op-map))
+  (core/kill-container! name op-map))
 
 (defn temp-container
   "Returns a record implementing com.stuartsierra.component/Lifecycle
