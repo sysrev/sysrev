@@ -57,7 +57,7 @@ jobs:
       - name: Deploy CloudFormation stacks to production
         if: github.ref_name == 'production'
         run: |
-          nix develop -c clojure -X:prod:dev sysrev.infra.core/deploy! :groups [:datapub :global-resources :regional-resources]
+          nix develop -c clojure -X:prod:dev sysrev.infra.core/deploy! :groups '[:datapub :global-resources :regional-resources]'
 
       - name: Log job run to Slack
         uses: 8398a7/action-slack@v3.14.0
