@@ -86,7 +86,21 @@
           (dpc/create-dataset-entity! "id" datapub-opts)
           :id)]))
 
-(defn create-ris-chunks! [sr-context {:keys [dataset-id project-id source-id]} entities]
+(defn create-ris-chunk! [sr-context {:keys [dataset-id project-id source-id]} entities]
+  (doseq [chunk (partition-all 10 entities)]
+    (db/with-long-tx [sr-context (assoc sr-context :tx-retry-opts {:n 1})]
+      (doseq [{:keys [entity-id ris-map]} chunk]
+        (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
+              article-data-id (-> sr-context
+                                  (goc-article-data!
+                                   {:dataset-id dataset-id
+                                    :entity-id entity-id
+                                    :content nil
+                                    :title (or primary-title secondary-title)})
+                                  :article-data/article-data-id)]
+          (create-article! sr-context project-id source-id article-data-id))))))
+
+(defn create-ris-chunks! [sr-context {:as ids :keys [project-id source-id]} entities]
   (doseq [chunk (partition-all 1000 entities)]
     (let [chunk (vec chunk)]
       (ul/retry
@@ -96,17 +110,7 @@
                       (not (some-> e ex-message (str/includes? "clj-http: status 500"))))}
               ;; Update import-date to avoid timing out on large imports
        (source/set-import-date source-id)
-       (db/with-long-tx [sr-context sr-context]
-         (doseq [{:keys [entity-id ris-map]} chunk]
-           (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
-                 article-data-id (-> sr-context
-                                     (goc-article-data!
-                                      {:dataset-id dataset-id
-                                       :entity-id entity-id
-                                       :content nil
-                                       :title (or primary-title secondary-title)})
-                                     :article-data/article-data-id)]
-             (create-article! sr-context project-id source-id article-data-id))))
+       (create-ris-chunk! sr-context ids chunk)
        (db/clear-project-cache project-id)))))
 
 (defn create-ris-entities!
