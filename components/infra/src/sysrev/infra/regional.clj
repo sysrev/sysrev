@@ -304,47 +304,6 @@
         :Principal {:Service (sub "logs.${AWS::Region}.amazonaws.com")}
         :Resource "*"}]}}}
 
-   :LoadBalancerSecurityGroup
-   {:Type "AWS::EC2::SecurityGroup"
-    :Properties
-    {:GroupDescription "HTTP/S ALBs"
-     :SecurityGroupIngress
-     [{:CidrIp "0.0.0.0/0" :IpProtocol "tcp" :FromPort 80 :ToPort 80}
-      {:CidrIpv6 "::/0" :IpProtocol "tcp" :FromPort 80 :ToPort 80}
-      {:CidrIp "0.0.0.0/0" :IpProtocol "tcp" :FromPort 443 :ToPort 443}
-      {:CidrIpv6 "::/0" :IpProtocol "tcp" :FromPort 443 :ToPort 443}]
-     :VpcId (ref :Vpc)}}
-
-   :LoadBalancer
-   {:Type "AWS::ElasticLoadBalancingV2::LoadBalancer"
-    :DependsOn ["LoggingBucketELBWritePolicy"]
-    :Properties
-    {:IpAddressType "dualstack"
-     :LoadBalancerAttributes
-     [{:Key "access_logs.s3.enabled" :Value "true"}
-      {:Key "access_logs.s3.bucket" :Value (ref :LoggingBucket)}]
-     :SecurityGroups
-     [(get-att :Vpc "DefaultSecurityGroup")
-      (ref :LoadBalancerSecurityGroup)]
-     :Subnets subnets
-     :Type "application"}}
-
-   :LoadBalancerHTTPListener
-   {:Type "AWS::ElasticLoadBalancingV2::Listener"
-    :Properties
-    {:LoadBalancerArn (ref :LoadBalancer)
-     :Port 80
-     :Protocol "HTTP"
-     :DefaultActions
-     [{:Type "redirect"
-       :RedirectConfig
-       {:Protocol "HTTPS"
-        :Port "443"
-        :Host "#{host}"
-        :Path "/#{path}"
-        :Query "#{query}"
-        :StatusCode "HTTP_301"}}]}}
-
    :DatapubCertificate
    {:Type "AWS::CertificateManager::Certificate"
     :Properties
@@ -353,20 +312,6 @@
      [{:DomainName (join "." ["www" (ref :DatapubZoneApex)])
        :HostedZoneId (ref :DatapubHostedZoneId)}]
      :ValidationMethod "DNS"}}
-
-   :LoadBalancerHTTPSListener
-   {:Type "AWS::ElasticLoadBalancingV2::Listener"
-    :Properties
-    {:Certificates [{:CertificateArn (ref :DatapubCertificate)}]
-     :DefaultActions
-     [{:FixedResponseConfig
-       {:ContentType "text/plain"
-        :MessageBody "503 Service Unavailable\n\nNo targets configured for this domain."
-        :StatusCode "503"}
-       :Type "fixed-response"}]
-     :LoadBalancerArn (ref :LoadBalancer)
-     :Port 443
-     :Protocol "HTTPS"}}
 
    :RDSSubnetGroup
    {:Type "AWS::RDS::DBSubnetGroup"
@@ -384,12 +329,6 @@
     :DatapubDomainName [(join "." ["www" (ref :DatapubZoneApex)])]
     :DatapubHostedZoneId [(ref :DatapubHostedZoneId)]
     :DatapubZoneApex [(ref :DatapubZoneApex)]
-    :LoadBalancerArn [(ref :LoadBalancer)]
-    :LoadBalancerCanonicalHostedZoneId [(get-att :LoadBalancer "CanonicalHostedZoneID")]
-    :LoadBalancerDNSName [(get-att :LoadBalancer "DNSName")]
-    :LoadBalancerHTTPSListenerArn [(ref :LoadBalancerHTTPSListener)]
-    :LoadBalancerName [(get-att :LoadBalancer "LoadBalancerName")]
-    :LoadBalancerSecurityGroupId [(ref :LoadBalancerSecurityGroup)]
     :LogsKeyArn [(arn :LogsKey)]
     :RDSSubnetGroupName [(ref :RDSSubnetGroup)]
     :SysrevHostedZoneId [(ref :SysrevHostedZoneId)]
