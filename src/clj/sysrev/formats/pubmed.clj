@@ -7,7 +7,8 @@
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
             [sysrev.config :as config]
-            [sysrev.util :as util :refer [parse-integer]]))
+            [sysrev.util :as util :refer [parse-integer]]
+            [sysrev.util-lite.interface :as ul]))
 
 (def e-util-api-key (:e-util-api-key config/env))
 
@@ -17,8 +18,11 @@
   query. Return a EDN map of that data. A page size is 20 PMIDs and
   starts on page 1."
   [query retmax retstart]
-  (util/wrap-retry
-   (fn []
+  (ul/retry
+   {:interval-ms 1000
+    :n 3
+    :throw-pred #(-> % ex-data :query)}
+   (try
      (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
                    {:query-params {"db" "pubmed"
                                    "term" query
@@ -27,19 +31,27 @@
                                    "retstart" retstart
                                    "api_key" e-util-api-key}})
          :body
-         util/read-json))
-   :fname "get-search-query"))
+         util/read-json)
+     (catch clojure.lang.ExceptionInfo e
+       (if (-> e ex-data :reason-phrase (= "Request-URI Too Long"))
+         (throw (ex-info "Query too long" {:query query} e))
+         (throw e))))))
 
 (defn get-search-query-response
   "Given a query and page number, return a EDN map corresponding to a
   JSON response. A page size is 20 PMIDs and starts on page 1."
   [query page-number]
-  (let [retmax 20
-        esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
-    (if (:ERROR esearch-result)
-      {:pmids [] :count 0}
-      {:pmids (mapv parse-integer (:idlist esearch-result))
-       :count (parse-integer (:count esearch-result))})))
+  (try
+    (let [retmax 20
+          esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
+      (if (:ERROR esearch-result)
+        {:pmids [] :count 0}
+        {:pmids (mapv parse-integer (:idlist esearch-result))
+         :count (parse-integer (:count esearch-result))}))
+    (catch clojure.lang.ExceptionInfo e
+      (if (-> e ex-message (= "Query too long"))
+        {:error {:message "Query too long"}}
+        (throw e)))))
 
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
