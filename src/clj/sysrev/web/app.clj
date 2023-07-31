@@ -7,7 +7,6 @@
    [ring.util.response :as r]
    [sysrev.config :refer [env]]
    [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]
    [sysrev.project.core :as project]
    [sysrev.project.member :refer [project-member]]
    [sysrev.project.plan :as pplan]
@@ -233,6 +232,37 @@
   [handler]
   (fn [request]
     (handler (assoc-in request [:sr-context :request] request))))
+
+(defn wrap-timeout
+  "Force a timeout for requests.
+
+   This relies on the use of JVM operations that check their interrupted
+   status regularly."
+  [handler timeout-ms]
+  (fn [{:as request :keys [uri]}]
+    (let [fut (future (handler request))
+          response (deref fut timeout-ms ::timeout)]
+      (if (not= ::timeout response)
+        response
+        (let [cancelled (future-cancel fut)]
+          (log/warn (str "Request cancelled due to timeout after " timeout-ms " ms") uri)
+          (cond
+            (and cancelled (future-done? fut))
+            (try
+              @fut
+              (catch Throwable e
+                (throw (ex-info (str "Request cancelled due to timeout after " timeout-ms " ms")
+                                {:cause e
+                                 :request (dissoc request :sr-context)
+                                 :timeout-ms timeout-ms}))))
+
+            (future-done? fut)
+            @fut
+
+            :else
+            (throw (ex-info (str "Failed to cancel request due to timeout after " timeout-ms " ms")
+                            {:request (dissoc request :sr-context)
+                             :timeout-ms timeout-ms}))))))))
 
 (defn authorization-error
   "Checks if user is authorized to perform the

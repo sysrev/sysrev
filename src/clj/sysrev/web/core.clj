@@ -94,8 +94,9 @@
   "Ring handler wrapper for web app routes"
   [handler & {:keys [sr-context]}]
   (-> handler
-      app/wrap-sr-context-request
+      (app/wrap-timeout 30000)
       app/wrap-sysrev-response
+      app/wrap-sr-context-request
       app/wrap-add-anti-forgery-token
       (wrap-transit-response {:encoding :json, :opts {}})
       app/wrap-no-cache
@@ -125,9 +126,10 @@
   "Ring handler wrapper for JSON API (non-browser) routes"
   [handler & {:keys [sr-context]}]
   (-> handler
-      app/wrap-sr-context-request
       wrap-web-api
+      (app/wrap-timeout 30000)
       app/wrap-sysrev-response
+      app/wrap-sr-context-request
       (wrap-json-response {:pretty true})
       app/wrap-no-cache
       (default/wrap-defaults (sysrev-config {:session false :anti-forgery false}))
