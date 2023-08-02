@@ -215,13 +215,17 @@
                           :public false}
                          "id"
                          (source/datapub-opts sr-context)))
-        source-id (create-source! sr-context project-id dataset-id files)]
-    (insert-job! sr-context "import-files" source-id :status "started")
+        source-id (create-source! sr-context project-id dataset-id files)
+        {job-id :job/id} (insert-job! sr-context "import-files" source-id :status "started")]
     (db/clear-project-cache project-id)
     ((if sync? deref identity)
      (future
        (util/log-errors
-        (import-files! sr-context {:files files :source-id source-id}))))
+        (import-files! sr-context {:files files :source-id source-id})
+        (->> {:update :job
+              :set {:status "done"}
+              :where [:= :id job-id]}
+             (db/execute-one! sr-context)))))
     {:success true}))
 
 (defn import-entities! [sr-context project-id source-id dataset-id entity-ids]
