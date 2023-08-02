@@ -216,7 +216,8 @@
                          "id"
                          (source/datapub-opts sr-context)))
         source-id (create-source! sr-context project-id dataset-id files)
-        {job-id :job/id} (insert-job! sr-context "import-files" source-id :status "started")]
+        {job-id :job/id} (insert-job! sr-context "import-files" source-id
+                                      :status "started" :started-at [:now])]
     (db/clear-project-cache project-id)
     ((if sync? deref identity)
      (future
