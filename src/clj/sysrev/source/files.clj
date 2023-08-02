@@ -1,22 +1,36 @@
 (ns sysrev.source.files
-  (:require [clojure.java.io :as io]
+  (:require babashka.fs
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [me.raynes.fs :as fs]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.db.core :as db]
+            [sysrev.file.core :as file]
+            [sysrev.file.s3 :as s3]
             [sysrev.json.interface :as json]
             [sysrev.postgres.interface :as pg]
             [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
+            [sysrev.source.files :as files]
             [sysrev.util :as util]
             [sysrev.util-lite.interface :as ul]))
 
-(defn create-source! [sr-context project-id dataset-id]
+(defn insert-job!
+  [context type source-id & {:keys [status] :or {status "new"}}]
+  (->> {:insert-into :job
+        :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
+                  :status status
+                  :type type}]}
+       (db/execute-one! context)))
+
+(defn create-source! [sr-context project-id dataset-id files]
   (->> {:insert-into :project-source
         :values [{:dataset-id dataset-id
                   :import-date :%now
-                  :meta (pg/jsonb-pgobject {:importing-articles? true})
+                  :meta (pg/jsonb-pgobject
+                         {:files (mapv #(select-keys % [:content-type :filename :s3-key]) files)
+                          :importing-articles? true})
                   :project-id project-id}]
         :returning :source-id}
        (db/execute-one! sr-context)
@@ -162,20 +176,52 @@
                                         :article-data/article-data-id)]
                 (create-article! sr-context project-id source-id article-data-id)))))))))
 
+(defn upload-files-to-s3!
+  "Upload files to the sysrev imports bucket. This allows for easier
+   debugging and the resumption of interrupted imports."
+  [sr-context files]
+  (->> files
+       (mapv
+        (fn [{:as file :keys [filename tempfile]}]
+          (let [{:keys [key]}
+                (file/save-s3-file sr-context :import filename {:file tempfile})]
+            (assoc file :s3-key key))))))
+
+(defn rebuild-files!
+  "Recreate tempfiles from S3 when resuming an import."
+  [sr-context dir {:keys [files]}]
+  (->> files
+       (mapv
+        (fn [{:as file :keys [s3-key]}]
+          (let [tempfile (-> dir (babashka.fs/path (str (random-uuid))) babashka.fs/file)]
+            (babashka.fs/copy (s3/get-file-stream sr-context s3-key :import) tempfile)
+            (assoc file :tempfile tempfile))))))
+
+(defn import-files! [sr-context {:keys [files source-id]}]
+  (let [{:project-source/keys [dataset-id meta project-id]}
+        (->> {:select [:dataset-id :meta :project-id] :from :project-source :where [:= :source-id source-id]}
+             (db/execute-one! sr-context))]
+    (babashka.fs/with-temp-dir [dir {:prefix "sysrev-import"}]
+      (->> (or files (rebuild-files! sr-context dir meta))
+           (create-entities! sr-context project-id source-id dataset-id)))
+    (source/alter-source-meta source-id #(assoc % :importing-articles? false))
+    (db/clear-project-cache project-id)))
+
 (defn import! [sr-context project-id files & {:keys [sync?]}]
-  (let [dataset-id (:id (dpc/create-dataset!
+  (let [files (upload-files-to-s3! sr-context files)
+        dataset-id (:id (dpc/create-dataset!
                          {:description (str "Files uploaded for project " project-id)
                           :name (random-uuid)
                           :public false}
                          "id"
                          (source/datapub-opts sr-context)))
-        source-id (create-source! sr-context project-id dataset-id)]
+        source-id (create-source! sr-context project-id dataset-id files)]
+    (insert-job! sr-context "import-files" source-id :status "started")
     (db/clear-project-cache project-id)
     ((if sync? deref identity)
      (future
        (util/log-errors
-        (create-entities! sr-context project-id source-id dataset-id files)
-        (source/alter-source-meta source-id #(assoc % :importing-articles? false)))))
+        (import-files! sr-context {:files files :source-id source-id}))))
     {:success true}))
 
 (defn import-entities! [sr-context project-id source-id dataset-id entity-ids]
@@ -205,7 +251,7 @@
       (when hasNextPage
         (get-dataset-entity-ids datapub-opts dataset-id endCursor))))))
 
-(defn import-project-source-articles! [sr-context source-id]
+(defn import-project-source-articles! [sr-context {:keys [source-id]}]
   (let [{:project-source/keys [dataset-id project-id]}
         #__ (->> {:select [:dataset-id :project-id]
                   :from :project-source
@@ -214,23 +260,54 @@
     (db/clear-project-cache project-id)
     (->> (get-dataset-entity-ids (source/datapub-opts sr-context) dataset-id)
          (import-entities! sr-context project-id source-id dataset-id))
+    (source/alter-source-meta source-id  #(assoc % :importing-articles? false))
     (db/clear-project-cache project-id)))
 
+(defn update-failed-jobs [sr-context]
+  (db/with-long-tx [sr-context sr-context]
+    (->> {:update :job
+          :set {:status "failed"}
+          :where [:and
+                  [:= :status ["started"]]
+                  [:>= :retries :max-retries]
+                  [:not= nil :started-at]
+                  [:>= [:now] [:+ :timeout :started-at]]]}
+         (db/execute-one! sr-context))))
+
 (defn get-jobs [sr-context type]
-  (->> {:select :*
-        :from :job
-        :where [:and
-                [:= :status "new"]
-                [:= :type type]]}
-       (db/execute! sr-context)))
+  (db/with-long-tx [sr-context sr-context]
+    (update-failed-jobs sr-context)
+    (->> {:select :*
+          :from :job
+          :limit 1
+          :where [:and
+                  [:= :type type]
+                  [:or
+                   [:= :status "new"]
+                   [:and
+                    [:= :status "started"]
+                    [:< :retries :max-retries]
+                    [:>= [:now] [:+ :timeout :started-at]]]]]}
+         (db/execute! sr-context))))
+
+(defn start-job! [sr-context job-id]
+  (db/with-long-tx [sr-context sr-context]
+    (->> {:update :job
+          :set {:retries [:+ 1 :retries]
+                :started-at [:now]}
+          :where [:= :id job-id]}
+         (db/execute! sr-context))))
+
+(def job-type->fn
+  {"import-files" import-files!
+   "import-project-source-articles" import-project-source-articles!})
 
 (defn import-from-job-queue! [sr-context]
   (util/log-errors
-   (doseq [{:job/keys [id payload]}
-           (get-jobs sr-context "import-project-source-articles")]
-     (import-project-source-articles! sr-context (:source-id payload))
-     (source/alter-source-meta
-      (:source-id payload) #(assoc % :importing-articles? false))
+   (doseq [[type f] job-type->fn
+           {:job/keys [id payload]} (get-jobs sr-context type)]
+     (start-job! sr-context id)
+     (f sr-context payload)
      (->> {:update :job
            :set {:status "done"}
            :where [:= :id id]}
