@@ -1,5 +1,6 @@
 (ns sysrev.source.files
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [me.raynes.fs :as fs]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
@@ -116,27 +117,27 @@
 (defn create-ris-entities!
   [sr-context {:keys [datapub-opts dataset-id project-id source-id]
                {:as file :keys [filename tempfile]} :file}]
-  (let [s (slurp tempfile)
-        ris-maps (try
-                   (ris/str->ris-maps s)
-                   (catch Exception _))
-        entities (map
-                  (fn [m]
-                    (let [s (ris/ris-map->str m)]
-                      {:ris-map m
-                       :entity-id
-                       (-> {:contentUpload s
-                            :datasetId dataset-id
-                            :mediaType "application/x-research-info-systems"}
-                           (dpc/create-dataset-entity! "id" datapub-opts)
-                           :id)}))
-                  ris-maps)]
-    (if (empty? entities)
-      (throw (ex-info "Invalid RIS file" {:file file}))
-      (create-ris-chunks!
-       sr-context
-       {:dataset-id dataset-id :project-id project-id :source-id source-id}
-       entities))))
+  (with-open [rdr (io/reader tempfile)]
+    (let [ris-maps (try
+                     (ris/reader->ris-maps rdr)
+                     (catch Exception _))
+          entities (map
+                    (fn [m]
+                      (let [s (ris/ris-map->str m)]
+                        {:ris-map m
+                         :entity-id
+                         (-> {:contentUpload s
+                              :datasetId dataset-id
+                              :mediaType "application/x-research-info-systems"}
+                             (dpc/create-dataset-entity! "id" datapub-opts)
+                             :id)}))
+                    ris-maps)]
+      (if (empty? entities)
+        (throw (ex-info "Invalid RIS file" {:file file}))
+        (create-ris-chunks!
+         sr-context
+         {:dataset-id dataset-id :project-id project-id :source-id source-id}
+         entities)))))
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context :upload? true)]

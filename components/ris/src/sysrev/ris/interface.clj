@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [instaparse.core :as insta :refer [defparser]]
-            [instaparse.transform :refer [transform]]))
+            [instaparse.transform :refer [transform]])
+  (:import [java.io BufferedReader StringReader]))
 
 ;; Moved from https://github.com/insilica/datasource/blob/dev/src/clj/datasource/ris.clj
 
@@ -73,8 +74,8 @@
 ;;          (def ris-refworks-parser
 ;;            (insta/parser (slurp "src/bnf/ris_ebsco.bnf")))
 ;;
-(defn str->ris-maps
-  "Given a string representing a RIS file, return a coll of citation hash-maps
+(defn str->ris-map
+  "Given a string representing a RIS reference, return a citation hash-map
    with keyword keys"
   [s]
   (let [parser-output (cond
@@ -90,7 +91,44 @@
     (if (:reason parser-output)
       (throw (ex-info "RIS parsing failed"
                       {:parser-output parser-output}))
-      (parser-output->coll parser-output))))
+      (-> parser-output parser-output->coll first))))
+
+(defn- group-references
+  "Returns a vector of references, where each reference is
+   comprised of a vector of lines."
+  [lines]
+  (->
+   (reduce (fn [acc line]
+             (cond
+               (str/blank? line)
+               acc
+
+               (re-matches #"\s*ER\s*-.*" line)
+               (-> (update acc (dec (count acc)) conj line)
+                   (conj []))
+
+               :else
+               (update acc (dec (count acc)) conj line)))
+           [[]]
+           lines)
+   pop))
+
+(defn reader->ris-maps
+  "Given a reader representing a RIS file, return a coll of citation hash-maps
+   with keyword keys"
+  [rdr]
+  (->> rdr
+       line-seq
+       group-references
+       (map (fn [lines]
+              (str->ris-map (str/join "\n" (conj lines "")))))))
+
+(defn str->ris-maps
+  "Given a string representing a RIS file, return a coll of citation hash-maps
+   with keyword keys"
+  [s]
+  (with-open [rdr (BufferedReader. (StringReader. s))]
+    (reader->ris-maps rdr)))
 
 (defn ris-map->str
   "Given a citation map with keyword keys, returns a String."
