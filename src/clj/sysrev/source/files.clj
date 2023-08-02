@@ -19,6 +19,7 @@
 (defn insert-job!
   [context type source-id & {:keys [status] :or {status "new"}}]
   (->> {:insert-into :job
+        :returning [:id]
         :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
                   :status status
                   :type type}]}
