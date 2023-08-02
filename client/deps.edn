@@ -39,7 +39,7 @@
 
         ;;; Needed for CLJ macro compilation (sysrev.util)
         clj-time/clj-time {:mvn/version "0.15.2"}
-        org.clojure/data.xml {:mvn/version "0.2.0-alpha6"}
+        org.clojure/data.xml {:mvn/version "0.2.0-alpha8"}
         org.clojure/math.numeric-tower {:mvn/version "0.0.4"}
         crypto-random/crypto-random {:mvn/version "1.2.1"}
         me.raynes/fs {:mvn/version "1.4.6"}
