@@ -2,7 +2,7 @@
   (:require [clojurewerkz.quartzite.conversion :as qc]
             [clojurewerkz.quartzite.scheduler :as q]
             [clojurewerkz.quartzite.jobs :as j]
-            [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-minutes]]
+            [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-seconds]]
             [clojurewerkz.quartzite.triggers :as t]
             [sysrev.source.files :as files]))
 
@@ -24,5 +24,5 @@
                  (t/start-now)
                  (t/with-schedule (schedule
                                    (repeat-forever)
-                                   (with-interval-in-minutes 1))))]
+                                   (with-interval-in-seconds 60))))]
     (q/schedule quartz-scheduler job trigger)))
