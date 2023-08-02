@@ -1,6 +1,7 @@
 (ns datapub.file
   (:require
    [aws-api-failjure :as aaf]
+   [clojure.data.xml :as dxml]
    [clojure.string :as str]
    [cognitect.aws.client.api :as aws]
    [sysrev.aws-client.interface :as aws-client])
@@ -101,3 +102,10 @@
      :request {:Body content
                :Bucket (bucket-name s3)
                :Key (content-key file-hash)}})))
+
+(defn valid-xml? [^Path path]
+  (try
+    (->> path .toUri .toURL .openStream dxml/parse last)
+    true
+    (catch Exception _
+      false)))

@@ -407,6 +407,62 @@
        :else
        (create-entity-pdf! context input path json)))))
 
+(defn create-entity-xml! [context input path metadata]
+  (if-not (file/valid-xml? path)
+    (resolve/resolve-as nil {:message (str "Invalid content or contentUpload: Not a valid XML file.")})
+    (let [file-hash (file/file-sha3-256 path)
+          data {:metadata metadata}
+          content-hash (-> {:data data
+                            :file-hash
+                            (.encode (Base64/getEncoder) file-hash)}
+                           hasch/edn-hash
+                           byte-array)]
+      (file/put-entity-content! (get-in context [:pedestal :s3])
+                                {:content (-> ^Path path .toUri .toURL .openStream)
+                                 :file-hash file-hash})
+      (with-tx-context [context (assoc context :tx-retry-opts {:n 1})]
+        (create-entity-helper!
+         context input
+         {:content-hash content-hash
+          :content-table :content-file
+          :data data
+          :file-hash file-hash})))))
+
+(defmethod create-dataset-entity! "application/xml"
+  [context {{:keys [content contentUpload metadata] :as input} :input :as args} value]
+  (ensure-sysrev-dev
+   context
+   (let [json (try
+                (when metadata (json/parse-string metadata))
+                (catch Exception _))
+         {:keys [path]} contentUpload]
+     (cond
+       (and content contentUpload)
+       (resolve/resolve-as nil {:message "Either content or contentUpload must be specified, but not both."})
+
+       (or content (string? contentUpload))
+       (let [xml (try
+                   (.decode (Base64/getDecoder) (or ^String content ^String contentUpload))
+                   (catch Exception _))]
+         (if xml
+           (file-util/with-temp-file [path {:prefix "datapub-"
+                                            :suffix ".xml"}]
+             (file-util/copy! (io/input-stream xml) path
+                              #{:replace-existing})
+             (create-dataset-entity!
+              context
+              (-> (update args :input dissoc :content)
+                  (assoc-in [:input :contentUpload] {:path path}))
+              value))
+           (resolve/resolve-as nil {:message "Invalid content: Not valid base64."})))
+
+       (and metadata (empty? json))
+       (resolve/resolve-as nil {:message "Invalid metadata: Not valid JSON."
+                                :metadata metadata})
+
+       :else
+       (create-entity-xml! context input path json)))))
+
 (defmethod create-dataset-entity! "application/x-research-info-systems"
   [context {{:keys [content contentUpload metadata] :as input} :input} _]
   (ensure-sysrev-dev

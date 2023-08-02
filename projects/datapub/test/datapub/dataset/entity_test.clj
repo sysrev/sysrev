@@ -527,6 +527,80 @@
                       :metadata "{"}})
                    (get-in [:body :errors 0 :message]))))))))
 
+(deftest test-xml-entities
+  (test/with-test-system [system {}]
+    (let [ex (partial ex! system)
+          ds-id (-> (ex (dpcq/m-create-dataset "id")
+                        {:input {:name "test-xml-entities"}})
+                    (get-in [:data :createDataset :id]))
+          create-entity-raw
+          #__ (fn [filename & [metadata]]
+                (let [content (->> (str "datapub/file-uploads/" filename)
+                                   io/resource
+                                   .openStream
+                                   IOUtils/toByteArray
+                                   (.encodeToString (Base64/getEncoder)))]
+                  {:content content
+                   :response
+                   (:body
+                    (test/execute!
+                     system
+                     (dpcq/m-create-dataset-entity #{:id :metadata})
+                     {:input
+                      {:datasetId ds-id
+                       :content content
+                       :externalId filename
+                       :mediaType "application/xml"
+                       :metadata (when metadata
+                                   (json/generate-string metadata))}}))}))
+          create-entity
+          #__ (fn [filename & [metadata]]
+                (let [{:keys [content response]} (create-entity-raw filename metadata)]
+                  (-> (test/throw-errors response)
+                      (get-in [:data :createDatasetEntity])
+                      (assoc :content content))))
+          alpha1 (create-entity "PMID10000.xml" {:title "alpha1"})]
+      (create-entity "PMID10001.xml")
+      (create-entity "PMID10002.xml")
+      (testing "Can create and retrieve a PDF entity"
+        (is (string? (:id alpha1)))
+        (is (= {"title" "alpha1"}
+               (some-> alpha1 :metadata json/parse-string)))
+        (is (= {:data {:datasetEntity {:content (:content alpha1) :mediaType "application/xml"}}}
+               (ex (dpcq/q-dataset-entity "content mediaType")
+                   {:id (:id alpha1)}))))
+      (testing "Identical files with different metadata are separate entities, but identical files with identical metadata are the same entity"
+        (let [alpha1-2 (create-entity "PMID10000.xml" {:title "alpha1-2"})
+              alpha1* (-> (ex (dpcq/q-dataset-entity "id metadata")
+                              {:id (:id alpha1)})
+                          (get-in [:data :datasetEntity]))]
+          (is (string? (:id alpha1*)))
+          (is (string? (:id alpha1-2)))
+          (is (not= (:id alpha1*) (:id alpha1-2)))
+          (is (= {"title" "alpha1"}
+                 (some-> alpha1* :metadata json/parse-string)))
+          (is (= {"title" "alpha1-2"}
+                 (some-> alpha1-2 :metadata json/parse-string)))
+          (is (= (:id alpha1-2)
+                 (:id (create-entity "PMID10000.xml" {:title "alpha1-2"}))))))
+      (testing "Invalid XML is rejected"
+        (is (re-matches
+             #"Invalid content.*: Not a valid XML file."
+             (-> (create-entity-raw "armstrong-thesis-2003-abstract.docx")
+                 (get-in [:response :errors 0 :message])))))
+      (testing "Invalid metadata is rejected"
+        (is (= "Invalid metadata: Not valid JSON."
+               (-> (test/execute!
+                    system
+                    (dpcq/m-create-dataset-entity "id")
+                    {:input
+                     {:datasetId ds-id
+                      :content (:content alpha1)
+                      :externalId "pmid10000"
+                      :mediaType "application/xml"
+                      :metadata "{"}})
+                   (get-in [:body :errors 0 :message]))))))))
+
 (deftest test-file-uploads
   (test/with-test-system [system {:config {:pedestal {:port 0}}}]
     (let [sysrev-dev-key (get-in system [:pedestal :config :secrets :sysrev-dev-key])
