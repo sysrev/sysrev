@@ -7,6 +7,7 @@
    [ring.util.response :as r]
    [sysrev.config :refer [env]]
    [sysrev.db.core :as db]
+   [sysrev.postgres.interface :as pg]
    [sysrev.project.core :as project]
    [sysrev.project.member :refer [project-member]]
    [sysrev.project.plan :as pplan]
@@ -143,14 +144,14 @@
    :request-method (some-> (:request-method request) name str/lower-case)
    :is-error (boolean (or error exception))
    :meta (cond error
-               (db/to-jsonb
+               (pg/jsonb-pgobject
                 {:error (merge error
                                (when (:exception error)
                                  {:stacktrace (with-out-str
                                                 (-> (:exception error)
                                                     (print-cause-trace-custom)))}))})
                exception
-               (db/to-jsonb
+               (pg/jsonb-pgobject
                 {:error {:message (.getMessage ^Throwable exception)
                          :stacktrace (with-out-str
                                        (print-cause-trace-custom exception))}}))})
