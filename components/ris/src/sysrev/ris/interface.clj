@@ -90,7 +90,8 @@
                         (ris-refworks-parser s))]
     (if (:reason parser-output)
       (throw (ex-info "RIS parsing failed"
-                      {:parser-output parser-output}))
+                      {:parser-output parser-output
+                       :string s}))
       (-> parser-output parser-output->coll first))))
 
 (defn- group-references
