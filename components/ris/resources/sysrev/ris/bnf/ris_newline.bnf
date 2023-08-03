@@ -10,4 +10,4 @@ TAG_NAME = #"[A-Z,0-9]{2}"
 <VAL_DELIM> = <" ">
 <CARRIAGE_RETURN>= <"\n">
 VAL = #"(?s)^((?!\n[A-Z,0-9]{2}  -).)*" (* see: https://stackoverflow.com/questions/406230/regular-expression-to-match-a-line-that-doesnt-contain-a-word *)
-<WHITESPACE> = #"(\n)*"
+<WHITESPACE> = "\n"*
