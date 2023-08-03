@@ -1,4 +1,5 @@
 (ns sysrev.ris.interface-test
+  (:refer-clojure :exclude [load-reader])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
