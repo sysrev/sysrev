@@ -157,7 +157,7 @@
 (defn create-entities! [sr-context project-id source-id dataset-id files]
   (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
     (doseq [{:keys [content-type filename] :as file} files]
-      (if (= "application/octet-stream" content-type)
+      (if (#{"application/octet-stream" "application/x-research-info-systems"} content-type)
         (create-ris-entities! sr-context {:datapub-opts datapub-opts
                                           :dataset-id dataset-id
                                           :file file
