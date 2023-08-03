@@ -25,6 +25,8 @@
         me.raynes/fs {:mvn/version "1.4.6"}
 
 ;;; Data formats
+        clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
+                               :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
         com.cognitect/transit-clj {:mvn/version "1.0.329"}
         org.clojure/data.csv {:mvn/version "1.0.1"}
         org.clojure/data.xml {:mvn/version "0.2.0-alpha8"}
@@ -133,9 +135,7 @@
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-paths ["config/test" "test/clj" "resources/test" "test-resources"
                        "components/ris/test-resources"]
-         :extra-deps {clj-base64/clj-base64 {:git/url "https://github.com/insilica/clj-base64.git"
-                                             :sha "4b93fca75dec989eeb212db2aeb054e121ed11eb"}
-                      com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
+         :extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
                                            :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
                       lambdaisland/kaocha-cloverage {:mvn/version "1.1.89"}
