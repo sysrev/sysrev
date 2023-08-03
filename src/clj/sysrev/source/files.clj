@@ -17,10 +17,11 @@
             [sysrev.util-lite.interface :as ul]))
 
 (defn insert-job!
-  [context type source-id & {:keys [status] :or {status "new"}}]
+  [context type source-id & {:keys [started-at status] :or {status "new"}}]
   (->> {:insert-into :job
         :returning [:id]
         :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
+                  :started-at started-at
                   :status status
                   :type type}]}
        (db/execute-one! context)))
