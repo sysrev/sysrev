@@ -42,6 +42,14 @@
     (let [ms (ris/reader->ris-maps (load-reader "IEEE_Xplore_Citation_Download_2019.11.04.16.41.46.ris"))]
       (is (= 3 (count ms)))
       (is (every? valid-reference? ms))))
+  (testing "Parsing OvidWeb"
+    (let [ms (ris/reader->ris-maps (load-reader "ovidweb.ris"))]
+      (is (= 3 (count ms)))
+      (is (every? valid-reference? ms))
+      (is (= {:A1 ["Grubbs, Allison E" "Sinha, Nikita" "Garg, Ravi" "Barber, Emma L"], :TY ["JOUR"]}
+             (-> ms second (select-keys [:A1 :TY]))))
+      (is (= #{:ID :N2 :PT :KW :CY :JA :JF :DO :DB :SP :T1 :Y2 :Y1 :N1 :L2 :M1 :SN :TY :T3 :EP :A1 :VL :M2}
+             (->> ms (mapcat keys) set)))))
   (testing "Parsing scopus.ris"
     (let [ms (ris/reader->ris-maps (load-reader "scopus.ris"))]
       (is (= 52 (count ms)))
@@ -73,6 +81,10 @@
       (is (every? valid-reference? ms))))
   (testing "Parsing IEEE Xplore Citation Download"
     (let [ms (ris/str->ris-maps (load-ris "IEEE_Xplore_Citation_Download_2019.11.04.16.41.46.ris"))]
+      (is (= 3 (count ms)))
+      (is (every? valid-reference? ms))))
+  (testing "Parsing OvidWeb"
+    (let [ms (ris/str->ris-maps (load-ris "ovidweb.ris"))]
       (is (= 3 (count ms)))
       (is (every? valid-reference? ms))))
   (testing "Parsing scopus.ris"

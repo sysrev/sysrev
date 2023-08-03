@@ -1,0 +1,122 @@
+1. 
+TY  - JOUR
+DB  - Ovid MEDLINE(R) Daily Update 
+ID  - 35634081
+T1  - Surgical Selection of T1 Stage Renal Tumor Resection Based on Imaging MAP Score under Smart Medical Care.
+T3  - Retraction in: Comput Intell Neurosci. 2023 Jul 19;2023:9754306 PMID: 37502092 [https://www.ncbi.nlm.nih.gov/pubmed/37502092]
+A1  - Zong, Hongtao
+A1  - Xia, Qiang
+A1  - Zhang, Liansheng
+A1  - Zhu, Jin
+Y1  - 2022//
+Y2  - 20220518//
+N1  - Retraction in (RIN)
+N2  - Smart medical uses the medical information platform and the current technological means to enable the process of sharing information between medical staff and medical equipment. The combination of current technology and the medical field has become the norm. In the future, more artificial intelligence technologies will be integrated into the medical field to promote the development of medical care. At present, the information on the Internet is very large and complex, and general search engines often do not have knowledge in certain professional fields and can only perform shallow keyword searches. Therefore, it is difficult to meet people's medical diagnosis needs, and smart medical care can solve these needs. Medical imaging refers to the technology or process of obtaining internal tissue images of a certain part of the human body for medical research, including medical imaging systems and medical image processing. Medical image processing refers to the further processing of the obtained images, the purpose of which is either to restore the original image that was not clear enough or to highlight some characteristic information in the image. The purpose of this paper is to study the research on the selection of T1 stage renal tumor resection based on the imaging MAP score under smart medical care. It is hoped that through smart medicine and medical imaging technology, it can help renal tumor resection, reduce the sequelae of renal tumor resection, and promote the development of medical services. This paper proposes applying natural language processing technology to the medical field, creating an intelligent diagnosis assistance system, and using the existing medical record data to realize the corresponding medical assistance functions. It studies the class imbalance problem prevalent in medical datasets and provides better solutions through ensemble learning techniques to improve classifier performance when the number of positive and negative samples is unbalanced. The experimental results in this paper show that the creatinine of patients undergoing renal tumor resection combined with smart medicine and imaging technology is stable at 75 mol/L, while the creatinine is stable at 71 mol/L in other methods. It shows that the postoperative effect of smart medical treatment and imaging technology is better. Copyright © 2022 Hongtao Zong et al.
+KW  - *Artificial Intelligence
+KW  - Creatinine
+KW  - Diagnostic Imaging
+KW  - Humans
+KW  - Kidney Neoplasms/dg [Diagnostic Imaging]
+KW  - Kidney Neoplasms/su [Surgery]
+KW  - *Kidney Neoplasms
+KW  - Technology
+JF  - Computational intelligence and neuroscience
+JA  - Comput Intell Neurosci
+VL  - 2022
+SP  - 1947504
+CY  - United States
+M2  - Zong, Hongtao. Department of Urology, Wuxi No. 9 People's Hospital Affiliated to Soochow University, Wuxi 214062, Jiangsu, China.
+M2  - Xia, Qiang. Department of Urology, Wuxi No. 9 People's Hospital Affiliated to Soochow University, Wuxi 214062, Jiangsu, China.
+M2  - Zhang, Liansheng. Department of Urology, Wuxi No. 9 People's Hospital Affiliated to Soochow University, Wuxi 214062, Jiangsu, China.
+M2  - Zhu, Jin. Department of Urology, the Second Affiliated Hospital of Soochow University, Suzhou 215004, Jiangsu, China.
+SN  - 1687-5273
+M1  - 101279357
+DO  - https://dx.doi.org/10.1155/2022/1947504
+PT  - Journal Article, Retracted Publication
+L2  - http://ovidsp.ovid.com/ovidweb.cgi?T=JS&PAGE=reference&D=mesx&NEWS=N&AN=35634081
+ER  -  
+
+Link to the Ovid Full Text or citation: https://login.foyer.swmed.edu/login?url=http://ovidsp.ovid.com/ovidweb.cgi?T=JS&CSC=Y&NEWS=N&PAGE=fulltext&D=mesx&AN=35634081Link to the External Link Resolver: http://resolver.ebscohost.com/openurl?sid=OVID:medline&id=pmid:35634081&id=doi:10.1155%2F2022%2F1947504&issn=1687-5273&isbn=&volume=2022&issue=&spage=1947504&date=2022&title=Computational+Intelligence+%26+Neuroscience&atitle=Surgical+Selection+of+T1+Stage+Renal+Tumor+Resection+Based+on+Imaging+MAP+Score+under+Smart+Medical+Care.&aulast=Zong&pid=%3CAN%3E35634081%3C%2FAN%3E 
+
+2. 
+TY  - JOUR
+DB  - Ovid MEDLINE(R) 
+ID  - 36933402
+T1  - Use of topic modeling to assess research trends in the journal Gynecologic Oncology.
+A1  - Grubbs, Allison E
+A1  - Sinha, Nikita
+A1  - Garg, Ravi
+A1  - Barber, Emma L
+Y1  - 2023//
+Y2  - 20230316//
+N2  - STUDY OBJECTIVE: There is scant research identifying thematic trends within medical research. This work may provide insight into how a given field values certain topics. We assessed the feasibility of using a machine learning approach to determine the most common research themes published in Gynecologic Oncology over a thirty-year period and to subsequently evaluate how interest in these topics changed over time., METHODS: We retrieved the abstracts of all original research published in Gynecologic Oncology from 1990 to 2020 using PubMed. Abstract text was processed through a natural language processing algorithm and clustered into topical themes using latent Dirichlet allocation (LDA) prior to manual labeling. Topics were investigated for temporal trends., RESULTS: We retrieved 12,586 original research articles, of which 11,217 were evaluable for subsequent analysis. Twenty-three research topics were selected at the completion of topic modeling. The topics of basic science genetics, epidemiologic methods, and chemotherapy experienced the greatest increase over the time period, while postoperative outcomes, reproductive age cancer management, and cervical dysplasia experienced the greatest decline. Interest in basic science research remained relatively constant. Topics were additionally reviewed for words indicative of either surgical or medical therapy. Both surgical and medical topics saw increasing interest, with surgical topics experiencing a greater increase and representing a higher proportion of published topics., CONCLUSIONS: Topic modeling, a type of unsupervised machine learning, was successfully used to identify trends in research themes. The application of this technique provided insight into how the field of gynecologic oncology values the components of its scope of practice and therefore how it may choose to allocate grant funding, disseminate research, and participate in the public discourse. Copyright © 2023 Elsevier Inc. All rights reserved.
+KW  - Female
+KW  - Humans
+KW  - Genital Neoplasms, Female/th [Therapy]
+KW  - *Genital Neoplasms, Female
+KW  - Publications
+KW  - Machine Learning
+JF  - Gynecologic oncology
+JA  - Gynecol Oncol
+VL  - 172
+SP  - 41
+EP  - 46
+CY  - United States
+M2  - Grubbs, Allison E. Northwestern University Feinberg School of Medicine, Division of Gynecologic Oncology, Department of Obstetrics and Gynecology, Chicago, IL, USA. Electronic address: allison.grubbs@nm.org.
+M2  - Sinha, Nikita. Northwestern University Feinberg School of Medicine, Division of Gynecologic Oncology, Department of Obstetrics and Gynecology, Chicago, IL, USA.
+M2  - Garg, Ravi. Institute of Public Health and Medicine, Northwestern University Feinberg School of Medicine, Chicago, IL, USA.
+M2  - Barber, Emma L. Northwestern University Feinberg School of Medicine, Division of Gynecologic Oncology, Department of Obstetrics and Gynecology, Chicago, IL, USA; Institute of Public Health and Medicine, Northwestern University Feinberg School of Medicine, Chicago, IL, USA; Robert H. Lurie Comprehensive Cancer Center, Northwestern University, Chicago, IL, USA; Center for Health Equity Transformation, Northwestern University Feinberg School of Medicine, Chicago, IL, USA.
+SN  - 1095-6859
+SN  - 0090-8258
+M1  - fxc, 0365304
+DO  - https://dx.doi.org/10.1016/j.ygyno.2023.03.001
+PT  - Journal Article
+L2  - http://ovidsp.ovid.com/ovidweb.cgi?T=JS&PAGE=reference&D=medl&NEWS=N&AN=36933402
+ER  -  
+
+Link to the Ovid Full Text or citation: https://login.foyer.swmed.edu/login?url=http://ovidsp.ovid.com/ovidweb.cgi?T=JS&CSC=Y&NEWS=N&PAGE=fulltext&D=medl&AN=36933402Link to the External Link Resolver: http://resolver.ebscohost.com/openurl?sid=OVID:medline&id=pmid:36933402&id=doi:10.1016%2Fj.ygyno.2023.03.001&issn=0090-8258&isbn=&volume=172&issue=&spage=41&date=2023&title=Gynecologic+Oncology&atitle=Use+of+topic+modeling+to+assess+research+trends+in+the+journal+Gynecologic+Oncology.&aulast=Grubbs&pid=%3CAN%3E36933402%3C%2FAN%3E 
+
+3. 
+TY  - JOUR
+DB  - Ovid MEDLINE(R) 
+ID  - 36427445
+T1  - Practice-Based Learning and Improvement: Improving Morbidity and Mortality Review Using Natural Language Processing.
+A1  - Kobritz, Molly
+A1  - Patel, Vihas
+A1  - Rindskopf, David
+A1  - Demyan, Lyudmyla
+A1  - Jarrett, Mark
+A1  - Coppa, Gene
+A1  - Antonacci, Anthony C
+Y1  - 2023//
+Y2  - 20221122//
+N2  - INTRODUCTION: Practice-Based Learning and Improvement, a core competency identified by the Accreditation Council for Graduate Medical Education, carries importance throughout a physician's career. Practice-Based Learning and Improvement is cultivated by a critical review of complications, yet methods to accurately identify complications are inadequate. Machine-learning algorithms show promise in improving identification of complications. We compare a manual-supplemented natural language processing (ms-NLP) methodology against a validated electronic morbidity and mortality (MM) database, the Morbidity and Mortality Adverse Event Reporting System (MARS) to understand the utility of NLP in MM review., METHODS: The number and severity of complications were compared between MARS and ms-NLP of surgical hospitalization discharge summaries among three academic medical centers. Clavien-Dindo (CD) scores were assigned to cases with identified complications and classified into minor (CD I-II) or major (CD III-IV) harm., RESULTS: Of 7774 admissions, 987 cases were identified to have 1659 complications by MARS and 1296 by ms-NLP. MARS identified 611 (62%) cases, whereas ms-NLP identified 670 (68%) cases. Less than one-third of cases (299, 30.3%) were detected by both methods. MARS identified a greater number of complications with major harm (457, 46.30%) than did ms-NLP (P < 0.0001)., CONCLUSIONS: Both a prospectively maintained MM database and ms-NLP review of discharge summaries fail to identify a significant proportion of postoperative complications and overlap 1/3 of the time. ms-NLP more frequently identifies cases with minor complications, whereas prospective voluntary reporting more frequently identifies major complications. The educational benefit of reporting and analysis of complication data may be supplemented by ms-NLP but not replaced by it at this time. Copyright © 2022 Elsevier Inc. All rights reserved.
+KW  - Humans
+KW  - *Natural Language Processing
+KW  - Prospective Studies
+KW  - *Algorithms
+KW  - Machine Learning
+KW  - Morbidity
+KW  - Electronic Health Records
+JF  - The Journal of surgical research
+JA  - J Surg Res
+VL  - 283
+SP  - 351
+EP  - 356
+CY  - United States
+M2  - Kobritz, Molly. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York. Electronic address: mkobritz@northwell.edu.
+M2  - Patel, Vihas. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York.
+M2  - Rindskopf, David. City University of New York, Graduate School And University Center, New York, New York.
+M2  - Demyan, Lyudmyla. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York.
+M2  - Jarrett, Mark. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York.
+M2  - Coppa, Gene. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York.
+M2  - Antonacci, Anthony C. Northwell Health North Shore/Long Island Jewish General Surgery, Manhasset, New York; Donald and Barbara Zucker School of Medicine at Hofstra/Northwell, Hempstead, New York.
+SN  - 1095-8673
+SN  - 0022-4804
+M1  - k7b, 0376340
+DO  - https://dx.doi.org/10.1016/j.jss.2022.10.075
+PT  - Review, Journal Article
+L2  - http://ovidsp.ovid.com/ovidweb.cgi?T=JS&PAGE=reference&D=medl&NEWS=N&AN=36427445
+ER  -  
+
+Link to the Ovid Full Text or citation: https://login.foyer.swmed.edu/login?url=http://ovidsp.ovid.com/ovidweb.cgi?T=JS&CSC=Y&NEWS=N&PAGE=fulltext&D=medl&AN=36427445Link to the External Link Resolver: http://resolver.ebscohost.com/openurl?sid=OVID:medline&id=pmid:36427445&id=doi:10.1016%2Fj.jss.2022.10.075&issn=0022-4804&isbn=&volume=283&issue=&spage=351&date=2023&title=Journal+of+Surgical+Research&atitle=Practice-Based+Learning+and+Improvement%3A+Improving+Morbidity+and+Mortality+Review+Using+Natural+Language+Processing.&aulast=Kobritz&pid=%3CAN%3E36427445%3C%2FAN%3E 

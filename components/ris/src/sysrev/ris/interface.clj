@@ -93,21 +93,26 @@
   "Returns a vector of references, where each reference is
    comprised of a vector of lines."
   [lines]
-  (->
-   (reduce (fn [acc line]
-             (cond
-               (str/blank? line)
-               acc
+  (->>
+     (reduce (fn [acc line]
+               (let [line (remove-boms line)]
+                 (cond
+                   (str/blank? line)
+                   acc
 
-               (re-matches #"\s*ER\s*-.*" line)
-               (-> (update acc (dec (count acc)) conj line)
-                   (conj []))
+                   (re-matches #"\s*ER\s*-.*" line)
+                   (-> (update acc (dec (count acc)) conj line)
+                       (conj []))
 
-               :else
-               (update acc (dec (count acc)) conj line)))
-           [[]]
-           lines)
-   pop))
+                   (or (seq (peek acc))
+                       (re-matches #"\s*TY\s*-.*" line))
+                   (update acc (dec (count acc)) conj line)
+
+                   :else ;; Ignore extra lines between records as in OvidWeb output
+                   acc)))
+             [[]]
+             lines)
+     (filterv seq)))
 
 (defn reader->ris-maps
   "Given a reader representing a RIS file, return a coll of citation hash-maps
