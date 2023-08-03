@@ -383,9 +383,14 @@
      [:br]
      [JSONView (js/JSON.parse metadata)]]))
 
+(defn XMLEntity [{:keys [article-id context]}]
+  [ArticleInfoMain article-id :context context])
+
 (def mediaType->fn
   {"application/json" JSONEntity
-   "application/pdf" PDFEntity})
+   "application/pdf" PDFEntity
+   "application/xml" XMLEntity
+   "text/xml" XMLEntity})
 
 (defn DatasetEntityLoader [{:keys [article-id context dataset-jwt entity-id project-id]}]
   (r/with-let [state (r/atom {:entity (delay nil)})]
