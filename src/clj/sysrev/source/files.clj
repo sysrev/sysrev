@@ -50,13 +50,12 @@
        (db/execute-one! sr-context)))
 
 (defn create-article-data! [sr-context {:keys [content dataset-id entity-id title]}]
-  {:pre [(map? sr-context) (string? entity-id) (string? title)
-         (or (nil? content) (string? content))]}
+  {:pre [(map? sr-context) (string? entity-id) (string? title)]}
   (->> {:insert-into :article-data
         :returning :*
         :values [{:article-subtype "entity"
                   :article-type "datapub"
-                  :content content
+                  :content (pg/jsonb-pgobject content)
                   :dataset-id dataset-id
                   :datasource-name "datapub"
                   :external-id (pg/jsonb-pgobject entity-id)
@@ -168,7 +167,7 @@
                           (some #(when (= :records (:tag %)) %))
                           :content
                           (filter #(= :record (:tag %))))
-              :let [{:keys [primary-title raw secondary-title]} (endnote/load-endnote-record record)
+              :let [{:as article :keys [primary-title raw secondary-title]} (endnote/load-endnote-record record)
                     entity-id (when (seq raw)
                                 (-> {:contentUpload (->> raw .getBytes base64/encode (str/join ""))
                                      :datasetId dataset-id
@@ -179,7 +178,7 @@
                                         (goc-article-data!
                                          {:dataset-id dataset-id
                                           :entity-id entity-id
-                                          :content nil
+                                          :content (dissoc article :raw)
                                           :title (or primary-title secondary-title)})
                                         :article-data/article-data-id)]]
         (create-article! sr-context project-id source-id article-data-id)))))
