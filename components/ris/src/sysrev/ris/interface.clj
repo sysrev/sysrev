@@ -59,6 +59,14 @@
        (map merge-lines)
        (filter seq)))
 
+(defn remove-boms
+  "Remove Unicode Byte Order Marks"
+  [^String s]
+  (-> s
+      (str/replace "\uFEFF" "") ;; UTF-8 BOM
+      (str/replace "\uFFFE" "") ;; UTF-32 Little Endian BOM
+      (str/replace "\u0000FEFF" ""))) ;; UTF-32 Big Endian BOM
+
 ;; for debugging parsers
 ;; (insta/visualize (ris-refworks-parser (slurp "resources/test/RIS/ERIC_ebsco_1232020_crl_test.txt")) :output-file "example.png" :options {:dpi 63})
 ;; you can't use
@@ -78,7 +86,8 @@
   "Given a string representing a RIS reference, return a citation hash-map
    with keyword keys"
   [s]
-  (let [parser-output (cond
+  (let [s (remove-boms s)
+        parser-output (cond
                         (not (seq (:reason (ris-parser s))))
                         (ris-parser s)
                         (not (seq (:reason (ris-newline-parser s))))

@@ -46,6 +46,10 @@
     (let [ms (ris/reader->ris-maps (load-reader "scopus.ris"))]
       (is (= 52 (count ms)))
       (is (every? valid-reference? ms))))
+  (testing "Parsing ufeff.ris (Contains U+FEFF)"
+    (let [ms (ris/reader->ris-maps (load-reader "ufeff.ris"))]
+      (is (= 2 (count ms)))
+      (is (every? valid-reference? ms))))
   (testing "Parsing zotero.ris"
     (let [ms (ris/reader->ris-maps (load-reader "zotero.ris"))]
       (is (= 6 (count ms)))
@@ -74,6 +78,10 @@
   (testing "Parsing scopus.ris"
     (let [ms (ris/str->ris-maps (load-ris "scopus.ris"))]
       (is (= 52 (count ms)))
+      (is (every? valid-reference? ms))))
+  (testing "Parsing ufeff.ris (Contains U+FEFF)"
+    (let [ms (ris/str->ris-maps (load-ris "ufeff.ris"))]
+      (is (= 2 (count ms)))
       (is (every? valid-reference? ms))))
   (testing "Parsing zotero.ris"
     (let [ms (ris/str->ris-maps (load-ris "zotero.ris"))]

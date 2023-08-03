@@ -1,0 +1,113 @@
+﻿TY  - JOUR
+AU  - Stott, AW
+AU  - Humphry, RW
+AU  - Gunn, GJ
+TI  - Modelling the effects of previous infection and re-infection on the costs of bovine viral diarrhoea outbreaks in beef herds
+T2  - VETERINARY JOURNAL
+LA  - English
+KW  - Bovine viral diarrhoea virus
+KW  - Epidemiology
+KW  - Modelling
+KW  - Disease control
+KW  - Economics
+KW  - LIVESTOCK DISEASE
+KW  - ECONOMIC-IMPACT
+KW  - VIRUS-INFECTION
+KW  - BVD
+KW  - SIMULATION
+KW  - MASTITIS
+KW  - ANIMALS
+KW  - SPREAD
+KW  - CATTLE
+AB  - A previously published model was re-employed to examine the potential impact of different epidemiological circumstances on output losses due to bovine viral diarrhoea virus (BVDV) infection in typical British hill cow-calf enterprises. The average annuity equivalent of unchecked losses from 100 simulated 10 year disease scenarios ranged from almost 0 pound/cow to approximately 40 pound/cow. Significant differences were found under certain circumstances, depending on the initial disease status of the herd, the initial source of virus, the probability and source of further infection, the probability of virus transmission within the herd and herd size. For naive herds, losses depended only on the risk of incursion. In most other circumstances, the losses could be mitigated if the annual risk of incursion was <0.3 and risk of within herd transmission was extremely low. Greater understanding of the interaction between these risk factors and management actions are required so that total costs of BVDV infection can be minimised under different circumstances. (C) 2009 Elsevier Ltd. All rights reserved.
+AD  - Scottish Agr Coll, Div Res & Dev, Land Econ & Environm Res Grp, Edinburgh EH9 3JG, Midlothian, Scotland
+AD  - Scottish Agr Coll, Div Res & Dev, Epidemiol Unit, Inverness IV2 4JZ, Scotland
+AD  - Scottish Crop Res Inst, Dundee DD2 5DA, Scotland
+C3  - Scottish Agricultural College
+C3  - Scottish Agricultural College
+C3  - James Hutton Institute
+FU  - Scottish Government Rural and Environment Research and Analysis Directorate (RERAD)
+FX  - This work was funded by the Scottish Government Rural and Environment Research and Analysis Directorate (RERAD).
+PU  - ELSEVIER SCI LTD
+PI  - OXFORD
+PA  - THE BOULEVARD, LANGFORD LANE, KIDLINGTON, OXFORD OX5 1GB, OXON, ENGLAND
+SN  - 1090-0233
+SN  - 1532-2971
+J9  - VET J
+JI  - Vet. J.
+DA  - AUG
+PY  - 2010
+VL  - 185
+IS  - 2
+SP  - 138
+EP  - 143
+DO  - 10.1016/j.tvjl.2009.05.020
+WE  - Science Citation Index Expanded (SCI-EXPANDED)
+AN  - WOS:000280568200010
+N1  - Times Cited in Web of Science Core Collection:  26
+Total Times Cited:  26
+Cited Reference Count:  36
+ER  -
+
+TY  - JOUR
+AU  - Fountain, J
+AU  - Hernandez-Jover, M
+AU  - Kirkeby, C
+AU  - Halasa, T
+AU  - Manyweathers, J
+AU  - Maru, Y
+AU  - Brookes, V
+TI  - Modeling the Effect of Bovine Viral Diarrhea Virus in Australian Beef Herds
+T2  - FRONTIERS IN VETERINARY SCIENCE
+LA  - English
+KW  - BVDV
+KW  - simulation
+KW  - model
+KW  - Australia
+KW  - beef
+KW  - production
+KW  - bovine
+KW  - viral
+KW  - FETAL INFECTION
+KW  - DISEASE
+KW  - BVDV
+KW  - PATHOGENESIS
+KW  - BIOSECURITY
+KW  - PESTIVIRUS
+KW  - TIME
+KW  - EPIDEMIOLOGY
+KW  - ASSOCIATIONS
+KW  - PERFORMANCE
+AB  - Bovine viral diarrhea virus (BVDV) is an economically important disease in Australian beef farming. The disease typically results in low-level production losses that can be difficult to detect for several years. Simulation modeling can be used to support the decision to control BVDV; however, current BVDV simulation models do not adequately reflect the extensive farming environment of Australian beef production. Therefore, the objective of this study was to develop a disease simulation model to explore the impact of BVDV on beef cattle production in south-east Australia. A dynamic, individual-based, stochastic, discrete-time simulation model was created to simulate within-herd transmission of BVDV in a seasonal, self-replacing beef herd. We used the model to simulate the effect of herd size and BVDV introduction time on disease transmission and assessed the short- and long-term impact of BVDV on production outputs that influence the economic performance of beef farms. We found that BVDV can become established in a herd after a single PI introduction in 60% of cases, most frequently associated with the breeding period. The initial impact of BVDV will be more severe in smaller herds, although self-elimination is more likely in small herds than in larger herds, in which there is a 23% chance that the virus can persist for >15 years following a single incursion in a herd with 800 breeders. The number and weight of steers sold was reduced in the presence of BVDV and the results demonstrated that repeat incursions exacerbate long-term production losses, even when annual losses appear marginal. This model reflects the short- and long-term production losses attributed to BVDV in beef herds in southeast Australia and provides a foundation from which the influence and economic utility of BVDV prevention in Australian beef herds can be assessed.
+AD  - Charles Sturt Univ, Graham Ctr Agr Innovat, Wagga Wagga, NSW, Australia
+AD  - Charles Sturt Univ, NSW Dept Primary Ind, Sch Agr Environm & Vet Sci, Wagga Wagga, NSW, Australia
+AD  - Charles Sturt Univ, Sch Agr Environm & Vet Sci, Wagga Wagga, NSW, Australia
+AD  - Univ Copenhagen, Sect Anim Welf & Dis Control, Inst Vet & Anim Sci, Fac Med & Hlth Sci, Frederiksberg, Denmark
+AD  - Commonwealth Sci & Ind Res Org Land & Water, Canberra, ACT, Australia
+AD  - Univ Sydney, Sydney Sch Vet Sci, Fac Sci, Camperdown, NSW, Australia
+C3  - Charles Sturt University
+C3  - Charles Sturt University
+C3  - NSW Department of Primary Industries
+C3  - Charles Sturt University
+C3  - 4EU+
+C3  - University of Copenhagen
+C3  - Commonwealth Scientific & Industrial Research Organisation (CSIRO)
+C3  - University of Sydney
+PU  - FRONTIERS MEDIA SA
+PI  - LAUSANNE
+PA  - AVENUE DU TRIBUNAL FEDERAL 34, LAUSANNE, CH-1015, SWITZERLAND
+SN  - 2297-1769
+J9  - FRONT VET SCI
+JI  - Front. Vet. Sci.
+DA  - DEC 14
+PY  - 2021
+VL  - 8
+C7  - 795575
+DO  - 10.3389/fvets.2021.795575
+WE  - Science Citation Index Expanded (SCI-EXPANDED)
+AN  - WOS:000738978600001
+N1  - Times Cited in Web of Science Core Collection:  2
+Total Times Cited:  2
+Cited Reference Count:  80
+ER  - 
+
