@@ -638,10 +638,10 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
           :pmid      [:div [:h3 "2. Upload a file with pubmed ids (one per line)"] [ImportPMIDsView]]
           :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
           :pdfs      [:div [:h3 "2. Import PDF files"] [ImportFilesView ["application/pdf"]]]
-          :json      [:div [:h3 "2. JSON file"] [ImportFilesView ["application/json"]]]
+          :json      [:div [:h3 "2. Import JSON files"] [ImportFilesView ["application/json"]]]
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.
 An article entry will be created for each PDF."] [ImportPDFZipsView]]
-          :ris-file  [ImportFilesView ["*/*"]]
+          :ris-file  [:div [:h3 "2. Import RIS files"] [ImportFilesView ["*/*"]]]
           :ctgov [:div
                   [:h3 "2. Search and import clinicaltrials.gov documents."]
                   [ctgov/SearchBar]]
