@@ -198,19 +198,6 @@
                         (not (source-import-timed-out? source)))))
            boolean)))
 
-(defn ImportEndNoteView []
-  (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui
-     [:h5
-      "To create from EndNote, go to File > Export,"
-      " and under \"Save file as type\" select \"XML\"."]
-     [ui/UploadButton
-      (str "/api/import-articles/endnote-xml/" project-id)
-      #(dispatch [:on-add-source project-id])
-      "Upload XML File..."
-      (cond-> "fluid"
-        (any-source-processing?) (str " disabled"))]]))
-
 (defn ImportPMIDsView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div
@@ -636,7 +623,7 @@ or contact us at info@insilica.co with a copy of your zip file."]]))
         (condp =  @active-tab
           :pubmed    [:div [:h3 "2. Search pubmed to review medical abstracts"] [pubmed/SearchBar]]
           :pmid      [:div [:h3 "2. Upload a file with pubmed ids (one per line)"] [ImportPMIDsView]]
-          :endnote   [:div [:h3 "2. Upload an Endnote XML file export"] [ImportEndNoteView]]
+          :endnote   [:div [:h3 "2. Import Endnote XML file exports"] [ImportFilesView ["application/xml" "text/xml"]]]
           :pdfs      [:div [:h3 "2. Import PDF files"] [ImportFilesView ["application/pdf"]]]
           :json      [:div [:h3 "2. Import JSON files"] [ImportFilesView ["application/json"]]]
           :pdf-zip   [:div [:h3 "2. Upload a zip file containing PDFs.

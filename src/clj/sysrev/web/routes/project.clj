@@ -420,13 +420,6 @@
               user-id (current-user-id request)]
           (api/import-articles-from-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
 
-(dr (POST "/api/import-articles/endnote-xml/:project-id" request
-      (with-authorize request {:roles ["admin"]}
-        (let [project-id (active-project request)
-              {:keys [tempfile filename]} (get-in request [:params :file])
-              user-id (current-user-id request)]
-          (api/import-articles-from-endnote-file (:sr-context request) project-id tempfile filename :user-id user-id)))))
-
 (dr (POST "/api/import-articles/pdf-zip/:project-id" request
       (with-authorize request {:roles ["admin"]}
         (let [project-id (active-project request)

@@ -9,7 +9,6 @@
             [sysrev.db.core :as db]
             [sysrev.db.queries :as q]
             [sysrev.export.core :as export]
-            [sysrev.formats.endnote :refer [load-endnote-library-xml]]
             [sysrev.formats.pubmed :as pubmed]
             [sysrev.project.core :as project]
             [sysrev.source.interface :as src]
@@ -44,30 +43,6 @@
         tempfile (util/create-tempfile)]
     (spit tempfile (-> url http/get :body))
     {:filename fname, :file tempfile}))
-
-(deftest ^:integration import-endnote-xml
-  (test/with-test-system [{:keys [sr-context]} {}]
-    (util/with-print-time-elapsed "import-endnote-xml"
-      (let [input (get-test-file "Sysrev_Articles_5505_20181128.xml")
-            {:keys [project-id]} (project/create-project "autotest-endnote-import")]
-        (is (= 0 (project/project-article-count project-id)))
-        (is (completes? (src/import-source
-                         sr-context :endnote-xml
-                         project-id input {:use-future? false}))
-            (is (= 112 (project/project-article-count project-id)))))
-      (let [filename "test2-endnote.xml.gz"
-            gz-file (-> (str "test-files/" filename) io/resource io/file)
-            {:keys [project-id]} (project/create-project "autotest-endnote-import-2")]
-        (util/with-gunzip-file [file gz-file]
-              (is (= 0 (project/project-article-count project-id)))
-              (is (completes? (src/import-source
-                               sr-context :endnote-xml
-                               project-id {:file file :filename filename}
-                               {:use-future? false})))
-              (is (= 100 (project/project-article-count project-id)))
-              (is (->> file io/reader load-endnote-library-xml
-                       (map :primary-title)
-                       (every? (every-pred string? not-empty)))))))))
 
 (deftest ^:integration import-pmid-file
   (test/with-test-system [{:keys [sr-context]} {}]

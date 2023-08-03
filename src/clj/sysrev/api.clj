@@ -51,7 +51,6 @@
             [sysrev.source.core :as source]
             sysrev.source.ctgov
             sysrev.source.datasource
-            sysrev.source.endnote
             sysrev.source.fda-drugs-docs
             [sysrev.source.interface :as src]
             sysrev.source.pdf-zip
@@ -243,12 +242,6 @@
   separated file of PMIDs."
   [sr-context project-id file filename & {:keys [threads] :as options}]
   (wrap-import-api #(src/import-source sr-context :pmid-file project-id % options)
-                   {:file file :filename filename}))
-
-(defn import-articles-from-endnote-file
-  "Import articles from an Endnote XML file."
-  [sr-context project-id file filename & {:keys [threads] :as options}]
-  (wrap-import-api #(src/import-source sr-context :endnote-xml project-id % options)
                    {:file file :filename filename}))
 
 (defn import-articles-from-pdf-zip-file

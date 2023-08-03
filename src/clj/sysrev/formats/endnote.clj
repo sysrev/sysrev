@@ -93,14 +93,3 @@
       (catch Throwable exc
         (log/info "load-endnote-record:" (type exc) "-" (.getMessage exc))
         nil))))
-
-(defn load-endnote-library-xml
-  "Parse Endnote XML from a Reader into a vector of article maps."
-  [reader]
-  (some->> (dxml/parse reader)
-           :content first :content
-           (map load-endnote-record)))
-
-(defn endnote-file->articles [reader]
-  (->> (load-endnote-library-xml reader)
-       (map #(dissoc % :custom4 :custom5 :rec-number))))

@@ -1,13 +1,16 @@
 (ns sysrev.source.files
   (:require babashka.fs
+            [clojure.data.xml :as dxml]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [me.raynes.fs :as fs]
+            [remvee.base64 :as base64]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.db.core :as db]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3]
+            [sysrev.formats.endnote :as endnote]
             [sysrev.json.interface :as json]
             [sysrev.postgres.interface :as pg]
             [sysrev.ris.interface :as ris]
@@ -155,28 +158,65 @@
          {:dataset-id dataset-id :project-id project-id :source-id source-id}
          entities)))))
 
-(defn create-entities! [sr-context project-id source-id dataset-id files]
-  (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
-    (doseq [{:keys [content-type filename] :as file} files]
-      (if (#{"application/octet-stream" "application/x-research-info-systems"} content-type)
-        (create-ris-entities! sr-context {:datapub-opts datapub-opts
-                                          :dataset-id dataset-id
-                                          :file file
-                                          :project-id project-id
-                                          :source-id source-id})
-        (let [entity-ids (create-entity! {:datapub-opts datapub-opts
-                                          :dataset-id dataset-id
-                                          :file file})]
-          (db/with-long-tx [sr-context sr-context]
-            (doseq [entity-id entity-ids]
-              (let [article-data-id (-> sr-context
+(defn create-xml-entities!
+  [sr-context {:keys [datapub-opts dataset-id project-id source-id]
+               {:keys [filename tempfile]} :file}]
+  (with-open [rdr (io/reader tempfile)]
+    (source/set-import-date source-id)
+    (db/with-long-tx [sr-context sr-context]
+      (doseq [record (->> rdr dxml/parse :content
+                          (some #(when (= :records (:tag %)) %))
+                          :content
+                          (filter #(= :record (:tag %))))
+              :let [{:keys [primary-title raw secondary-title]} (endnote/load-endnote-record record)
+                    entity-id (when (seq raw)
+                                (-> {:contentUpload (->> raw .getBytes base64/encode (str/join ""))
+                                     :datasetId dataset-id
+                                     :mediaType "application/xml"}
+                                    (dpc/create-dataset-entity! "id" datapub-opts)
+                                    :id))
+                    article-data-id (-> sr-context
                                         (goc-article-data!
                                          {:dataset-id dataset-id
                                           :entity-id entity-id
                                           :content nil
-                                          :title (fs/base-name filename)})
-                                        :article-data/article-data-id)]
-                (create-article! sr-context project-id source-id article-data-id)))))))))
+                                          :title (or primary-title secondary-title)})
+                                        :article-data/article-data-id)]]
+        (create-article! sr-context project-id source-id article-data-id)))))
+
+(defn create-file-entities!
+  [sr-context {:keys [datapub-opts dataset-id file filename project-id source-id]}]
+  (let [entity-ids (create-entity! {:datapub-opts datapub-opts
+                                    :dataset-id dataset-id
+                                    :file file})]
+    (db/with-long-tx [sr-context sr-context]
+      (doseq [entity-id entity-ids]
+        (let [article-data-id (-> sr-context
+                                  (goc-article-data!
+                                   {:dataset-id dataset-id
+                                    :entity-id entity-id
+                                    :content nil
+                                    :title (fs/base-name filename)})
+                                  :article-data/article-data-id)]
+          (create-article! sr-context project-id source-id article-data-id))))))
+
+(def media-type-handlers
+  {"application/octet-stream" create-ris-entities!
+   "application/x-research-info-systems" create-ris-entities!
+   "application/xml" create-xml-entities!
+   "text/xml" create-xml-entities!})
+
+(defn create-entities! [sr-context project-id source-id dataset-id files]
+  (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
+    (doseq [{:keys [content-type filename] :as file} files]
+      ((or (media-type-handlers content-type) create-file-entities!)
+       sr-context
+       {:datapub-opts datapub-opts
+        :dataset-id dataset-id
+        :file file
+        :filename filename
+        :project-id project-id
+        :source-id source-id}))))
 
 (defn upload-files-to-s3!
   "Upload files to the sysrev imports bucket. This allows for easier

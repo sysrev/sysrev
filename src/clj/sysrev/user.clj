@@ -25,7 +25,6 @@
         sysrev.export.endnote
         [sysrev.main :as main :exclude [-main]]
         sysrev.source.core
-        sysrev.source.endnote
         sysrev.source.pdf-zip
         sysrev.payment.paypal
         sysrev.payment.stripe
