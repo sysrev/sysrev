@@ -10,17 +10,9 @@
 ;;;
 ;; practical use of instaparse:
 ;; http://www.lexicallyscoped.com/2015/07/27/parse-edifact-w-clojure-instaparse.html
-(declare ris-parser)
-(defparser ris-parser
-  (slurp (io/resource "sysrev/ris/bnf/ris.bnf")))
-
 (declare ris-newline-parser)
 (defparser ris-newline-parser
   (slurp (io/resource "sysrev/ris/bnf/ris_newline.bnf")))
-
-(declare ris-refworks-parser)
-(defparser ris-refworks-parser
-  (slurp (io/resource "sysrev/ris/bnf/ris_refworks.bnf")))
 
 (defn transform-line
   [parse-tree]
@@ -68,18 +60,18 @@
       (str/replace "\u0000FEFF" ""))) ;; UTF-32 Big Endian BOM
 
 ;; for debugging parsers
-;; (insta/visualize (ris-refworks-parser (slurp "resources/test/RIS/ERIC_ebsco_1232020_crl_test.txt")) :output-file "example.png" :options {:dpi 63})
+;; (insta/visualize (ris-newline-parser (slurp "resources/test/RIS/ERIC_ebsco_1232020_crl_test.txt")) :output-file "example.png" :options {:dpi 63})
 ;; you can't use
 ;; open file in Chrome as the output is large and preview has difficulty with it
 ;; use relatively short files, even with just 2 entries the image is large
 ;; note: 1. graphviz must be installed with package manager
 ;;          the rhizome clj dependency is in profile.clj
 ;;       2. you can't use the following for debugging
-;;          (declare ris-refworks-parser)
-;;          (defparser ris-refworks-parser
+;;          (declare ris-newline-parser)
+;;          (defparser ris-newline-parser
 ;;            (slurp "src/bnf/ris_ebsco.bnf"))
 ;;          must use the following for debugging
-;;          (def ris-refworks-parser
+;;          (def ris-newline-parser
 ;;            (insta/parser (slurp "src/bnf/ris_ebsco.bnf")))
 ;;
 (defn str->ris-map
@@ -87,16 +79,10 @@
    with keyword keys"
   [s]
   (let [s (remove-boms s)
-        parser-output (cond
-                        (not (seq (:reason (ris-parser s))))
-                        (ris-parser s)
-                        (not (seq (:reason (ris-newline-parser s))))
-                        (ris-newline-parser s)
-                        (not (seq (:reason (ris-refworks-parser s))))
-                        (ris-refworks-parser s)
-                        :else
-                        ;; return the last parser's reason
-                        (ris-refworks-parser s))]
+        s (if (str/includes? s "\r")
+            (->> s line-seq (str/join "\n"))
+            s)
+        parser-output (ris-newline-parser s)]
     (if (:reason parser-output)
       (throw (ex-info "RIS parsing failed"
                       {:parser-output parser-output
