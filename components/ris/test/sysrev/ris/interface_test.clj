@@ -90,7 +90,7 @@
 
 (deftest ^:unit test-ris-maps->str
   (let [ris->str (fn [filename]
-                   (-> filename load-ris ris/str->ris-maps ris/ris-maps->str))]
+                   (-> filename load-reader ris/reader->ris-maps ris/ris-maps->str))]
     (testing "Generating a file with one reference"
       (let [original (str/split (load-ris "one_article_str.ris") #"\n")
             transformed (str/split (ris->str "one_article.ris") #"\n")]
