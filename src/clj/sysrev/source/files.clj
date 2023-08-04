@@ -16,6 +16,7 @@
             [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
             [sysrev.source.files :as files]
+            [sysrev.source.pubmed :as pubmed]
             [sysrev.util :as util]
             [sysrev.util-lite.interface :as ul]))
 
@@ -186,6 +187,57 @@
                                         :article-data/article-data-id)]]
         (create-article! sr-context project-id source-id article-data-id)))))
 
+(defn get-pubmed-article-data! [sr-context entity-id]
+  (->> {:select :*
+        :from :article-data
+        :where [:and
+                [:= :datasource-name "pubmed"]
+                [:= :external-id (pg/jsonb-pgobject entity-id)]]}
+       (db/execute-one! sr-context)))
+
+(defn create-pubmed-article-data! [sr-context {:keys [content entity-id title]}]
+  {:pre [(map? sr-context) (string? entity-id) (string? title)]}
+  (->> {:insert-into :article-data
+        :returning :*
+        :values [{:article-subtype "academic"
+                  :article-type "pubmed"
+                  :content (pg/jsonb-pgobject content)
+                  :datasource-name "pubmed"
+                  :external-id (pg/jsonb-pgobject entity-id)
+                  :title title}]}
+       (db/execute-one! sr-context)))
+
+(defn goc-pubmed-article-data!
+  "Get or create an article-data row for an entity."
+  [sr-context {:keys [entity-id] :as m}]
+  (db/with-long-tx [sr-context sr-context]
+    (or (get-pubmed-article-data! sr-context entity-id)
+        (create-pubmed-article-data! sr-context m))))
+
+(defn parse-pmids [{:keys [tempfile]}]
+  (with-open [rdr (io/reader tempfile)]
+    (->> rdr line-seq
+         (keep #(->> % (re-find #"(?i)\s*PMID-\s*(\d+)\s*") second))
+         doall)))
+
+(defn create-pmid-articles!
+  [sr-context {:keys [datapub-opts dataset-id file filename project-id source-id]}]
+  ;; Ignores the dataset for now to get this working ASAP
+  ;; All the PubMed imports should be converted to datasets at the same time
+  (let [pmids (parse-pmids file)
+        articles (pubmed/pubmed-get-articles pmids)]
+    (when-not (seq pmids)
+      (throw (ex-info "No articles found in import" {:source-id source-id})))
+    (db/with-long-tx [sr-context sr-context]
+      (doseq [{:keys [external-id primary-title]} articles]
+        (let [article-data-id (-> sr-context
+                                  (goc-pubmed-article-data!
+                                   {:content nil
+                                    :entity-id external-id
+                                    :title primary-title})
+                                  :article-data/article-data-id)]
+          (create-article! sr-context project-id source-id article-data-id))))))
+
 (defn create-file-entities!
   [sr-context {:keys [datapub-opts dataset-id file filename project-id source-id]}]
   (let [entity-ids (create-entity! {:datapub-opts datapub-opts
@@ -206,6 +258,7 @@
   {"application/octet-stream" create-ris-entities!
    "application/x-research-info-systems" create-ris-entities!
    "application/xml" create-xml-entities!
+   "text/plain" create-pmid-articles!
    "text/xml" create-xml-entities!})
 
 (defn create-entities! [sr-context project-id source-id dataset-id files]
