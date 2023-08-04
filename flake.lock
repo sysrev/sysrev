@@ -1,5 +1,28 @@
 {
   "nodes": {
+    "anystyle-api": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1691186320,
+        "narHash": "sha256-yJeiSvCq/f22XJVrqStT/aTnqjJhMkNaZ9gjM+HHDa0=",
+        "owner": "insilica",
+        "repo": "anystyle-api",
+        "rev": "fb1e0729c32134d244a5f9932bbb596381fe995c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "insilica",
+        "repo": "anystyle-api",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -65,6 +88,7 @@
     },
     "root": {
       "inputs": {
+        "anystyle-api": "anystyle-api",
         "flake-compat": "flake-compat",
         "flake-utils": "flake-utils",
         "nixpkgs": "nixpkgs",

@@ -9,6 +9,11 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    anystyle-api = {
+      url = "github:insilica/anystyle-api";
+      inputs.flake-utils.follows = "flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     srvc = {
       url = "github:insilica/rs-srvc/844973dc6c45c4373d146dbfc42bbf45aee07314";
       inputs.flake-compat.follows = "flake-compat";
@@ -16,7 +21,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, srvc, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, anystyle-api, srvc, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       with import nixpkgs { inherit system; };
       let
@@ -51,6 +56,7 @@
         packages = { inherit source; };
         devShells.default = mkShell {
           buildInputs = [
+            anystyle-api.packages.${system}.default
             awscli
             chromedriver
             clj-kondo

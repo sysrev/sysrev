@@ -80,6 +80,7 @@
         gravatar/gravatar {:mvn/version "1.1.1"}
         rs.shaffe/salmon {:mvn/version "0.10.1"}
 
+        poly/anystyle {:local/root "components/anystyle"}
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
         poly/contajners {:local/root "components/contajners"}
