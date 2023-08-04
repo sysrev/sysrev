@@ -20,10 +20,10 @@
             [sysrev.util-lite.interface :as ul]))
 
 (defn insert-job!
-  [context type source-id & {:keys [started-at status] :or {status "new"}}]
+  [context type payload & {:keys [started-at status] :or {status "new"}}]
   (->> {:insert-into :job
         :returning [:id]
-        :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
+        :values [{:payload (pg/jsonb-pgobject payload)
                   :started-at started-at
                   :status status
                   :type type}]}
@@ -37,9 +37,8 @@
                          {:files (mapv #(select-keys % [:content-type :filename :s3-key]) files)
                           :importing-articles? true})
                   :project-id project-id}]
-        :returning :source-id}
-       (db/execute-one! sr-context)
-       :project-source/source-id))
+        :returning :*}
+       (db/execute-one! sr-context)))
 
 (defn get-article-data! [sr-context entity-id]
   (->> {:select :*
@@ -260,8 +259,11 @@
                           :public false}
                          "id"
                          (source/datapub-opts sr-context)))
-        source-id (create-source! sr-context project-id dataset-id files)
-        {job-id :job/id} (insert-job! sr-context "import-files" source-id
+        {:as source :project-source/keys [source-id]}
+        (create-source! sr-context project-id dataset-id files)
+        {job-id :job/id} (insert-job! sr-context "import-files"
+                                      {:source-id source-id
+                                       :source-copy source} ;; In case the source is deleted, we still have a copy to debug the import
                                       :status "started" :started-at [:now])]
     (db/clear-project-cache project-id)
     ((if sync? deref identity)
