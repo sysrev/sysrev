@@ -93,6 +93,7 @@
         poly/memcached {:local/root "components/memcached"}
         poly/notification {:local/root "components/notification"}
         poly/nrepl {:local/root "components/nrepl"}
+        poly/office {:local/root "components/office"}
         poly/postgres {:local/root "components/postgres"}
         poly/project-api {:local/root "components/project-api"}
         poly/reviewer-time {:local/root "components/reviewer-time"}
@@ -134,6 +135,7 @@
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
   :test {:extra-paths ["config/test" "test/clj" "resources/test" "test-resources"
+                       "components/office/test-resources"
                        "components/ris/test-resources"]
          :extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
                       lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"

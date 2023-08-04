@@ -6,6 +6,7 @@
         poly/flyway {:local/root "../../components/flyway"}
         poly/json {:local/root "../../components/json"}
         poly/notification {:local/root "../../components/notification"}
+        poly/office {:local/root "../../components/office"}
         poly/postgres {:local/root "../../components/postgres"}
         poly/reviewer-time {:local/root "../../components/reviewer-time"}
         poly/shutdown {:local/root "../../components/shutdown"}

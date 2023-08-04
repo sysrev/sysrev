@@ -1,0 +1,6 @@
+{:paths ["src"]
+ :deps {org.apache.poi/poi {:mvn/version "5.2.3"}
+        org.apache.poi/poi-ooxml {:mvn/version "5.2.3"}}
+ :aliases
+ {:test {:extra-paths ["test" "test-resources"]}}}
+
