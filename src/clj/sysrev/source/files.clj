@@ -111,7 +111,7 @@
 
 (defn create-ris-chunk! [sr-context {:keys [dataset-id project-id source-id]} entities]
   (doseq [chunk (partition-all 10 entities)]
-    (db/with-long-tx [sr-context (assoc sr-context :tx-retry-opts {:n 1})]
+    (db/with-long-tx [sr-context sr-context]
       (doseq [{:keys [entity-id ris-map]} chunk]
         (let [article-data-id (-> sr-context
                                   (goc-article-data!
@@ -265,7 +265,7 @@
   (let [datapub-opts (source/datapub-opts sr-context :upload? true)]
     (doseq [{:keys [content-type filename] :as file} files]
       ((or (media-type-handlers content-type) create-file-entities!)
-       sr-context
+       (assoc sr-context :tx-retry-opts {:n 3})
        {:datapub-opts datapub-opts
         :dataset-id dataset-id
         :file file
