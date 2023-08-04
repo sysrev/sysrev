@@ -105,17 +105,20 @@
           (dpc/create-dataset-entity! "id" datapub-opts)
           :id)]))
 
+(defn get-ris-title [ris-map]
+  (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)]
+    (or primary-title secondary-title)))
+
 (defn create-ris-chunk! [sr-context {:keys [dataset-id project-id source-id]} entities]
   (doseq [chunk (partition-all 10 entities)]
     (db/with-long-tx [sr-context (assoc sr-context :tx-retry-opts {:n 1})]
       (doseq [{:keys [entity-id ris-map]} chunk]
-        (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)
-              article-data-id (-> sr-context
+        (let [article-data-id (-> sr-context
                                   (goc-article-data!
                                    {:dataset-id dataset-id
                                     :entity-id entity-id
                                     :content nil
-                                    :title (or primary-title secondary-title)})
+                                    :title (get-ris-title ris-map)})
                                   :article-data/article-data-id)]
           (create-article! sr-context project-id source-id article-data-id))))))
 
@@ -139,17 +142,18 @@
     (let [ris-maps (try
                      (ris/reader->ris-maps rdr)
                      (catch Exception _))
-          entities (map
-                    (fn [m]
-                      (let [s (ris/ris-map->str m)]
-                        {:ris-map m
-                         :entity-id
-                         (-> {:contentUpload s
-                              :datasetId dataset-id
-                              :mediaType "application/x-research-info-systems"}
-                             (dpc/create-dataset-entity! "id" datapub-opts)
-                             :id)}))
-                    ris-maps)]
+          entities (->> ris-maps
+                        (filter #(some-> % get-ris-title str/blank? not))
+                        (map
+                         (fn [m]
+                           (let [s (ris/ris-map->str m)]
+                             {:ris-map m
+                              :entity-id
+                              (-> {:contentUpload s
+                                   :datasetId dataset-id
+                                   :mediaType "application/x-research-info-systems"}
+                                  (dpc/create-dataset-entity! "id" datapub-opts)
+                                  :id)}))))]
       (if (empty? entities)
         (throw (ex-info "Invalid RIS file" {:file file}))
         (create-ris-chunks!
