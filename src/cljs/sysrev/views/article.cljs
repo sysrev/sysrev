@@ -349,6 +349,38 @@
                (when content
                  [JSONView content cursors])])))))))
 
+
+(defn- AnystyleView [content]
+  (let [{:strs [author container-title date pages url volume]} content
+        authors (map (fn [{:strs [given family]}]
+                       (cond
+                         (and family given) (str family ", " given)
+                         :else (or family given)))
+                     author)]
+    [:div
+     (when (seq container-title)
+       [:h3.header {:style {:margin-top "0px"}}
+        (first container-title)
+        (when (seq volume)
+          (str ", vol. " (first volume)))
+        (when (seq pages)
+          (str ", pp. " (str/join ", " pages)))])
+     ;; date
+     (when (seq date)
+       [:h5.header {:style {:margin-top "0px"}} (first date)])
+     ;; authors
+     (when (seq authors)
+       [:h5.header {:style {:margin-top "0px"}} (display-author-names 5 authors)])
+         ;; article links
+     [:div.ui.grid.article-links {:style {:margin "0"}}
+        [:div.twelve.wide.left.aligned.middle.aligned.column
+         {:style {:margin "0" :padding "0"}}
+         (when (seq url)
+           [:div.ui.content.horizontal.list
+            {:style {:padding-top "0.75em"}}
+            (doall (map-indexed (fn [i url] ^{:key [i]} [ui/OutLink url])
+                                url))])]]]))
+
 (defn JSONEntity [{:keys [article-id datapub-auth entity project-id]}]
   (r/with-let [state (r/atom {:content (delay nil)})]
     (let [{:keys [contentUrl]} entity
@@ -365,8 +397,9 @@
       [:div
        [:h2 title]
        [:br]
-       (when @content
-         [JSONView (js->clj @content)])])))
+       (cond
+         (= "anystyle" (get @content "sysrev:type")) [AnystyleView @content]
+         @content [JSONView (js->clj @content)])])))
 
 (defn PDFEntity [{:keys [article-id datapub-auth entity project-id]}]
   (let [{:keys [contentUrl id metadata]} entity

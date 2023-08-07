@@ -5,6 +5,7 @@
             [clojure.string :as str]
             [me.raynes.fs :as fs]
             [remvee.base64 :as base64]
+            [sysrev.anystyle.interface :as anystyle]
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.db.core :as db]
@@ -12,6 +13,7 @@
             [sysrev.file.s3 :as s3]
             [sysrev.formats.endnote :as endnote]
             [sysrev.json.interface :as json]
+            [sysrev.office.interface :as office]
             [sysrev.postgres.interface :as pg]
             [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
@@ -254,8 +256,35 @@
                                   :article-data/article-data-id)]
           (create-article! sr-context project-id source-id article-data-id))))))
 
+(defn create-docx-entities!
+  [sr-context {:keys [datapub-opts dataset-id project-id source-id]
+               {:keys [tempfile]} :file}]
+  (let [{:keys [api-base]} (or (-> sr-context :config :anystyle)
+                               {:api-base "http://localhost:4567/api"})
+        refs (->> tempfile office/get-docx-text (anystyle/parse-str api-base)
+                  (map #(assoc % :sysrev:type "anystyle")))
+        entities (->> refs
+                      (mapv
+                       (fn [{:as m :keys [title]}]
+                         (-> {:contentUpload (json/write-str m)
+                              :datasetId dataset-id
+                              :mediaType "application/json"}
+                             (dpc/create-dataset-entity! "id" datapub-opts)
+                             (assoc :title (first title))))))]
+    (db/with-long-tx [sr-context sr-context]
+      (doseq [{:keys [id title]} entities]
+        (let [article-data-id (-> sr-context
+                                  (goc-article-data!
+                                   {:dataset-id dataset-id
+                                    :entity-id id
+                                    :content nil
+                                    :title title})
+                                  :article-data/article-data-id)]
+          (create-article! sr-context project-id source-id article-data-id))))))
+
 (def media-type-handlers
   {"application/octet-stream" create-ris-entities!
+   "application/vnd.openxmlformats-officedocument.wordprocessingml.document" create-docx-entities!
    "application/x-research-info-systems" create-ris-entities!
    "application/xml" create-xml-entities!
    "text/plain" create-pmid-articles!

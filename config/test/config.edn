@@ -1,4 +1,5 @@
-{:aws {:access-key-id "test"
+{:anystyle {:api-base "http://localhost:4567/api"}
+ :aws {:access-key-id "test"
        :secret-access-key "test"
        :endpoint-override {:protocol :http
                            :hostname "localhost"}

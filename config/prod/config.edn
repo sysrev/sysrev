@@ -1,4 +1,5 @@
-{:datapub-endpoint "https://www.datapub.dev/api"
+{:anystyle {:api-base "http://localhost:4567/api"}
+ :datapub-endpoint "https://www.datapub.dev/api"
  :datapub-ws "wss://www.datapub.dev/ws"
  :graphql-endpoint "https://api.sysrev.com/graphql"
  :nrepl {:port 7888}
