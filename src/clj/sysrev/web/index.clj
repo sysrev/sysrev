@@ -62,7 +62,10 @@
               :src (str "https://www.paypal.com/sdk/js?client-id=" (paypal-client-id)
                         "&currency=USD&disable-funding="
                         (str/join "," ["credit" "card"]))
-              :type "text/javascript"}]]
+              :type "text/javascript"}]
+    [:script {:defer true
+              :data-domain "sysrev.com"
+              :src "https://plausible.io/js/script.js"}]]
    [:body
     [:div {:style "display: none;"
            :id "graphql-endpoint"
