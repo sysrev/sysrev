@@ -17,7 +17,6 @@
             [sysrev.postgres.interface :as pg]
             [sysrev.ris.interface :as ris]
             [sysrev.source.core :as source]
-            [sysrev.source.files :as files]
             [sysrev.source.pubmed :as pubmed]
             [sysrev.util :as util]
             [sysrev.util-lite.interface :as ul]))
@@ -104,8 +103,8 @@
           :mediaType content-type
           :metadata (when (not= "application/json" content-type)
                       (json/write-str {:filename fname}))}
-          (dpc/create-dataset-entity! "id" datapub-opts)
-          :id)]))
+         (dpc/create-dataset-entity! "id" datapub-opts)
+         :id)]))
 
 (defn get-ris-title [ris-map]
   (let [{:keys [primary-title secondary-title]} (ris/titles-and-abstract ris-map)]
