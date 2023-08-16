@@ -21,7 +21,7 @@ show_usage() {
 [ -z "$cmd" ] && show_usage
 
 check_cmd() {
-  if [[ ! $(/usr/bin/which "$1" 2> /dev/null) ]] ; then
+  if [[ ! $(env which "$1" 2>/dev/null) ]]; then
     show_usage || true
     echoerr "\ncommand not found: $1 (\"$*\")"
     false
@@ -30,5 +30,5 @@ check_cmd() {
 
 [ "$cmd" == "-" ] || check_cmd $cmd
 
-(if [ "$cmd" == "-" ] ; then cat ; else bash -c "$cmd" 2>&1 ; fi) |
+(if [ "$cmd" == "-" ]; then cat; else bash -c "$cmd" 2>&1; fi) |
   sed -Ee "s/(^.*$)/${prefix}\1/g"
