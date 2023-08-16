@@ -7,7 +7,6 @@ input_paths=(
   'deps.edn'
   'shadow-cljs.edn'
   'src'
-  'semantic'
 )
 output_path="resources/public/out-production/sysrev.js"
 if [ ! -f "$output_path" ]; then
