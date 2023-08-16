@@ -53,7 +53,8 @@
       (set! js/console.warn
             (make-console-fn :warn js/console.defaultWarn
                              :ignore-regexps
-                             [#"(?i)you may test.*stripe.*integration"]))
+                             [#"(?i)you may test.*stripe.*integration"
+                              #"Ignoring Event: localhost"]))
       (set! js/console.error
             (make-console-fn :error js/console.defaultError
                              :ignore-regexps
