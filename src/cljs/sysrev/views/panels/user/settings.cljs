@@ -108,6 +108,7 @@
                  :value active-theme
                  :icon "dropdown"}]))
 
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- UserOptions []
   (let [modified? (modified?)
         valid? (valid-input?)
@@ -228,7 +229,7 @@
 (defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}
    [Column
-    [UserOptions]
+    #_[UserOptions]
     #_[PublicReviewerOptIn]
     [EnableDevAccount]]
    [Column [UserDevTools]]])
