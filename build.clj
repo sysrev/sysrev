@@ -23,7 +23,7 @@
 
 (defn find-invalid-tests [opts]
   (let [{:keys [exit]}
-        #__ (b/process {:command-args ["clj" "-X:test" "sysrev.test.core/find-invalid-tests-cli!"]})]
+        #__ (b/process {:command-args ["clj" "-X:test-code:test" "sysrev.test.core/find-invalid-tests-cli!"]})]
     (when-not (zero? exit)
       (System/exit 1)))
   opts)
@@ -35,11 +35,12 @@
                        focus-meta (assoc :kaocha.filter/focus-meta [focus-meta])
                        randomize? (assoc :kaocha.plugin.randomize/randomize? randomize?)
                        watch? (assoc :kaocha/watch? true))
-        {:keys [exit]}
-        #__ (b/process {:command-args ["clj"
-                                       (str "-X" (str/join "" (or aliases [:test])))
-                                       "sysrev.test.core/run-tests-cli!"
-                                       ":extra-config" (pr-str extra-config)]})]
+        args ["clj"
+              (str "-X" (str/join "" (or aliases [:test-code :test])))
+              "sysrev.test.core/run-tests-cli!"
+              ":extra-config" (pr-str extra-config)]
+        _ (println (str "run-tests: " (pr-str args)))
+        {:keys [exit]} (b/process {:command-args args})]
     (when-not (zero? exit)
       (System/exit 1)))
   opts)

@@ -4,4 +4,4 @@ set -eu
 
 scripts/rebuild-changed-files
 
-LOCAL_ONLY=t ENV=dev clj -M:dev:test:repl
+LOCAL_ONLY=t ENV=dev clj -M:test-code:dev:repl

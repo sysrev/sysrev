@@ -12,7 +12,7 @@
   :plugins [[org.clojars.john-shaffer/lein-tools-deps "0.4.6-1"]]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :profiles {:dev            {:lein-tools-deps/config {:aliases [:dev :test]}
+  :profiles {:dev            {:lein-tools-deps/config {:aliases [:test-code :dev]}
                               :jvm-opts ["-Xmx1200m"
                                          "-Djdk.attach.allowAttachSelf=true"]
                               :plugins [[lein-eftest "0.6.0"]]}
@@ -20,5 +20,5 @@
                               :main sysrev.main
                               :aot [sysrev.main]}
              :repl           {:plugins [[lein-environ "1.2.0"]]}
-             :test           {:lein-tools-deps/config {:aliases [:test]}
+             :test           {:lein-tools-deps/config {:aliases [:test-code :test]}
                               :jvm-opts ["-Xmx1000m"]}})

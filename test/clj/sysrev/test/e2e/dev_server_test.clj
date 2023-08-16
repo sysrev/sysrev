@@ -15,7 +15,7 @@
 
 (deftest ^:integration test-dev-server
   (testing "Embedded dev server starts up and shuts down successfully"
-    (let [process (popen/popen ["clj" "-M:dev-embedded:dev:test:repl" "0""--exit"])
+    (let [process (popen/popen ["clj" "-M:dev-embedded:dev:test-code:repl" "0" "--exit"])
           _ (future (log-stderr! "dev-embedded" process))
           _ (future (log-stdout! "dev-embedded" process))
           exit-code (-> (future (popen/join process))

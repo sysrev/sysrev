@@ -117,10 +117,32 @@
   :carve {:extra-deps {borkdude/carve {:git/url "https://github.com/borkdude/carve"
                                        :sha "9c11e4727bff22386899f048d1d50b7978d3ac9e"}}
           :main-opts ["-m" "carve.main"]}
-  :dev {:jvm-opts ["-Xms600m" "-Xmx1200m"]
-        :extra-paths ["config/dev" "development/src"]
+  ;; shared config for :test and :dev
+  :test-code {:jvm-opts ["-Djdk.attach.allowAttachSelf" ; for clj-async-profiler
+                         "-Djava.util.logging.config.file=resources/logging.properties"
+                         "-Xms600m" "-Xmx1200m"]
+              :extra-paths ["test/clj" "test-resources"
+                            "components/office/test-resources"
+                            "components/ris/test-resources"]
+              :extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
+                           lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
+                                                :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
+                           lambdaisland/kaocha-cloverage {:mvn/version "1.1.89"}
+                           lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
+                                                          :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
+                           lambdaisland/uri {:mvn/version "1.13.95"}
+                           popen/popen {:mvn/version "0.3.1"}
+                           poly/contajners {:local/root "components/contajners"}
+                           poly/datapub {:local/root "projects/datapub"}
+                           poly/datapub-test {:local/root "projects/datapub/datapub-test"}
+                           poly/etaoin-test {:local/root "components/etaoin-test"}
+                           poly/file-util {:local/root "components/file-util"}
+                           poly/fixtures {:local/root "components/fixtures"}
+                           poly/junit {:local/root "components/junit"}
+                           poly/pdf-read {:local/root "components/pdf-read"}
+                           poly/tesseract {:local/root "components/tesseract"}}}
+  :dev {:extra-paths ["config/dev" "development/src"]
         :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
-
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}
                      poly/infra {:local/root "components/infra"}
@@ -136,30 +158,8 @@
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}
-  :test {:extra-paths ["config/test" "test/clj" "resources/test" "test-resources"
-                       "components/office/test-resources"
-                       "components/ris/test-resources"]
-         :extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.0.4"}
-                      lambdaisland/kaocha {:git/url "https://github.com/insilica/kaocha.git"
-                                           :sha "811d37448e10b52e78dd2ef6ba95535e59f6bbda"}
-                      lambdaisland/kaocha-cloverage {:mvn/version "1.1.89"}
-                      lambdaisland/kaocha-junit-xml {:git/url "https://github.com/insilica/kaocha-junit-xml.git"
-                                                     :sha "21421366100ab4aa7e7c6f297fa72ea3d6549428"}
-                      lambdaisland/uri {:mvn/version "1.13.95"}
-                      popen/popen {:mvn/version "0.3.1"}
-
-                      poly/contajners {:local/root "components/contajners"}
-                      poly/datapub {:local/root "projects/datapub"}
-                      poly/datapub-test {:local/root "projects/datapub/datapub-test"}
-                      poly/etaoin-test {:local/root "components/etaoin-test"}
-                      poly/file-util {:local/root "components/file-util"}
-                      poly/fixtures {:local/root "components/fixtures"}
-                      poly/junit {:local/root "components/junit"}
-                      poly/pdf-read {:local/root "components/pdf-read"}
-                      poly/tesseract {:local/root "components/tesseract"}}
-         :jvm-opts ["-Djdk.attach.allowAttachSelf" ; For clj-async-profiler
-                    "-XX:-OmitStackTraceInFastThrow"
-                    "-Xms600m" "-Xmx1200m"]}
+  :test {:extra-paths ["config/test" "resources/test"]
+         :jvm-opts ["-XX:-OmitStackTraceInFastThrow"]}
   :test-staging {:extra-paths ["config/test-staging"]}
   :test-prod {:extra-paths ["config/test-prod"]}
   :test-s3-dev {:extra-paths ["config/test-s3-dev"]}}}
