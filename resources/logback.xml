@@ -14,7 +14,7 @@
     </encoder>
   </appender>
   <root level="INFO">
-    <appender-ref ref="console"/>
+    <appender-ref ref="console" />
   </root>
   <logger name="com.zaxxer.hikari" level="WARN" />
   <logger name="org.apache.http.client" level="ERROR" />
@@ -22,4 +22,5 @@
   <logger name="com.datastax.driver.core" level="WARN" />
   <logger name="com.datastax.driver.core.Cluster" level="INFO" />
   <logger name="clj-antlr.common" level="ERROR" />
+  <logger name="org.apache.pdfbox.pdmodel.font" level="ERROR" />
 </configuration>
