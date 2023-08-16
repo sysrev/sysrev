@@ -401,88 +401,90 @@
     (with-loader [[:project/label-counts project-id]] {}
       [LabelCountChart])))
 
-(reg-sub ::prediction-histograms
-         (fn [[_ project-id]] (subscribe [:project/raw project-id]))
-         (fn [project] (:histograms project)))
+(reg-sub ::histograms
+         :<- [:project/raw]
+         #(:histograms %))
 
 (def-data :project/prediction-histograms
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
                  (contains? :histograms)))
-  :uri (fn [] "/api/prediction-histograms")
+  :uri     "/api/prediction-histograms"
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
              {:db (assoc-in db [:data :project project-id :histograms]
                             prediction-histograms)}))
 
-(defn PredictionHistogramLastUpdated []
+(defn- PredictionHistogramInfo []
   (when-let [updated @(subscribe [:predict/update-time])]
-    (let [formatter (time-format/formatters :mysql)
-          update-time (time-format/parse formatter (subs updated 0 19))
-          dif-days (time/in-days (time/interval update-time (time/now)))
-          dif-hours (time/in-hours (time/interval update-time (time/now)))
-          dif-minutes (time/in-minutes (time/interval update-time (time/now)))]
-      (cond
-        (< dif-hours 3) [:span (format "Models last updated %s minutes ago" dif-minutes)]
-        (< dif-days 2) [:span (format "Models last updated %s hours ago" dif-hours)]
-        :else [:span (format "Models last updated %s days ago" dif-days)]))))
+    (let [fmt         (time-format/formatters :mysql)
+          update-time (time-format/parse fmt (subs updated 0 19))
+          elapsed     (time/interval update-time (time/now))
+          days        (time/in-days elapsed)
+          hours       (time/in-hours elapsed)
+          minutes     (time/in-minutes elapsed)
+          labeled     @(subscribe [:predict/labeled-count])
+          total       @(subscribe [:predict/article-count])]
+      [:p
+       [:span (format "Models last updated %s ago"
+                      (cond (< hours 3) (format "%s minutes" minutes)
+                            (< days 2)  (format "%s hours" hours)
+                            :else       (format "%s days" days)))]
+       (when labeled [:br])
+       (when labeled [:span (format "Models trained from %s labeled articles." labeled)])
+       (when total [:br])
+       (when total [:span (format "Model predictions loaded for %s articles" total)])])))
 
 (defn- PredictionHistogramChart []
-  (let [font (charts/graph-font-settings)
-        labeled @(subscribe [:predict/labeled-count])
-        total @(subscribe [:predict/article-count])
+  (let [font               (charts/graph-font-settings)
         pred-hist-filtered (filterv (fn [e] (and
                                              (= (:name e) "overall include")
                                              (= (:label-value e) "TRUE")))
-                                    @(subscribe [::prediction-histograms]))
-        pred-hist-data (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
-        labels (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.025))
-        answer-histogram (group-by :answer pred-hist-data)
-        dataset-order {false 1
-                       true 0
-                       "unreviewed" 2}
-        datasets (mapv (fn [[answer bucket-counts]]
-                         (let [lbl-keys (group-by :bucket bucket-counts)]
-                           {:label (str answer)
-                            :data  (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
-                            :order (dataset-order answer)
-                            :backgroundColor (if (= true answer)
-                                               (:green colors)
-                                               (if (= false answer)
-                                                 (:transparent-red colors)
-                                                 (:orange colors)))
-                            :barPercentage 0.9}))
-                       answer-histogram)]
-    [:div.ui.segment
-     [:h4.ui.dividing.header "Prediction Histograms"]
-     [:p "Prediction histograms provide an estimate of sysrev machine learning model accuracy."
-      (when @base/show-blog-links
-        [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"])]
-     [:p "Models are built for all binary & categorical labels. They can be used to build article filters."]
-     [PredictionHistogramLastUpdated]
-     [:br]
-     [:span (format "Models trained from %s labeled articles." labeled)]
-     [:br]
-     [:span (format "Model predictions loaded for %s articles" total)]
-     [:h5 "Predictions for Inclusion model"]
-     [unpad-chart [0.5 0.6]
-      [chartjs/bar
-       {:data {:labels labels :datasets datasets}
-        :options (charts/wrap-default-options
-                  {:scales (medley/map-vals
-                            #(merge % {:ticks font
-                                       :scaleLabel font
-                                       :gridLines {:color (charts/graph-border-color)}})
-                            {:x {:stacked true}
-                             :y {}})}
-                  :plugins {:legend {:labels font}})
-        :height (* 2 150)}]]]))
+                                    @(subscribe [::histograms]))
+        pred-hist-data     (mapv (fn [e] (if (nil? (:answer e)) (merge e {:answer "unreviewed"}) e)) pred-hist-filtered)
+        labels             (mapv #(/ (util/round (* 1000 %)) 1000) (range 0.025 1 0.025))
+        answer-histogram   (group-by :answer pred-hist-data)
+        dataset-order      {false        1
+                            true         0
+                            "unreviewed" 2}
+        datasets           (mapv (fn [[answer bucket-counts]]
+                                   (let [lbl-keys (group-by :bucket bucket-counts)]
+                                     {:label           (str answer)
+                                      :data            (mapv (fn [lbl] (:count (first (get lbl-keys lbl)))) labels)
+                                      :order           (dataset-order answer)
+                                      :backgroundColor (if (= true answer)
+                                                         (:green colors)
+                                                         (if (= false answer)
+                                                           (:transparent-red colors)
+                                                           (:orange colors)))
+                                      :barPercentage   0.9}))
+                                 answer-histogram)]
+    [unpad-chart [0.5 0.6]
+     [chartjs/bar
+      {:data    {:labels labels :datasets datasets}
+       :options (charts/wrap-default-options
+                 {:scales (medley/map-vals
+                           #(merge % {:ticks      font
+                                      :scaleLabel font
+                                      :gridLines  {:color (charts/graph-border-color)}})
+                           {:x {:stacked true}
+                            :y {}})}
+                 :plugins {:legend {:labels font}})
+       :height  (* 2 150)}]]))
 
 (defn- PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/prediction-histograms project-id]] {}
-      [PredictionHistogramChart])))
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Prediction Histograms"]
+       [:p "Prediction histograms provide an estimate of sysrev machine learning model accuracy."
+        (when @base/show-blog-links
+          [:a {:href "https://blog.sysrev.com/machine-learning"} " learn more"])]
+       [:p "Models are built for all binary & categorical labels. They can be used to build article filters."]
+       [PredictionHistogramInfo]
+       [:h5 "Predictions for Inclusion model"]
+       [PredictionHistogramChart]])))
 
 (defn- ProjectOverviewContent []
   (when-let [project-id @(subscribe [:active-project-id])]
