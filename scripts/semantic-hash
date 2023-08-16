@@ -5,7 +5,7 @@ default=$(find semantic/src/themes/default -type f || true)
 definitions=$(find semantic/src/definitions -type f || true)
 site_theme=$(find semantic/src/site."$site_theme_name" -type f || true)
 root=$(ls semantic/src/{semantic.less,theme.config,theme.less} || true)
-function all () {
+function all() {
   echo "$default"
   echo "$definitions"
   echo "$site_theme"

@@ -1,35 +1,36 @@
 #!/usr/bin/env bash
 set -eu
 
-sync_package_json () {
-    if [ -z "${CI:-}" ] && [ ! -z "$(find -L package.json -cnewer package-lock.json)" ]; then
-        npm install --package-lock-only
-    fi
+sync_package_json() {
+  if [ -z "${CI:-}" ] && [ -n "$(find -L package.json -cnewer package-lock.json)" ]; then
+    npm install --package-lock-only
+  fi
 
-    if [ ! -d "node_modules" ] || [ ! -z "$(find -L package-lock.json -cnewer node_modules)" ]; then
-        npm ci
-    fi
+  if [ ! -d "node_modules" ] || [ -n "$(find -L package-lock.json -cnewer node_modules)" ]; then
+    npm ci
+  fi
 }
 
-rebuild_js () {
-    if [ ! -d "dist" ] || [ ! -z "$(find -L src -cnewer dist)" ] || \
-       [ ! -z "$(find -L package-lock.json -cnewer dist)" ] || \
-       [ ! -z "$(find -L node_modules -cnewer dist)" ]; then
-        rm -rf dist
-        npm run build
-    fi
+rebuild_js() {
+  if [ ! -d "dist" ] || [ -n "$(find -L src -cnewer dist)" ] ||
+    [ -n "$(find -L package-lock.json -cnewer dist)" ] ||
+    [ -n "$(find -L node_modules -cnewer dist)" ]; then
+    rm -rf dist
+    npm run build
+  fi
 }
 
-sync_package_json;
+sync_package_json
 
 cd components/react-components
 
-sync_package_json;
-rebuild_js;
+sync_package_json
+rebuild_js
 
 cd ../..
 
-if [ ! -z "$(find -L src/less -cnewer resources/public/css)" ] || \
-   [ ! -z "$(find -L components -name "*.css" -cnewer resources/public/css)" ]; then
-    ./scripts/build-all-css
+if [ -n "$(find -L src/less -cnewer resources/public/css)" ] ||
+  [ -n "$(find -L components -name "*.css" -cnewer resources/public/css)" ] ||
+  [ -n "$(find -L semantic/src/site.{default,dark}/globals/site.variables -cnewer resources/public/css)" ]; then
+  ./scripts/build-all-css
 fi

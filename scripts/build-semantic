@@ -2,9 +2,9 @@
 set -e
 
 if [[ -z "$1" ]]; then
-    theme="default"
+  theme="default"
 else
-    theme="$1"
+  theme="$1"
 fi
 
 set -eu
@@ -17,14 +17,14 @@ mkdir -p "$cache"
 
 hash=$(./scripts/semantic-hash $theme)
 
-if [ -e "$cache/$hash" ] ; then
-  ls "$cache/$hash/semantic.css" > /dev/null
-  ls "$cache/$hash/semantic.min.css" > /dev/null
+if [ -e "$cache/$hash" ]; then
+  ls "$cache/$hash/semantic.css" >/dev/null
+  ls "$cache/$hash/semantic.min.css" >/dev/null
   echo "found cache at $cache/$hash"
   cd semantic/src
   rm -f site
   ln -s "site.$theme" site
-  cd .. ; cd ..
+  cd ../..
   mkdir -p "$out_dir"
   rm -rf "$out_dir"
   cp -r "$cache/$hash" "$out_dir"
@@ -36,15 +36,15 @@ else
   ln -s "site.$theme" site
   cd ..
   rm -rf ./target
-  npx gulp build-css build-assets > /dev/null
+  npx gulp build-css build-assets >/dev/null
   cd ..
 
   mkdir -p "$out_dir"
   rm -rf "$out_dir"
 
   # test that the final output files were created
-  ls semantic/target/semantic.css > /dev/null
-  ls semantic/target/semantic.min.css > /dev/null
+  ls semantic/target/semantic.css >/dev/null
+  ls semantic/target/semantic.min.css >/dev/null
 
   cp -r semantic/target "$cache/$hash"
   cp -r semantic/target "$out_dir"
