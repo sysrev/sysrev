@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 set -eu
 cd client
-input_paths="src node_modules semantic package.json package-lock.json deps.edn shadow-cljs.edn"
+input_paths=(
+  'package.json'
+  'package-lock.json'
+  'deps.edn'
+  'shadow-cljs.edn'
+  'src'
+  'semantic'
+)
 output_path="resources/public/out-production/sysrev.js"
-if [ ! -f "$output_path" ] ; then
+if [ ! -f "$output_path" ]; then
   echo "! $output_path"
 else
-  find -L $input_paths -cnewer "$output_path" -type f
-  find -L $input_paths -cnewer "$output_path" -type l
+  find -L "${input_paths[@]}" -cnewer "$output_path" -type f
+  find -L "${input_paths[@]}" -cnewer "$output_path" -type l
 fi
