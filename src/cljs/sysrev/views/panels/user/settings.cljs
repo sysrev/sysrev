@@ -99,10 +99,10 @@
     [S/Dropdown {:selection true :fluid true
                  :options (->> ["Default" "Dark"]
                                (mapv
-                                 (fn [theme-name]
-                                   {:key theme-name
-                                    :value theme-name
-                                    :text theme-name})))
+                                (fn [theme-name]
+                                  {:key theme-name
+                                   :value theme-name
+                                   :text theme-name})))
                  :on-change (fn [_ selected-option]
                               (edit-setting :ui-theme (.-value selected-option)))
                  :value active-theme
@@ -139,11 +139,11 @@
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
         ;; TODO: add method for deleting dev user labels
-        #_ [:button.ui.yellow.button
-            {:on-click
-             #(do (dispatch [:action [:user/delete-member-labels user-id]])
-                  (nav/nav "/"))}
-            "Delete Member Labels"]
+        #_[:button.ui.yellow.button
+           {:on-click
+            #(do (dispatch [:action [:user/delete-member-labels user-id]])
+                 (nav/nav "/"))}
+           "Delete Member Labels"]
         [:button.ui.orange.button
          {:on-click #(dispatch [:action [:user/delete-account user-id]])}
          "Delete Account"]]])))
@@ -165,6 +165,8 @@
   :content  (fn [_ enabled] {:enabled enabled})
   :process  (fn [_ [user-id _] _] {:dispatch [:data/load [:user/public-reviewer user-id]]}))
 
+;; this feature isn't currently being used
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- PublicReviewerOptIn []
   (when-let [user-id @(subscribe [:self/user-id])]
     (with-loader [[:user/public-reviewer user-id]] {}
@@ -227,7 +229,7 @@
   [Grid {:class "user-settings" :stackable true :columns 2}
    [Column
     [UserOptions]
-    [PublicReviewerOptIn]
+    #_[PublicReviewerOptIn]
     [EnableDevAccount]]
    [Column [UserDevTools]]])
 
