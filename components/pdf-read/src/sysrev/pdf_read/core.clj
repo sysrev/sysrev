@@ -34,7 +34,7 @@
 (defn read-text [^Path path invalid-pdf-value]
   (try
     (with-PDDocument [doc (.toFile path)]
-      (condense-text (parse-text doc)))
+      (parse-text doc))
     (catch IOException e
       (if (= "Error: Header doesn't contain versioninfo"
              (.getMessage e))
