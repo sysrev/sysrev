@@ -12,12 +12,18 @@
 (defmacro retry
   "Retries body up to n times, doubling interval-ms each time
    and adding jitter.
-   
+
    If throw-pred is provided, it will be called on the exception. If
    throw-pred returns true, the exception is re-thrown and the body is
    not retried."
   [opts & body]
   `(core/retry ~opts ~@body))
+
+(defn sanitize-str
+  "Remove orphaned Unicode surrogate characters that
+   can't be represented in JSON."
+  [^String s]
+  (core/sanitize-str s))
 
 (defn wait-timeout
   "Retries pred until it returns a truthy value or timeout-ms is reached.

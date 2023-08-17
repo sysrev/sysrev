@@ -43,3 +43,31 @@
           result result
           (< timeout-ns (- (System/nanoTime) start)) (timeout-f)
           :else (recur))))))
+
+;; https://lambdaisland.com/blog/12-06-2017-clojure-gotchas-surrogate-pairs
+;; Adapted to handle unpaired surrogates
+(defn char-seq
+  "Return a seq of the characters in a string, making sure not to split up
+  UCS-2 (or is it UTF-16?) surrogate pairs. Because JavaScript. And Java."
+  ([str]
+   (char-seq str 0))
+  ([str offset]
+   (if (>= offset (count str))
+     ()
+     (lazy-seq
+      (let [code (.charAt str offset)
+            next-code (if (< (+ offset 1) (count str)) (.charAt str (+ offset 1)) 0)
+            width (if (and (<= 0xD800 (int code) 0xDBFF)
+                           (<= 0xDC00 (int next-code) 0xDFFF)) 2 1)] ; detect valid surrogate pair
+        (cons (subs str offset (+ offset width))
+              (char-seq str (+ offset width))))))))
+
+(defn sanitize-str [^String s]
+  (->> s char-seq
+       (remove
+        (fn [s]
+          (when (= 1 (count s))
+            (let [c (first s)]
+              (or (Character/isLowSurrogate c)
+                  (Character/isHighSurrogate c))))))
+       (apply str)))
