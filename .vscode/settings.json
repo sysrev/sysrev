@@ -21,7 +21,8 @@
         "cljAliases": [
           "dev-embedded",
           "dev",
-          "test"
+          "test",
+          "test-code"
         ]
       },
       "afterCLJReplJackInCode": "((requiring-resolve 'sysrev.main/reload-with-fixtures!))",
