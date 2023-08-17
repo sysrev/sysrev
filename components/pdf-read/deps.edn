@@ -7,6 +7,8 @@
         org.apache.pdfbox/jbig2-imageio {:mvn/version "3.0.4"}
         org.bouncycastle/bcmail-jdk15on {:mvn/version "1.70"}
         org.bouncycastle/bcpkix-jdk15on {:mvn/version "1.70"}
-        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.70"}}
+        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.70"}
+
+        poly/util-lite {:local/root "../util-lite"}}
  :aliases
  {:test {:extra-paths ["test"]}}}

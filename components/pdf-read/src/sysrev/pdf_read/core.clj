@@ -1,5 +1,6 @@
 (ns sysrev.pdf-read.core
-  (:require [clojure.string :as str])
+  (:require [clojure.string :as str]
+            [sysrev.util-lite.interface :as ul])
   (:import (java.io File IOException)
            (java.nio.file Path)
            (org.apache.pdfbox.io RandomAccessFile)
@@ -28,8 +29,9 @@
       (.getText doc)))
 
 (defn parse-text [^PDDocument doc]
-  (condense-text
-   (raw-text doc :sort-by-position true)))
+  (-> (raw-text doc :sort-by-position true)
+      ul/sanitize-str
+      condense-text))
 
 (defn read-text [^Path path invalid-pdf-value]
   (try
