@@ -3,4 +3,4 @@ set -eu
 
 scripts/rebuild-changed-files
 
-ENV=test clj -T:build run-tests :aliases "[:dev-embedded :dev :test]" :fail-fast? true :randomize? false :watch? true
+ENV="test" clj -T:build run-tests :aliases "[:dev-embedded :dev :test]" :fail-fast? true :randomize? false :watch? true
