@@ -104,7 +104,8 @@
       (st/instrument)
       (try
         (sysrev.init/start-app port)
-        (fixtures/load-fixtures!)
+        (when (-> env :postgres :embedded)
+          (fixtures/load-fixtures!))
         (catch Exception e
           (log/error "Exception in sysrev.init/start-app")
           (log/error (.getMessage e))

@@ -8,7 +8,7 @@
   (first (q/find :session {:skey skey})))
 
 (defn dev-session-key [{{:keys [user-id]} :identity}]
-  (when (and user-id (= :dev (:profile env)))
+  (when (and user-id (= :dev (:profile env)) (-> env :postgres :embedded))
     (some-> (q/find-one :session {:user-id user-id} :skey)
             str)))
 
