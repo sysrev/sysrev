@@ -22,17 +22,6 @@
   ([comp props content]
    [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
 
-(defn SelectionDropdown [options &
-                         [{:keys [id class onChange selection fluid value extra]
-                           :or {selection true}}]]
-  [S/Dropdown (cond-> {:id id :class class
-                       :selection selection :fluid fluid
-                       :options options
-                       :on-change onChange
-                       :icon "dropdown"}
-                value (merge {:value value})
-                extra (merge extra))])
-
 (s/def ::tab-id keyword?)
 (s/def ::content any?)
 (s/def ::action (or string? fn?))
@@ -90,7 +79,7 @@
                         :hoverable true :inverted true
                         :trigger (r/as-element item)
                         :content (r/as-element [:div {:style {:min-width "10em"}}
-                                                tooltip])} ]
+                                                tooltip])}]
               item)))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (css menu-class [mobile? "tiny"])}
@@ -307,17 +296,6 @@
   [:div {:class (css class "vertical-column")}
    [:div.ui.middle.aligned.grid>div.row>div.middle.aligned.column
     [:div.vertical-column-content content]]])
-
-(defn TopAlignedColumn
-  "Renders a grid column that will take up the full height of its row and
-  vertically align its content to the top of the element.
-
-  This is done by wrapping the column content in a nested grid with CSS styles
-  applied to several components."
-  [content class]
-  [:div {:class (css class "vertical-column")}
-   [:div.ui.top.aligned.grid>div.row>div.top.aligned.column
-    [:div.vertical-column-content.top content]]])
 
 (defn FormLabelInfo
   "Renders label for a form field, optionally with a tooltip and
@@ -578,23 +556,6 @@
 (defn CheckboxButton [{:keys [active? on-click text title] :as options}]
   [RadioCheckboxButton (merge options {:type "checkbox"})])
 
-(defn Popper [{:keys [anchor-component props]} _child]
-  (let [anchor-node (r/atom nil)]
-    (r/create-class
-     {:display-name "Popper"
-      :component-did-mount
-      (fn []
-        (reset! anchor-node (dom-node anchor-component)))
-      :component-did-update
-      (fn []
-        (reset! anchor-node (dom-node anchor-component)))
-      :reagent-render
-      (fn [{:keys [anchor-component props]} child]
-        (when-let [anchorEl @anchor-node]
-          [:> mui/Popper (assoc props :anchorEl anchorEl)
-           (r/as-element
-            child)]))})))
-
 (defn WrapClickOutside [{:keys [handle-click-outside]} _child]
   (let [dom-node (atom nil)
         handler #(let [node @dom-node]
@@ -642,7 +603,6 @@
             ^{:key (pr-str key)}
             [:div.column {:class (str "label_" name)}
              [make-button key label]]))]]]]))
-
 
 (reg-sub ::alerts #(get-in % [:state :alerts]))
 
