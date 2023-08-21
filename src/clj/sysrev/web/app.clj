@@ -39,12 +39,16 @@
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]
-  (-> response
-      (assoc :status http-code)
-      (update-in [:body :error] assoc :type etype :message emessage)
-      (cond->
-       exception (assoc-in [:body :error :exception] (str exception))
-       (and exception (#{:dev :test} (:profile env))) (assoc-in [:body :error :stacktrace] (with-out-str (print-cause-trace-custom exception))))))
+  (let [dev-or-test (#{:dev :test} (:profile env))
+        cause-trace (some-> exception print-cause-trace-custom with-out-str)]
+    (-> response
+        (assoc :status http-code)
+        (update-in [:body :error] assoc :type etype :message emessage)
+        (cond->
+         exception
+         (assoc-in [:body :error :exception] (str exception))
+         (and exception dev-or-test)
+         (assoc-in [:body :error :stacktrace] cause-trace)))))
 
 (defn validation-failed-response [etype emessage spec explain-data]
   {:status 500
@@ -187,9 +191,12 @@
               (= 302 (:status response)) response
               ;; Return error on empty response body
               (and (seqable? body)
-                   (empty? body)) (make-error-response
-                                   500 :empty "Server error (no data returned)"
-                                   nil response)
+                   (empty? body)) (do (slack/log-request-exception
+                                       request
+                                       (Exception. "Server error (no data returned)"))
+                                      (make-error-response
+                                       500 :empty "Server error (no data returned)"
+                                       nil response))
               ;; Otherwise return response unchanged
               :else response)
             session-meta (or (-> body meta :session)
@@ -198,7 +205,7 @@
         (cond-> response
           ;; If the request handler attached a :session meta value to
           ;; the result, set that session value in the response.
-          session-meta                      (assoc :session session-meta)
+          session-meta                        (assoc :session session-meta)
           ;; Attach :build-id and :build-time fields to all response maps
           (and (map? body) build/build-id)    (assoc-in [:body :build-id] build/build-id)
           (and (map? body) build/build-time)  (assoc-in [:body :build-time] build/build-time)))

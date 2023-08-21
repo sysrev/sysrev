@@ -16,27 +16,27 @@
 (defn slack-errors-token []
   (or @slack-errors-token-override (env :sysrev-slack-errors)))
 
-(defn log-slack [blocks-text notify-text]
-  (when-let [token (slack-errors-token)]
-    (let [msg {:text notify-text
-               :blocks (vec (for [text blocks-text]
-                              {:type :section
-                               :text {:type "mrkdwn" :verbatim true :text text}}))}]
-      (http/post (str "https://hooks.slack.com/services/" token)
-                 {:body (json/write-str msg)
-                  :content-type :application/json}))))
-
-(defn try-log-slack [blocks-text notify-text]
-  (try (log-slack blocks-text notify-text)
-       (catch Exception e
-         (log/warnf "log-slack exception: %s"
-                    (with-out-str (print-cause-trace-custom e 20))))))
-
-(defn log-slack-custom [blocks-text notify-text & {:keys [force]}]
-  (when (or force (= :prod (:profile env)))
+(defn log-slack [blocks-text notify-text & {:keys [force silent]}]
+  (when-not silent
     (log/infof "Logging to Slack:\n* %s *\n%s"
-               notify-text (str/join "\n" blocks-text))
-    (log-slack blocks-text notify-text)))
+               notify-text (str/join "\n" blocks-text)))
+  (when (or force (= :prod (:profile env)))
+    (when-let [token (slack-errors-token)]
+      (let [msg {:text notify-text
+                 :blocks (vec (for [text blocks-text]
+                                {:type :section
+                                 :text {:type "mrkdwn" :verbatim true :text text}}))}]
+        (http/post (str "https://hooks.slack.com/services/" token)
+                   {:body (json/write-str msg)
+                    :content-type :application/json})))))
+
+(defmacro try-log-slack [blocks-text notify-text]
+  `(try (let [blocks-text# ~blocks-text
+              notify-text# ~notify-text]
+          (log-slack blocks-text# notify-text#))
+        (catch Throwable e#
+          (log/warnf "try-log-slack exception:\n%s"
+                     (with-out-str (print-cause-trace-custom e# 20))))))
 
 (defn request-info [req]
   (-> (merge {:host (get-in req [:headers "host"])
@@ -46,30 +46,34 @@
                {:session {:identity (select-keys ident [:user-id :email])}}))
       (dissoc :sr-context)))
 
-(defn log-slack-request-exception [request ^Throwable e & {:keys [force]}]
-  (when (or force (= :prod (:profile env)))
-    (try (log-slack
-          [(format "*Request*:\n```%s```"
-                   (pp-str (request-info request)))
-           (format "*Exception*:\n```%s```"
-                   (with-out-str (print-cause-trace-custom e 20)))]
-          (str (if-let [route (:compojure/route request)]
-                 (str route " => ") "")
-               (.getMessage e)))
-         (catch Exception e2
-           (log/error "error in log-slack-request-exception:\n"
-                      (with-out-str (print-cause-trace-custom e2)))
-           (try (let [info {:request (select-keys request [:server-name :compojure/route])}]
-                  (log-slack [(format "*Slack Message Error*\n```%s```" (pp-str info))]
-                             "Slack Message Error"))
-                (catch Exception _
-                  (log-slack ["*Unexpected Slack Message Error*"]
-                             "Unexpected Slack Message Error")))))))
+(defn- log-slack-request-exception [request ^Throwable e]
+  (try (log-slack
+        [(format "*Request*:\n```%s```"
+                 (pp-str (request-info request)))
+         (format "*Exception*:\n```%s```"
+                 (with-out-str (print-cause-trace-custom e 20)))]
+        (str (if-let [route (:compojure/route request)]
+               (str route " => ") "")
+             (.getMessage e))
+        :silent true)
+       (catch Throwable e2
+         (log/error "error in log-slack-request-exception:\n"
+                    (with-out-str (print-cause-trace-custom e2)))
+         (try (let [info {:request (select-keys request [:server-name :compojure/route])}]
+                (log-slack [(format "*Slack Message Error*\n```%s```" (pp-str info))
+                            (format "*Exception*:\n```%s```"
+                                    (with-out-str (print-cause-trace-custom e2)))]
+                           "Slack Message Error"
+                           :silent true))
+              (catch Throwable _
+                (util/ignore-exceptions
+                 (log-slack ["*Unexpected Slack Message Error*"]
+                            "Unexpected Slack Message Error")))))))
 
 (defn log-request-exception [request e]
   (try (log/error "Request:\n" (pp-str (request-info request))
                   "Exception:\n" (with-out-str (print-cause-trace-custom e)))
        (log-slack-request-exception request e)
-       (catch Exception e2
+       (catch Throwable e2
          (log/error "error in log-request-exception:\n"
                     (with-out-str (print-cause-trace-custom e2))))))
