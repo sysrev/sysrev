@@ -1,7 +1,6 @@
 (ns sysrev.views.components.core
   (:require ["clipboard" :as Clipboard]
             ["dropzone" :as Dropzone]
-            ["@material-ui/core" :as mui]
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [medley.core :as medley]
