@@ -36,7 +36,7 @@
           (log-slack blocks-text# notify-text#))
         (catch Throwable e#
           (log/warnf "try-log-slack exception:\n%s"
-                     (with-out-str (print-cause-trace-custom e# 20))))))
+                     (with-out-str (print-cause-trace-custom e#))))))
 
 (defn request-info [req]
   (-> (merge {:host (get-in req [:headers "host"])
@@ -51,7 +51,7 @@
         [(format "*Request*:\n```%s```"
                  (pp-str (request-info request)))
          (format "*Exception*:\n```%s```"
-                 (with-out-str (print-cause-trace-custom e 20)))]
+                 (with-out-str (print-cause-trace-custom e)))]
         (str (if-let [route (:compojure/route request)]
                (str route " => ") "")
              (.getMessage e))
