@@ -26,6 +26,7 @@
                        [sysrev.stacktrace :refer [print-cause-trace-custom]]]
                 :cljs [["moment" :as moment]
                        ["dropzone" :as Dropzone]
+                       [cljs.pprint :as pp]
                        [cljs-http.client :as http]
                        [goog.string :as gstr :refer [unescapeEntities]]
                        [goog.string.format]
@@ -594,8 +595,10 @@
                (io/copy gz-stream# ~tempfile)
                ~@body))))
 
-#?(:clj (defn pp-str [x]
-          (with-out-str (pp/pprint x))))
+#?(:clj  (defn pp-str [x]
+           (with-out-str (pp/pprint x)))
+   :cljs (defn pp-str [x]
+           (pp/write x :stream nil :pretty true)))
 
 #?(:clj (defmacro log-exception [^Throwable e & {:keys [level] :or {level :error}}]
           `(let [e# ~e]
@@ -610,13 +613,13 @@
                (throw e#)))))
 
 #?(:clj (defn uncaught-exception-handler [name & {:keys [level] :or {level :error}}]
-         (proxy [Thread$UncaughtExceptionHandler] []
-           (uncaughtException
-             [^Thread _thread ^Throwable e]
-             (log/logf
-              level
-              "%s %s: %s %s\n%s\n%s"
-              name (current-function-name) (class e) (ex-message e) (ex-data e) (print-cause-trace-custom e))))))
+          (proxy [Thread$UncaughtExceptionHandler] []
+            (uncaughtException
+              [^Thread _thread ^Throwable e]
+              (log/logf
+               level
+               "%s %s: %s %s\n%s\n%s"
+               name (current-function-name) (class e) (ex-message e) (ex-data e) (print-cause-trace-custom e))))))
 
 #?(:clj (defn gquery [query-form]
           (if (string? query-form)
