@@ -27,7 +27,7 @@
 
 (defn- site-search [q p]
   (let [search-results (r/cursor state [:search-results])
-        p (str p)]
+        p (str (or p 1))]
     (swap! search-results assoc-in [q p] :retrieving)
     (GET "/api/search"
          {:params {:q q :p p}
