@@ -164,9 +164,6 @@
        "eleven" "twelve" "thirteen" "fourteen" "fifteen" "sixteen"]
       (get n)))
 
-(defn short-uuid [uuid]
-  (-> (str uuid) (str/split #"\-") last))
-
 (defn parse-html-str
   "Convert \"&lt;\" and \"&gt;\" to \"<\" and \">\"."
   [s]

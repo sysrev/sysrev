@@ -1354,8 +1354,7 @@
   [project-id emails]
   (let [project (q/find-one :project {:project-id project-id})
         project-name (:name project)
-        project-hash (some-> project :project-uuid util/short-uuid)
-        invite-url (str (sysrev-base-url) "/register/" project-hash)
+        invite-url (str (sysrev-base-url) "/register/" (:invite-code project))
         responses (->> emails
                        (filter util/email?)
                        set ; remove duplicates
@@ -1525,8 +1524,7 @@
                (for [{:keys [data uri]} errors]
                  (with-out-str
                    (println (format "```%s```" (-> {:uri uri :user-id user-id}
-                                                   util/pp-str
-                                                   str/trim-newline)))
+                                                   util/pp-str str/trim-newline)))
                    (doseq [[_ msg] data]
                      (println (format "```%s```" msg))))))
        "UI Errors"))))
