@@ -1513,6 +1513,7 @@
 (defonce last-log-slack-ui (atom (time/epoch)))
 
 (defn record-ui-errors! [request]
+  ;; (throw (Exception. "record-ui-errors test error"))
   (let [user-id (app/current-user-id request)
         {:keys [errors]} (:body request)
         now (time/now)
