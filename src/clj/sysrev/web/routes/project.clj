@@ -330,14 +330,15 @@
       (with-authorize request {}
         (let [{:keys [invite-code]} params
               {:keys [org-id type] :as data}
-              #__ (enc/try-decrypt-wrapped64 invite-code)]
+              (enc/try-decrypt-wrapped64 invite-code)]
+          ;; (throw (Exception. "invite-code-info test"))
           (if data
             (case type
               "org-invite-hash"
               {:org {:name (group/group-id->name org-id)
                      :org-id org-id}})
             (let [{:project/keys [name project-id]}
-                  #__ (project/project-from-invite-code sr-context invite-code)]
+                  (project/project-from-invite-code sr-context invite-code)]
               (when project-id
                 {:project {:name name :project-id project-id}})))))))
 

@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.config :refer [env]]
-            [sysrev.stacktrace :refer [print-cause-trace-custom]]
+            [sysrev.stacktrace :refer [print-cause-trace-custom cause-trace-custom-list]]
             [sysrev.util :as util :refer [pp-str]]))
 
 ;;;
@@ -40,7 +40,8 @@
 
 (defn request-info [req]
   (-> (merge {:host (get-in req [:headers "host"])
-              :client-ip (get-in req [:headers "x-real-ip"])}
+              :client-ip (get-in req [:headers "x-real-ip"])
+              :all-params (some-> (:params req) keys vec)}
              (select-keys req [:uri :compojure/route :query-params])
              (when-let [ident (not-empty (-> req :session :identity))]
                {:session {:identity (select-keys ident [:user-id :email])}}))
@@ -48,10 +49,10 @@
 
 (defn- log-slack-request-exception [request ^Throwable e]
   (try (log-slack
-        [(format "*Request*:\n```%s```"
-                 (pp-str (request-info request)))
-         (format "*Exception*:\n```%s```"
-                 (with-out-str (print-cause-trace-custom e)))]
+        (concat [(format "*Request*:\n```%s```" (pp-str (request-info request)))
+                 (format "*Stacktrace*:")]
+                (for [st (cause-trace-custom-list e 30)]
+                  (format "```%s```" st)))
         (str (if-let [route (:compojure/route request)]
                (str route " => ") "")
              (.getMessage e))
@@ -60,13 +61,16 @@
          (log/error "error in log-slack-request-exception:\n"
                     (with-out-str (print-cause-trace-custom e2)))
          (try (let [info {:request (select-keys request [:server-name :compojure/route])}]
-                (log-slack [(format "*Slack Message Error*\n```%s```" (pp-str info))
-                            (format "*Exception*:\n```%s```"
-                                    (with-out-str (print-cause-trace-custom e2)))]
+                (log-slack (concat [(format "*Slack Message Error*\n```%s```" (pp-str info))
+                                    (format "*Stacktrace*:")]
+                                   (for [st (cause-trace-custom-list e 30)]
+                                     (format "```%s```" st)))
                            "Slack Message Error"
                            :silent true))
-              (catch Throwable _
+              (catch Throwable e3
                 (util/ignore-exceptions
+                 (log/error "Unexpected Slack Message Error\n"
+                            (with-out-str (print-cause-trace-custom e3)))
                  (log-slack ["*Unexpected Slack Message Error*"]
                             "Unexpected Slack Message Error")))))))
 
