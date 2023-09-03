@@ -10,7 +10,6 @@
             [sysrev.macros :refer-macros [setup-panel-state with-loader def-panel]]
             [sysrev.markdown :as markdown]
             [sysrev.util :as util]
-            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.org.users :refer [AddModal ChangeRoleModal
                                                    OrgInviteUrlModal RemoveModal]]
             [sysrev.views.semantic :refer
@@ -44,33 +43,6 @@
 (reg-sub :org/name
          (fn [[_ org-id]] (subscribe [::org org-id]))
          #(:group-name %))
-
-(reg-sub :org/permissions
-         (fn [[_ org-id]] (subscribe [::org org-id]))
-         #(:permissions %))
-
-(reg-sub :org/owner?
-         (fn [[_ org-id _match-dev?]]
-           [(subscribe [:org/permissions org-id])
-            (subscribe [:user/dev?])])
-         (fn [[permissions dev?] [_ _ match-dev? _]]
-           (boolean (or (some #{"owner"} permissions)
-                        (and match-dev? dev?)))))
-
-(reg-sub :org/admin?
-         (fn [[_ org-id _match-dev?]]
-           [(subscribe [:org/permissions org-id])
-            (subscribe [:user/dev?])])
-         (fn [[permissions dev?] [_ _ match-dev? _]]
-           (boolean (or (some #{"admin"} permissions)
-                        (and match-dev? dev?)))))
-
-(reg-sub :org/owner-or-admin?
-         (fn [[_ org-id match-dev?]]
-           [(subscribe [:org/owner? org-id match-dev?])
-            (subscribe [:org/admin? org-id match-dev?])])
-         (fn [[owner? admin?]]
-           (or owner? admin?)))
 
 (defn member->js [{:keys [permissions user-id username]}]
   #js{:name username
@@ -138,22 +110,15 @@
     (dispatch [:set-panel-field [] {} to-panel])
     (dispatch [::org-id org-id])
     (dispatch [:set-active-panel to-panel])
-    (dispatch [:data/load [:org/projects org-id]])
-    (dispatch [:data/load [:org/users org-id]])
+    (load-data :org/projects org-id)
+    (load-data :org/users org-id)
     (reload :org/available-plans)
     (reload :org/default-source org-id)
     (reload :org/current-plan org-id)))
 
-(defmethod panel-content [:org] []
-  (fn []
-    (when-let [org-id @(subscribe [::org-id])]
-      (with-loader [[::orgs]] {}
-        [OrgContent org-id]))))
-
-
-
-; this is required for routing to work properly
-(def-panel :uri "/org/:org-id/users" :params [org-id]
+(def-panel :uri "/org/:org-id/users" :params [org-id] :panel panel
   :on-route (let [org-id (util/parse-integer org-id)]
-               (on-navigate-org org-id panel)
-               (reload :org/users org-id)))
+              (on-navigate-org org-id panel))
+  :content (when-let [org-id @(subscribe [::org-id])]
+             (with-loader [[::orgs]] {}
+               [OrgContent org-id])))

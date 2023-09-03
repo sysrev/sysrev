@@ -20,6 +20,7 @@
      [Header {:as "h1"} "Enter your Payment Method"]
      [StripeCardInfo {:add-payment-fn #(run-action :stripe/add-payment-org org-id %)}]]]])
 
+;; FIXME: is this url referenced anywhere? delete this file if not (jeff)
 (def-panel :uri "/org/:org-id/payment" :params [org-id] :panel panel
   :on-route (let [org-id (util/parse-integer org-id)]
               (org/on-navigate-org org-id panel)

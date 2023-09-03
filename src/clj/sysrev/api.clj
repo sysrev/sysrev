@@ -1349,9 +1349,7 @@
      (format "Name %s email %s\n%s." name email description))
     {:success true}))
 
-(defn send-bulk-invitations
-  "Send invitation emails in bulk"
-  [project-id emails]
+(defn send-bulk-invitations [project-id emails]
   (let [project (q/find-one :project {:project-id project-id})
         project-name (:name project)
         invite-url (str (sysrev-base-url) "/register/" (:invite-code project))

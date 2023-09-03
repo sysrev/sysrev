@@ -250,8 +250,7 @@
 
 (def-panel :uri "/org/:org-id/plans" :params [org-id] :panel panel
   :on-route (let [org-id (util/parse-integer org-id)]
-              (org/on-navigate-org org-id panel)
-              (dispatch [:reload [:org/default-source org-id]]))
+              (org/on-navigate-org org-id panel))
   :content (when-let [org-id @(subscribe [::org/org-id])]
              (with-loader [[:org/current-plan org-id]
                            [:org/available-plans org-id]
