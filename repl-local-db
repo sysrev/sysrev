@@ -2,6 +2,8 @@
 
 set -eu
 
+scripts/check-secrets
+
 scripts/rebuild-changed-files
 
 LOCAL_ONLY=t ENV=dev clj -M:test-code:dev:repl

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eu
 
+scripts/check-secrets
+
 test_id=''
 
 # https://stackoverflow.com/questions/7069682/how-to-get-arguments-with-flags-in-bash/21128172

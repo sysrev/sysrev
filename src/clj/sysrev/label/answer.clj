@@ -14,8 +14,8 @@
   (case value-type
     "boolean"
     ; (when (contains? #{true false nil} answer)
-      (when true
-        {label-id answer})
+    (when true
+      {label-id answer})
     "categorical"
     (cond (nil? answer) {label-id answer}
           (sequential? answer) (let [allowed (set (:all-values definition))]
@@ -170,10 +170,12 @@
     (if duplicate-save?
       (do (log/warnf "api/set-labels: answer already confirmed ; %s" (pr-str params))
           (slack/try-log-slack
-            (if request
-              [(format "*Request*:\n```%s```"
-                       (util/pp-str (slack/request-info request)))]
-              [])
+            ["*Duplicate /api/set-labels request*"
+             (if request
+               (format "Request:\n```%s```"
+                       (util/pp-str (slack/request-info request)))
+               (format "GraphQL request"))
+             (format "params:\n```%s```" (util/pp-str params))]
             "Duplicate /api/set-labels request"))
       (set-user-article-labels user-id article-id label-values
                                :imported? false

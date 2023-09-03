@@ -63,9 +63,10 @@
                         "&currency=USD&disable-funding="
                         (str/join "," ["credit" "card"]))
               :type "text/javascript"}]
-    [:script {:defer true
-              :data-domain "sysrev.com"
-              :src "https://plausible.io/js/script.js"}]]
+    (when-not (:local-only env)
+      [:script {:defer true
+                :data-domain "sysrev.com"
+                :src "https://plausible.io/js/script.js"}])]
    [:body
     [:div {:style "display: none;"
            :id "graphql-endpoint"

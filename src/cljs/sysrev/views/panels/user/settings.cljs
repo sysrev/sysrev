@@ -15,124 +15,6 @@
 (setup-panel-state panel [:user :settings]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
-;;;
-;;; TODO: refactor to remove this inputs/values/... stuff
-;;;
-
-(defn- parse-input [skey input]
-  (case skey
-    :ui-theme input
-    nil))
-
-(defn editing? []
-  (= panel @(subscribe [:active-panel])))
-
-(defn saved-values [& [skey]]
-  (cond-> @(subscribe [:self/settings])
-    skey (get skey)))
-
-(defn active-values [& [skey]]
-  (cond-> (:active-values @state)
-    skey (get skey)))
-
-(defn current-values [& [skey]]
-  (let [active (active-values)]
-    (cond-> (saved-values)
-      (editing?) (merge active)
-      skey (get skey))))
-
-(defn active-inputs [& [skey]]
-  (cond-> (:active-inputs @state)
-    skey (get skey)))
-
-(defn reset-fields []
-  (let [values (r/cursor state [:active-values])
-        inputs (r/cursor state [:active-inputs])]
-    (reset! values {})
-    (reset! inputs {})))
-
-(defn valid-input? [& [skey]]
-  (let [inputs (active-inputs)
-        values (current-values)]
-    (letfn [(valid? [skey]
-              (if-let [input (get inputs skey)]
-                (= (parse-input skey input)
-                   (get values skey))
-                true))]
-      (if skey
-        (valid? skey)
-        (every? valid? (keys inputs))))))
-
-(defn edit-setting [skey input]
-  (let [inputs (r/cursor state [:active-inputs])
-        values (r/cursor state [:active-values])
-        value (parse-input skey input)]
-    (swap! inputs assoc skey input)
-    (when value
-      (swap! values assoc skey value))))
-
-(defn modified? []
-  (not= (saved-values) (current-values)))
-
-(defn save-changes []
-  (let [values (current-values)
-        saved (saved-values)
-        changed-keys (filter #(not= (get values %)
-                                    (get saved %))
-                             (keys values))
-        changes (mapv (fn [skey]
-                        {:setting skey
-                         :value (get values skey)})
-                      changed-keys)]
-    (dispatch [:action [:user/change-settings changes]])))
-
-(defn- render-setting [skey]
-  (if-let [input (active-inputs skey)]
-    input
-    (let [value (current-values skey)]
-      (case skey
-        :ui-theme (if (nil? value) "Default" value)
-        nil))))
-
-(defn- ThemeSelector []
-  (let [active-theme (render-setting :ui-theme)]
-    [S/Dropdown {:selection true :fluid true
-                 :options (->> ["Default" "Dark"]
-                               (mapv
-                                (fn [theme-name]
-                                  {:key theme-name
-                                   :value theme-name
-                                   :text theme-name})))
-                 :on-change (fn [_ selected-option]
-                              (edit-setting :ui-theme (.-value selected-option)))
-                 :value active-theme
-                 :icon "dropdown"}]))
-
-#_{:clj-kondo/ignore [:unused-private-var]}
-(defn- UserOptions []
-  (let [modified? (modified?)
-        valid? (valid-input?)
-        field-class #(if (valid-input? %) "" "error")]
-    [:div.ui.segment.user-options
-     [:h4.ui.dividing.header "Options"]
-     [:div.ui.unstackable.form {:class (if valid? "" "warning")}
-      (let [skey :ui-theme]
-        [:div.fields
-         [:div.eight.wide.field {:class (field-class skey)}
-          [:label "Web Theme"]
-          [ThemeSelector]]])]
-     [:div
-      [:div.ui.divider]
-      [:div
-       [:button.ui.primary.button
-        {:class (if (and valid? modified?) "" "disabled")
-         :on-click save-changes}
-        "Save changes"]
-       [:button.ui.button
-        {:class (if modified? "" "disabled")
-         :on-click reset-fields}
-        "Reset"]]]]))
-
 (defn- UserDevTools []
   (let [user-id @(subscribe [:self/user-id])]
     (when @(subscribe [:user/dev?])
@@ -229,7 +111,6 @@
 (defn- UserSettings [{:keys [user-id]}]
   [Grid {:class "user-settings" :stackable true :columns 2}
    [Column
-    #_[UserOptions]
     #_[PublicReviewerOptIn]
     [EnableDevAccount]]
    [Column [UserDevTools]]])

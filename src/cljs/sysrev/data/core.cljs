@@ -254,10 +254,10 @@
               (if-let [process (:on-error entry)]
                 (apply process [cofx args result])
                 (let [{:keys [error]} cofx
-                      {:keys [#_ type message]} error]
-                  (cond (= message "This request requires an upgraded plan") nil
-                        :else (util/log-err "data error: item = %s\nerror: %s"
-                                            (pr-str item) (pr-str error)))
+                      {:keys [#_type message]} error
+                      ignore-error (= message "This request requires an upgraded plan")]
+                  (when-not ignore-error
+                    (util/log-err "%s" (util/pp-str (:original-event cofx))))
                   {})))))))
 
 ;; Reload data item from server if already loaded.

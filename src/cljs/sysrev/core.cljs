@@ -113,16 +113,19 @@
 (reg-fx ::fail #(js/console.error (pr-str %&)))
 
 (def-action ::record-ui-errors
-  :uri (constantly "/api/record-ui-errors")
-  :content (fn [errors] {:errors errors})
-  :process (constantly {})
-  :timeout 10000)
+  :uri       "/api/record-ui-errors"
+  :content   (fn [errors] {:errors errors})
+  :process   (fn [_ [errors] _]
+               (js/console.log "Sent" (count errors) "error report(s) to server")
+               {})
+  :on-error  (fn [{:keys [db error]} [errors]]
+               (js/console.log "::record-ui-errors failed:\n" (util/pp-str errors)))
+  :timeout   10000)
 
 (defn send-errors-to-server! []
   (let [errors (or (:error @base/console-logs) [])
         new-errors (subvec errors (count @recorded-errors))]
     (when (seq new-errors)
-      (js/console.log "Sending" (count new-errors) "error report(s) to server")
       (dispatch [:action [::record-ui-errors new-errors]])
       (reset! recorded-errors errors))))
 

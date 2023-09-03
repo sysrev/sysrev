@@ -5,7 +5,8 @@
             [clojure.test :refer [*stack-trace-depth* *testing-contexts*
                                   inc-report-counter report testing-contexts-str
                                   testing-vars-str with-test-out]]
-            [clojure.test.junit :as junit]))
+            [clojure.test.junit :as junit])
+  (:import (java.lang StackTraceElement)))
 
 (defn class-name [^StackTraceElement el]
   (.getClassName el))
@@ -25,6 +26,24 @@
        (drop-while #(not (str/includes? (class-name %) "sysrev")))
        (reverse)))
 
+(defn- compojure-wrap-element? [el]
+  (and el (str/includes? (class-name el) "sysrev.web.app$wrap")))
+
+(defn- condense-wrapper-elements
+  "Filter out compojure wrap functions, replace with placeholder."
+  [elements]
+  (let [result (atom [])
+        prev (atom nil)]
+    (doseq [el elements]
+      (if (compojure-wrap-element? @prev)
+        (when-not (compojure-wrap-element? el)
+          ;; reached end of wrapper element sequence
+          (swap! result conj (StackTraceElement. "sysrev.web.app$wrap-<...>" "condensed" "app.clj" -1))
+          (swap! result conj el))
+        (swap! result conj el))
+      (reset! prev el))
+    @result))
+
 (defn filter-stacktrace?
   "Check whether stacktrace element filtering should be used."
   [elements]
@@ -33,11 +52,12 @@
 (defn filter-stacktrace-elements
   "Filter a sequence of stacktrace elements to remove unhelpful entries."
   [elements]
-  ;; keep top 6 elements always for clarity
-  (concat (take 6 elements)
-          (->> (drop 6 elements)
+  ;; keep top 5 elements always for clarity
+  (concat (take 5 elements)
+          (->> (drop 5 elements)
                (drop-trailing-stack-elements)
-               (remove boring-element?))))
+               (remove boring-element?)
+               (condense-wrapper-elements))))
 
 ;; Modified from clojure.stacktrace/print-stack-trace
 (defn print-stack-trace-custom
@@ -66,8 +86,16 @@
   ([^Throwable tr n]
    (print-stack-trace-custom tr n)
    (when-let [cause (.getCause tr)]
-     (print "Caused by: " )
+     (print "Caused by: ")
      (recur cause n))))
+
+;; Returns list of stacktrace strings for cause chain of `tr`
+(defn cause-trace-custom-list
+  ([tr] (cause-trace-custom-list tr nil))
+  ([^Throwable tr n & prev]
+   (concat [(str (when prev "Caused by: ")
+                 (with-out-str (print-stack-trace-custom tr n)))]
+           (some-> tr (.getCause) (cause-trace-custom-list n tr)))))
 
 ;; Replaces method in clojure.test to use print-cause-trace-custom
 (defmethod report :error [m]

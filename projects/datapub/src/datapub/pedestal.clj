@@ -7,7 +7,7 @@
             [io.pedestal.http :as http]
             [sysrev.lacinia.interface :as sl]
             [sysrev.lacinia-pedestal.interface :as slp]
-            [taoensso.timbre :as t]))
+            [clojure.tools.logging :as log]))
 
 (def resolvers
   {:Dataset {:entities #'dataset/resolve-Dataset#entities
@@ -43,7 +43,7 @@
   (if (util/sysrev-dev? context)
     (let [message (str "Exception induced by developer: "
                        (get-in context [:request :params :message]))]
-      (t/error message)
+      (log/error message)
       (throw (Exception. message)))
     {:status 403 :headers {} :body "Forbidden"}))
 

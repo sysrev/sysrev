@@ -82,11 +82,11 @@
             (f x)
             (catch Throwable e
               (log/errorf "handle-listener error %s\n\n%s"
-                          (with-out-str (print-cause-trace-custom e 20))
+                          (with-out-str (print-cause-trace-custom e))
                           (pr-str x)))))
         (catch Throwable e
           (log/errorf "handle-listener error %s"
-                      (with-out-str (print-cause-trace-custom e 20))))))))
+                      (with-out-str (print-cause-trace-custom e))))))))
 
 (defrecord Listener [channels handlers-f postgres state]
   component/Lifecycle

@@ -6,6 +6,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [clj-time.core :as time]
             [me.raynes.fs :as fs]
             [medley.core :as medley]
             [orchestra.core :refer [defn-spec]]
@@ -62,12 +63,8 @@
             [sysrev.user.interface :as user :refer [user-by-email]]
             [sysrev.user.interface.spec :as su]
             [sysrev.user.core :refer [user-by-username]]
-            [sysrev.util
-             :as
-             util
-             :refer
-             [in? index-by req-un sum
-              uuid-from-string]]
+            [sysrev.util :as util :refer
+             [in? index-by req-un sum uuid-from-string]]
             [sysrev.web.app :as app])
   (:import (java.util.zip ZipEntry ZipOutputStream)))
 
@@ -1357,8 +1354,7 @@
   [project-id emails]
   (let [project (q/find-one :project {:project-id project-id})
         project-name (:name project)
-        project-hash (some-> project :project-uuid util/short-uuid)
-        invite-url (str (sysrev-base-url) "/register/" project-hash)
+        invite-url (str (sysrev-base-url) "/register/" (:invite-code project))
         responses (->> emails
                        (filter util/email?)
                        set ; remove duplicates
@@ -1514,15 +1510,22 @@
   {:success true
    :labels (project/project-labels project-id true)})
 
-(defonce last-log-slack (atom 0))
+(defonce last-log-slack-ui (atom (time/epoch)))
 
 (defn record-ui-errors! [request]
-  (let [data {:errors (:errors (:body request))
-              :user-id (app/current-user-id request)}
-        now (System/nanoTime)]
-    (when (< (* 60 1000000000) (- now @last-log-slack))
-      (swap! last-log-slack max now)
+  ;; (throw (Exception. "record-ui-errors test error"))
+  (let [user-id (app/current-user-id request)
+        {:keys [errors]} (:body request)
+        now (time/now)
+        elapsed (time/interval @last-log-slack-ui now)]
+    (when (>= (time/in-millis elapsed) 500)
+      (reset! last-log-slack-ui now)
       (slack/try-log-slack
-       ["*UI error(s)*" (format "*Errors*:\n```%s```" (util/pp-str data))]
-       "UI error(s)"))
-    (log/error "UI Errors:" data)))
+       (concat ["*UI Errors*"]
+               (for [{:keys [data uri]} errors]
+                 (with-out-str
+                   (println (format "```%s```" (-> {:uri uri :user-id user-id}
+                                                   util/pp-str str/trim-newline)))
+                   (doseq [[_ msg] data]
+                     (println (format "```%s```" msg))))))
+       "UI Errors"))))

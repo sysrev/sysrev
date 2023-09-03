@@ -21,6 +21,7 @@
             [postgre-types.json :refer [add-jsonb-type]]
             [sysrev.config :refer [env]]
             [sysrev.memcached.interface :as mem]
+            [sysrev.stacktrace :refer [print-cause-trace-custom]]
             [sysrev.postgres.interface :as pg]
             [sysrev.util :as util :refer [in?]])
   (:import (java.sql Connection PreparedStatement)
@@ -252,8 +253,12 @@
      result#))
 
 (defn log-too-long-transaction [e elapsed-time-ms max-time-ms]
-  (log/warn e "Transaction took too long:" elapsed-time-ms "ms"
-            "(allowed" max-time-ms "ms)"))
+  (log/warnf "Transaction took too long: %d ms (allowed %d ms)\n%s"
+             elapsed-time-ms max-time-ms
+             (->> (with-out-str (print-cause-trace-custom e))
+                  (str/split-lines)
+                  (drop 1)
+                  (str/join "\n"))))
 
 (defmacro with-transaction
   "Run body wrapped in an SQL transaction. If *conn* is already bound to a

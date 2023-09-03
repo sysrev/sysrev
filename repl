@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-set -eu
-
-scripts/rebuild-changed-files
-
-ENV=dev lein with-profile +dev,+repl,+local-repl repl

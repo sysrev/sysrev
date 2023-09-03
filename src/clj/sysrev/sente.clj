@@ -61,8 +61,8 @@
             (handle-message! sente x)
             (catch Throwable e
               (log/errorf "receive-sente-channel! error %s\n\n%s"
-                          (with-out-str (print-cause-trace-custom e 20))
+                          (with-out-str (print-cause-trace-custom e))
                           (pr-str x)))))
         (catch Throwable e
           (log/errorf "receive-sente-channel! error %s"
-                      (with-out-str (print-cause-trace-custom e 20))))))))
+                      (with-out-str (print-cause-trace-custom e))))))))

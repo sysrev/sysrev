@@ -8,7 +8,7 @@
             [sysrev.db.queries :as q]
             [sysrev.notification.interface :refer [create-notification]]
             [sysrev.postgres.interface :as pg]
-            [sysrev.slack :refer [log-slack-custom]]
+            [sysrev.slack :refer [log-slack]]
             [sysrev.source.core :as source]
             [sysrev.stacktrace :as strace]
             [sysrev.util :as util :refer [in? parse-integer pp-str]]))
@@ -165,13 +165,13 @@
     ;; log errors
      (try (let [source (q/find-one :project-source {:source-id source-id})]
             (cond (not success?)
-                  (log-slack-custom ["*Article source import failed*"
-                                     (format "*Source*:\n```%s```" (pp-str {:source source}))]
-                                    "Article source import failed")
+                  (log-slack ["*Article source import failed*"
+                              (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                             "Article source import failed")
                   (and success? (zero? (q/find-count :article-source {:source-id source-id})))
-                  (log-slack-custom ["*Article source import - 0 articles loaded*"
-                                     (format "*Source*:\n```%s```" (pp-str {:source source}))]
-                                    "Article source import - 0 articles loaded")))
+                  (log-slack ["*Article source import - 0 articles loaded*"
+                              (format "*Source*:\n```%s```" (pp-str {:source source}))]
+                             "Article source import - 0 articles loaded")))
           (catch Throwable _
             (log/error "after-source-import - logging error to slack failed")))
     ;; update the enabled flag for the articles

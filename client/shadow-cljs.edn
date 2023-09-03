@@ -1,7 +1,8 @@
 {:deps true
  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
             ;; https://github.com/thheller/shadow-cljs/issues/556
-            "-Xms400m" "-Xmx1400m"]
+            "-Xms400m" "-Xmx1400m"
+            "-Dpolyglot.engine.WarnInterpreterOnly=false"]
  :builds {:dev {:target :browser
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out-dev"
