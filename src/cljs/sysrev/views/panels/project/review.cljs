@@ -17,7 +17,7 @@
       [:div.project-content
        (with-loader [[:review/task project-id]] {}
          [:div
-          [GroupLabelEditor @(subscribe [:visible-article-id])]
+          [GroupLabelEditor @(subscribe [:review/article-id])]
           [ArticleInfo article-id :show-labels? false :context :review]])
        (when article-id [LabelAnswerEditor article-id])
        child])))

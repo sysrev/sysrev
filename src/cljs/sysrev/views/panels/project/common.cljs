@@ -108,15 +108,16 @@
            :action (project-uri project-id "/articles")
            :disabled (not ready?)
            :tooltip not-ready-msg}
-          {:tab-id [:project :articles-data]
-           :class "articles-data"
-           :content [:span
-                     (when-not mobile?
-                       [:span [:i.table.icon] " "])
-                     "Data"]
-           :action (project-uri project-id "/data")
-           :disabled (not ready?)
-           :tooltip not-ready-msg}
+          (when-not mobile?
+            {:tab-id [:project :articles-data]
+             :class "articles-data"
+             :content [:span
+                       (when-not mobile?
+                         [:span [:i.table.icon] " "])
+                       "Data"]
+             :action (project-uri project-id "/data")
+             :disabled (not ready?)
+             :tooltip not-ready-msg})
           {:tab-id [:project :users]
            :class "users"
            :content [:span

@@ -89,17 +89,3 @@
               (fn [db [view path val & [panel]]]
                 (let [panel (or panel (nav/active-panel db))]
                   (assoc-in db (concat [:state :panels panel :views view] path) val))))
-
-;;;
-;;; Misc
-;;;
-
-(reg-sub :visible-article-id
-         :<- [:review/on-review-task?]
-         :<- [:review/task-id]
-         :<- [:project-articles/article-id]
-         :<- [:article-view/article-id]
-         (fn [[on-review? id-review id-project id-single]]
-           (or (and on-review? id-review)
-               id-project
-               id-single)))

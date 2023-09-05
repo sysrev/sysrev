@@ -2,8 +2,7 @@
   (:require [clojure.string :as str]
             [medley.core :as medley]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
-                                   reg-event-fx]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub reg-event-fx trim-v]]
             [sysrev.action.core :as action]
             [sysrev.data.core :as data]
             [sysrev.loading :as loading]
@@ -122,7 +121,6 @@
     (if elem
       true
       false)))
-
 
 (defn missing-answer? [{:keys [enabled required value-type]} answer]
   (and enabled required
@@ -270,7 +268,7 @@
 
 (defn AnnotationLabelInput [[root-label-id label-id ith] article-id]
   (let [dom-class (str "label-edit-" article-id "-" root-label-id "-" label-id "-" ith)
-        article-id @(subscribe [:visible-article-id])
+        article-id @(subscribe [:review/article-id])
         ann-context {:project-id @(subscribe [:active-project-id])
                      :article-id article-id
                      :class "abstract"}]
@@ -281,13 +279,14 @@
             current-values-count (count current-values)]
         [:div {:class dom-class}
          [:div.ui.grid
-          [:div.center.aligned.column {:on-click #(dispatch [:set-review-annotation-interface
-                                                             ann-context
-                                                             {:root-label-id root-label-id
-                                                              :label-id label-id
-                                                              :article-id article-id
-                                                              :ith ith}
-                                                             current-values])}
+          [:div.center.aligned.column
+           {:on-click #(dispatch [:set-review-annotation-interface
+                                  ann-context
+                                  {:root-label-id root-label-id
+                                   :label-id label-id
+                                   :article-id article-id
+                                   :ith ith}
+                                  current-values])}
            [:button.ui.primary.button
             "Annotate"]]]
          (if (empty? current-values)
@@ -418,22 +417,21 @@
                                            "icon")}]
       [Icon {:style {:margin "0"}}])))
 
-(defn label-help-popup [{:keys [category required question definition]}]
+(defn LabelHelpPopup [{:keys [category required question definition]}]
   (let [criteria? (= category "inclusion criteria")
         required? required
         examples (:examples definition)]
     [:div.ui.grid.label-help
      [:div.middle.aligned.center.aligned.row.label-help-header
       [:div.ui.sixteen.wide.column
-       [:span #_ {:style {:font-size "110%"}}
-        (str (cond (and criteria? required?)
-                   "Required - Inclusion Criteria"
-                   (and criteria? (not required?))
-                   "Optional - Inclusion Criteria"
-                   required?
-                   "Required Label"
-                   :else
-                   "Optional Label"))]]]
+       [:span (str (cond (and criteria? required?)
+                         "Required - Inclusion Criteria"
+                         (and criteria? (not required?))
+                         "Optional - Inclusion Criteria"
+                         required?
+                         "Required Label"
+                         :else
+                         "Optional Label"))]]]
      [:div.middle.aligned.row.label-help-question
       [:div.sixteen.wide.column.label-help
        [:div [:span (str question)]]
@@ -524,7 +522,7 @@
                         name-content
                         (when (seq question)
                           [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
-          :tooltip [label-help-popup
+          :tooltip [LabelHelpPopup
                     {:category @(subscribe [:label/category "na" label-id])
                      :required @(subscribe [:label/required? "na" label-id])
                      :question @(subscribe [:label/question "na" label-id])
@@ -571,6 +569,22 @@
        [:span.ui.tiny.green.circular.label today-count]
        [:span.text nbsp nbsp "today"]])))
 
+(reg-sub :review/saving?
+         (fn [[_ article-id]] (subscribe [:panel-field [:saving-labels article-id]]))
+         (fn [saving?] saving?))
+
+;; Record POST action to send labels having been initiated,
+;; to show loading indicator on the button that was clicked.
+(reg-event-fx :review/mark-saving [trim-v]
+              (fn [_ [article-id panel]]
+                {:dispatch [:set-panel-field [:saving-labels article-id] true panel]}))
+
+;; Reset state set by :review/mark-saving
+(reg-event-fx :review/reset-saving [trim-v]
+              (fn [_ [article-id panel]]
+                (let [field (if article-id [:saving-labels article-id] [:saving-labels])]
+                  {:dispatch [:set-panel-field field nil panel]})))
+
 (defn- review-task-saving? [article-id]
   (and @(subscribe [:review/saving? article-id])
        (or (action/running? :review/send-labels)
@@ -592,7 +606,6 @@
           saving? (review-task-saving? article-id)
           disabled? (or (seq missing) (seq invalid))
           settings @(subscribe [:project/settings])
-          project-articles-id @(subscribe [:project-articles/article-id])
           on-save (util/wrap-user-event
                    (fn []
                      (reset! can-auto-save? false) ; prevents infinite auto save loop if the server rejects the request
@@ -616,11 +629,7 @@
                                              [[:fetch [:review/task project-id]]])
                                            (when (not @on-review-task?)
                                              [[:fetch [:article project-id article-id]]
-                                              [:review/disable-change-labels article-id]])
-                                           (when project-articles-id
-                                             [[:project-articles/reload-list]
-                                              [:project-articles/hide-article]
-                                              [:scroll-top]])))}]))))))
+                                              [:review/disable-change-labels article-id]])))}]))))))
           button (fn [] [:button.ui.right.labeled.icon.button.save-labels
                          {:class (css [(or disabled? saving?) "disabled"]
                                       [saving? "loading"]
@@ -679,37 +688,6 @@
              "Skip Article" "Skip")
            [:i.right.circle.arrow.icon]])))
 
-;; Component for row of action buttons below label inputs grid
-(defn- label-editor-buttons-view [article-id]
-  (let [on-review-task? @(subscribe [:review/on-review-task?])]
-    [:div.ui.segment
-     (if (util/full-size?)
-       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
-        [ui/CenteredColumn
-         (when on-review-task? [ActivityReport])
-         "left aligned four wide column"]
-        [ui/CenteredColumn
-         [:div.ui.grid.centered>div.ui.row
-          (SaveButton article-id)
-          (when on-review-task? (SkipArticle article-id))]
-         "center aligned eight wide column"]
-        [ui/CenteredColumn
-         [:span]
-         "right aligned four wide column"]]
-       ;; mobile/tablet
-       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
-        [ui/CenteredColumn
-         (when on-review-task? [ActivityReport])
-         "left aligned four wide column"]
-        [ui/CenteredColumn
-         [:div.ui.center.aligned.grid>div.ui.row
-          (SaveButton article-id true)
-          (when on-review-task? (SkipArticle article-id true))]
-         "center aligned eight wide column"]
-        [ui/CenteredColumn
-         [:span]
-         "right aligned four wide column"]])]))
-
 (defn make-label-columns [article-id label-ids n-cols]
   (doall (for [row (partition-all n-cols label-ids)]
            ^{:key [(first row)]}
@@ -765,8 +743,41 @@
 (defn display-sidebar? []
   (and (util/annotator-size?) @(subscribe [:review-interface])))
 
-;; Top-level component for label editor
-(defn LabelAnswerEditor [article-id]
+(defn- LabelEditorButtonsView
+  "Component for row of action buttons below label inputs grid"
+  [article-id]
+  (let [on-review-task? @(subscribe [:review/on-review-task?])]
+    [:div.ui.segment
+     (if (util/full-size?)
+       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
+        [ui/CenteredColumn
+         (when on-review-task? [ActivityReport])
+         "left aligned four wide column"]
+        [ui/CenteredColumn
+         [:div.ui.grid.centered>div.ui.row
+          (SaveButton article-id)
+          (when on-review-task? (SkipArticle article-id))]
+         "center aligned eight wide column"]
+        [ui/CenteredColumn
+         [:span]
+         "right aligned four wide column"]]
+       ;; mobile/tablet
+       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
+        [ui/CenteredColumn
+         (when on-review-task? [ActivityReport])
+         "left aligned four wide column"]
+        [ui/CenteredColumn
+         [:div.ui.center.aligned.grid>div.ui.row
+          (SaveButton article-id true)
+          (when on-review-task? (SkipArticle article-id true))]
+         "center aligned eight wide column"]
+        [ui/CenteredColumn
+         [:span]
+         "right aligned four wide column"]])]))
+
+(defn LabelAnswerEditor
+  "Top-level component for label editor"
+  [article-id]
   (when article-id
     (when-let [project-id @(subscribe [:active-project-id])]
       (with-loader [[:article project-id article-id]] {}
@@ -799,7 +810,7 @@
                  [ViewAllLabelsButton]]])
              [NoteInputElement]
              (when-not (display-sidebar?)
-               [label-editor-buttons-view article-id])]))))))
+               [LabelEditorButtonsView article-id])]))))))
 
 (defn LabelAnswerEditorColumn [_article-id]
   (r/create-class

@@ -349,7 +349,6 @@
                (when content
                  [JSONView content cursors])])))))))
 
-
 (defn- AnystyleView [content]
   (let [{:strs [author container-title date pages url volume]} content
         authors (map (fn [{:strs [given family]}]
@@ -582,8 +581,24 @@
                   :header "Predictions"
                   :props {:id "predictions"})))
 
-(defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context
-                                        change-labels-button resolving?]
+(defn- ChangeLabelsButton [article-id & {:keys [sidebar]}]
+  (when-not @(subscribe [:review/on-review-task?])
+    (let [editing?           @(subscribe [:review/editing? article-id])
+          editing-allowed?   @(subscribe [:review/editing-allowed? article-id])
+          resolving-allowed? @(subscribe [:review/resolving-allowed? article-id])]
+      (when (not editing?)
+        [:div.ui.fluid.left.labeled.icon.button.primary.change-labels
+         {:class    (css [sidebar "small"] [resolving-allowed? "resolve-labels"])
+          :style    {:margin-top "1em"}
+          :on-click (util/wrap-user-event
+                     #(do (dispatch [:review/enable-change-labels article-id])
+                          (dispatch [:set-review-interface :labels])))}
+         [:i.pencil.icon]
+         (cond resolving-allowed? "Resolve Labels"
+               editing-allowed?   "Change Labels"
+               :else              "Manually Add Labels")]))))
+
+(defn ArticleInfo [article-id & {:keys [show-labels? private-view? show-score? context resolving?]
                                  :or {show-score? true}}]
   (let [full-size? (util/full-size?)
         project-id @(subscribe [:active-project-id])
@@ -640,6 +655,6 @@
        [:div
         [:h3 "Help info"]
         [:> ReactMarkdown {:plugins [gfm] :children helper-text}]])
-     (when change-labels-button [change-labels-button])
+     [ChangeLabelsButton article-id]
      (when show-labels? [ArticleLabelsView article-id
                          :self-only? private-view? :resolving? resolving?])]))

@@ -1,8 +1,6 @@
 (ns sysrev.views.panels.project.articles
   (:require [re-frame.core :refer
-             [dispatch reg-event-fx reg-fx reg-sub
-              reg-sub-raw subscribe trim-v]]
-            [reagent.ratom :refer [reaction]]
+             [dispatch reg-event-fx reg-fx reg-sub subscribe trim-v]]
             [sysrev.macros :refer-macros [setup-panel-state def-panel]]
             [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.util :as util]
@@ -31,36 +29,6 @@
 
 (defn get-context []
   @(subscribe [::article-list-context]))
-
-(reg-sub :project-articles/article-id
-         :<- [:active-panel]
-         :<- [:article-list/article-id {:panel panel}]
-         (fn [[active-panel article-id]]
-           (when (= active-panel panel)
-             article-id)))
-
-(reg-sub-raw :project-articles/editing?
-             (fn [_]
-               (reaction
-                (let [context (get-context)
-                      article-id @(subscribe [:article-list/article-id context])
-                      active-panel @(subscribe [:active-panel])]
-                  (when (= active-panel panel)
-                    @(subscribe [:article-list/editing? context article-id]))))))
-
-(reg-sub-raw :project-articles/resolving?
-             (fn [_]
-               (reaction
-                (let [context (get-context)
-                      article-id @(subscribe [:article-list/article-id context])
-                      active-panel @(subscribe [:active-panel])]
-                  (when (= active-panel panel)
-                    @(subscribe [:article-list/resolving? context article-id]))))))
-
-(reg-event-fx :project-articles/hide-article [trim-v]
-              (fn [{:keys [db]}]
-                {:dispatch [:article-list/set-active-article
-                            (get-context-from-db db) nil]}))
 
 (reg-event-fx :articles/load-source-filters [trim-v]
               (fn [{:keys [db]} [source-ids]]
@@ -139,11 +107,6 @@
 (reg-event-fx :project-articles/load-preset [trim-v]
               (fn [_ [preset-name]]
                 {::load-preset preset-name}))
-
-(reg-event-fx :project-articles/reload-list [trim-v]
-              (fn [{:keys [db]} []]
-                (al/reload-list (get-context-from-db db) :transition)
-                {}))
 
 (defn- Panel [child]
   (when @(subscribe [:active-project-id])

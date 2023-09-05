@@ -94,7 +94,7 @@
    {:component-did-mount util/update-sidebar-height
     :reagent-render
     (fn []
-      (let [article-id @(subscribe [:visible-article-id])
+      (let [article-id @(subscribe [:review/article-id])
             pdf-key (when article-id
                       (some-> @(subscribe [:view-field :article [article-id :pdf-url]])
                               pdf/pdf-url->key))
@@ -105,7 +105,7 @@
         [annotator/AnnotationMenu ann-context "abstract"]))}))
 
 (defn SidebarColumn [!ref]
-  (let [article-id @(subscribe [:visible-article-id])
+  (let [article-id @(subscribe [:review/article-id])
         editing-id @(subscribe [:review/editing-id])
         interface @(subscribe [:review-interface])]
     (when (review/display-sidebar?)

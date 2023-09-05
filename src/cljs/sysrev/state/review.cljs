@@ -9,6 +9,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel active-project-id]]
             [sysrev.state.article :as article]
+            [sysrev.state.ui :refer [set-panel-field get-panel-field]]
             [sysrev.util :as util :refer [in?]]))
 
 (reg-event-fx :review/record-reviewer-event
@@ -116,17 +117,18 @@
     (if (= result :none)
       {:db (load-review-task db project-id :none nil)}
       (let [{:keys [article-id] :as article}
-            #__ (merge article {:labels labels :notes notes})]
+            (merge article {:labels labels :notes notes})]
         (cond-> {:db (-> (load-review-task db project-id (:article-id article) today-count)
                          (article/load-article article))
-                 :dispatch [:review/set-default-values]}
+                 :dispatch-n (list [:review/reset-saving]
+                                   [:review/set-default-values])}
           (= (active-panel db) [:project :review])
-          #__ (merge {:fx [[:scroll-top true]
-                           [:dispatch
-                            [:review/record-reviewer-event
-                             [:review/task
-                              {:article-id article-id
-                               :project-id project-id}]]]]}))))))
+          (merge {:fx [[:scroll-top true]
+                       [:dispatch
+                        [:review/record-reviewer-event
+                         [:review/task
+                          {:article-id article-id
+                           :project-id project-id}]]]]}))))))
 
 (def-action :review/send-labels
   :uri (constantly "/api/set-labels")
@@ -143,8 +145,7 @@
       (let [success-fns    (->> on-success (remove nil?) (filter fn?))
             success-events (->> on-success (remove nil?) (remove fn?))]
         (doseq [f success-fns] (f))
-        {:dispatch-n (concat success-events [[:review/reset-saving]
-                                             [:review/reset-ui-labels]])})))
+        {:dispatch-n (concat success-events [[:review/reset-ui-labels]])})))
   :on-error
   (fn [{:keys [db error]} [_ _] _]
     (util/log-err ":review/send-labels ; error = %s" (pr-str error))
@@ -157,39 +158,6 @@
 (reg-sub :review/on-review-task?
          :<- [:active-panel]
          (fn [panel] (= panel [:project :review])))
-
-(reg-sub
- :review/editing-id
- :<- [:review/on-review-task?]
- :<- [:review/task-id]
- :<- [:project-articles/editing?]
- :<- [:project-articles/article-id]
- :<- [:article-view/editing?]
- :<- [:article-view/article-id]
- (fn [[on-review-task? task-aid
-       project-editing? project-aid
-       single-editing? single-aid]]
-   (cond (and on-review-task?
-              (integer? task-aid))  task-aid
-         project-editing?           project-aid
-         single-editing?            single-aid)))
-
-(reg-sub
- :review/editing?
- :<- [:review/editing-id]
- (fn [editing-id]
-   (if editing-id true false)))
-
-(reg-sub
- :review/resolving?
- :<- [:project-articles/article-id]
- :<- [:project-articles/resolving?]
- :<- [:article-view/article-id]
- :<- [:article-view/resolving?]
- (fn [[project-aid project-resolving?
-       single-aid single-resolving?]]
-   (boolean (or (and project-aid project-resolving?)
-                (and single-aid single-resolving?)))))
 
 (reg-sub ::labels #(get-in % [:state :review :labels]))
 
@@ -225,12 +193,10 @@
                (nil? label-id)
                merged-vals
                ;; non-grouped label
-               (and (= "na" root-label-id)
-                    label-id)
+               (and (= "na" root-label-id) label-id)
                (get merged-vals label-id)
                ;; grouped label
-               (and (not= "na" root-label-id)
-                    label-id)
+               (and (not= "na" root-label-id) label-id)
                (get-in merged-vals [root-label-id :labels ith label-id])))))
 
 (reg-sub :review/sub-group-label-answer
@@ -260,40 +226,7 @@
                     (boolean (in? inconsistent label-id))
                     (vec inconsistent))))))
 
-(reg-sub :review/saving?
-         (fn [[_ article-id]] (subscribe [:panel-field [:saving-labels article-id]]))
-         (fn [saving?] saving?))
 
-;; Record POST action to send labels having been initiated,
-;; to show loading indicator on the button that was clicked.
-(reg-event-fx :review/mark-saving [trim-v]
-              (fn [_ [article-id panel]]
-                {:dispatch [:set-panel-field [:saving-labels article-id] true panel]}))
-
-;; Reset state set by :review/mark-saving
-(reg-event-fx :review/reset-saving [trim-v]
-              (fn [_ [article-id panel]]
-                (let [field (if article-id [:saving-labels article-id] [:saving-labels])]
-                  {:dispatch [:set-panel-field field nil panel]})))
-
-(reg-sub :review/change-labels?
-         (fn [[_ article-id panel]]
-           (subscribe [:panel-field [:transient :change-labels? article-id] panel]))
-         (fn [change-labels?] change-labels?))
-
-;; Change interface state to enable label editor for an article where
-;; user has confirmed answers.
-(reg-event-fx :review/enable-change-labels [trim-v]
-              (fn [_ [article-id panel]]
-                {:dispatch [:set-panel-field [:transient :change-labels? article-id] true panel]}))
-
-;; Hide label editor for article where user has confirmed answers
-(reg-event-fx :review/disable-change-labels [trim-v]
-              (fn [_ [article-id panel]]
-                {:dispatch-n
-                 (list [:set-panel-field [:transient :change-labels? article-id] false panel]
-                       [:review/reset-ui-labels]
-                       [:review/reset-ui-notes])}))
 
 ;; this is needed for group string labels that allow multiple values
 (defn filter-blank-string-labels [m]
@@ -320,18 +253,14 @@
                                        :resolve? resolve?
                                        :change? change?
                                        :on-success on-success}]]]
-                        [:dispatch                         [:review/record-reviewer-event
-                                                            [kw {:article-id article-id
-                                                                 :project-id project-id}]]]]})))
+                        [:dispatch [:review/record-reviewer-event
+                                    [kw {:article-id article-id
+                                         :project-id project-id}]]]]})))
 
 ;; Reset state of locally changed label values in review interface
 (reg-event-fx :review/reset-ui-labels
               (fn [{:keys [db]}]
                 {:db (assoc-in db [:state :review :labels] {})}))
-
-(reg-event-db :set-review-interface
-              (fn [db [_ interface]]
-                (assoc-in db [:state :review-interface] interface)))
 
 (reg-event-fx :set-review-annotation-interface
               (fn [{:keys [db]} [_ context annotation-data annotations]]
@@ -343,9 +272,106 @@
 
 (reg-sub :review-interface
          :<- [:active-project-id]
-         :<- [:visible-article-id]
-         :<- [:review/editing-id]
+         :<- [:review/article-id]
+         :<- [:review/editing?]
          :<- [::review-interface-override]
-         (fn [[project-id article-id editing-id override]]
-           (when (and project-id article-id editing-id)
+         (fn [[project-id article-id editing? override]]
+           (when (and project-id article-id editing?)
              (or override :labels))))
+
+(reg-event-db :set-review-interface
+              (fn [db [_ interface]]
+                (assoc-in db [:state :review-interface] interface)))
+
+(reg-sub ::article-id
+         (fn [db [_ panel]]
+           (get-panel-field db [::article-id] panel)))
+
+(reg-event-db :review/set-article-id
+              (fn [db [_ article-id panel]]
+                (set-panel-field db [::article-id] article-id panel)))
+
+(reg-sub :review/article-id
+         :<- [::article-id]
+         :<- [:review/task-id]
+         :<- [:review/on-review-task?]
+         (fn [[article-id task-id review?]]
+           (if review?
+             (when-not (= task-id :none) task-id)
+             article-id)))
+
+(reg-sub-raw :review/change-labels?
+             (fn [_ [_ article-id panel]]
+               (reaction
+                (let [review-id @(subscribe [:review/article-id])
+                      article-id (or article-id review-id)]
+                  (when (and review-id (= article-id review-id))
+                    @(subscribe [:panel-field [:transient :change-labels? article-id] panel]))))))
+
+;; Change interface state to enable label editor for an article where
+;; user has confirmed answers.
+(reg-event-fx :review/enable-change-labels [trim-v]
+              (fn [_ [article-id panel]]
+                {:dispatch [:set-panel-field [:transient :change-labels? article-id] true panel]}))
+
+;; Hide label editor for article where user has confirmed answers
+(reg-event-fx :review/disable-change-labels [trim-v]
+              (fn [_ [article-id panel]]
+                {:dispatch-n
+                 (list [:set-panel-field [:transient :change-labels? article-id] false panel]
+                       [:review/reset-ui-labels]
+                       [:review/reset-ui-notes])}))
+
+(reg-sub-raw :review/editing-allowed?
+             (fn [_ [_ article-id]]
+               (reaction
+                (let [review-id @(subscribe [:review/article-id])
+                      article-id (or article-id review-id)
+                      project-id @(subscribe [:active-project-id])
+                      self-id @(subscribe [:self/user-id])]
+                  (boolean
+                   (and project-id review-id self-id
+                        (= article-id review-id)
+                        @(subscribe [:self/member? project-id])
+                        (or @(subscribe [:review/resolving-allowed? article-id])
+                            (in? [:confirmed :unconfirmed]
+                                 @(subscribe [:article/user-status article-id])))))))))
+
+(reg-sub :review/editing?
+         :<- [:review/article-id]
+         :<- [:review/change-labels?]
+         :<- [:review/on-review-task?]
+         (fn [[review-id change-labels? review?] [_ article-id]]
+           (let [article-id (or article-id review-id)]
+             (and review-id
+                  (= article-id review-id)
+                  (or change-labels? review?)))))
+
+(reg-sub :review/editing-id
+         :<- [:review/article-id]
+         :<- [:review/editing?]
+         (fn [[article-id editing?]]
+           (when editing? article-id)))
+
+(reg-sub-raw :review/resolving-allowed?
+             (fn [_ [_ article-id]]
+               (reaction
+                (let [review-id @(subscribe [:review/article-id])
+                      article-id (or article-id review-id)
+                      review-status @(subscribe [:article/review-status review-id])
+                      resolver? @(subscribe [:member/resolver?])]
+                  (boolean (and review-id
+                                (= article-id review-id)
+                                (= :conflict review-status)
+                                resolver?))))))
+
+(reg-sub :review/resolving?
+         :<- [:review/article-id]
+         :<- [:review/editing?]
+         :<- [:review/resolving-allowed?]
+         (fn [[review-id editing? resolving-allowed?] [_ article-id]]
+           (let [article-id (or article-id review-id)]
+             (boolean (and review-id
+                           (= article-id review-id)
+                           editing?
+                           resolving-allowed?)))))

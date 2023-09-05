@@ -3,8 +3,7 @@
             [clojure.string :as str]
             [medley.core :as medley]
             [re-frame.core :refer
-             [dispatch dispatch-sync reg-event-db
-              reg-event-fx reg-sub subscribe trim-v]]
+             [dispatch dispatch-sync reg-event-db reg-event-fx reg-sub subscribe trim-v]]
             [reagent.core :as r]
             [sysrev.action.core :as action]
             [sysrev.shared.labels :refer [predictable-label-types]]

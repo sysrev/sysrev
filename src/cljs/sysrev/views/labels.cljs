@@ -169,7 +169,7 @@
                            (filter #(contains? labels %)))
         value-type #(deref (subscribe [:label/value-type "na" %]))
         dark-theme? @(subscribe [:self/dark-theme?])
-        editing? (subscribe [:article-list/editing? nil article-id])]
+        editing? (subscribe [:review/editing? article-id])]
     [:div.label-values
      (when user-name
        [:div.ui.label.user-name {:class (css [(not dark-theme?) "basic"])}
