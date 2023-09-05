@@ -39,6 +39,7 @@
        (filter #(or include-disabled? (:enabled %)))
        (sort-by #(or (:short-label %) ""))
        (sort-by :project-ordering <)
+       (sort-by #(if (= (:name %) "overall include") 0 1))
        (mapv :label-id)))
 
 ;; Use this to get a sequence of label-id from project in a consistent
