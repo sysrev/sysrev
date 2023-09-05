@@ -1,5 +1,6 @@
 (ns sysrev.test.e2e.pubmed-test
   (:require [clojure.test :refer :all]
+            [etaoin.api :as ea]
             [sysrev.etaoin-test.interface :as et]
             [sysrev.project.article-list :as article-list]
             [sysrev.project.member :as member]
@@ -18,13 +19,14 @@
       (member/add-project-member project-id user-id :permissions ["owner" "admin" "member"])
       (e/go-project test-resources project-id "/add-articles")
       (testing "Can import PubMed articles to a project"
-        (doto driver
-          (et/is-click-visible [:import-articles {:fn/text "PubMed"}])
-          (et/is-fill-visible q-search-input "foo bar")
-          (et/is-click-visible q-search-submit)
-          e/wait-until-loading-completes
-          (et/is-click-visible :import-articles-pubmed)
-          e/wait-until-loading-completes))
+        (ea/with-wait-timeout 15
+          (doto driver
+            (et/is-click-visible [:import-articles {:fn/text "PubMed"}])
+            (et/is-fill-visible q-search-input "foo bar")
+            (et/is-click-visible q-search-submit)
+            e/wait-until-loading-completes
+            (et/is-click-visible :import-articles-pubmed)
+            e/wait-until-loading-completes)))
       (et/is-wait-pred #(seq (article-list/project-article-sources project-id)))
       (is (every? (->> (test/execute!
                         system
