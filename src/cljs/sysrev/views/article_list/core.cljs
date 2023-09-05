@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [re-frame.core :refer
              [dispatch dispatch-sync reg-event-fx reg-fx reg-sub subscribe trim-v]]
+            [sysrev.base :refer [active-route]]
             [sysrev.data.core :as data]
             [sysrev.macros :refer-macros [with-loader]]
             [sysrev.util :as util :refer [css in? index-by]]
@@ -142,7 +143,8 @@
             (map-indexed
               (fn [i {:keys [article-id labels notes] :as article}]
                 (let [recent? (= article-id recent-article)
-                      loading? (data/loading? [:article project-id article-id])
+                      loading? (and (data/loading? [:article project-id article-id])
+                                    (= @active-route (al/get-base-uri context article-id)))
                       labels? (or show-labels show-notes)
                       first? (= i 0)
                       last? (= i (dec (count articles)))]
