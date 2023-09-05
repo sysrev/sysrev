@@ -18,7 +18,7 @@
      [ArticleInfo article-id
       :show-labels? true
       :private-view? blinded?
-      :context :article-list
+      :context :article
       :resolving? resolving?]
      (when editing? [review/LabelAnswerEditor article-id])
      [ArticlePredictions article-id]]))
