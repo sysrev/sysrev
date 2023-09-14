@@ -153,8 +153,8 @@
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user]}"]}
   :poly {:extra-deps {polylith/clj-poly
                       {:deps/root "projects/poly"
-                       :git/url "https://github.com/insilica/polylith.git"
-                       :sha "c7d2f94a79381ac31e96abeddeb1297f41f51add"}}
+                       :git/url "https://github.com/polyfy/polylith.git"
+                       :sha "48d8a14d31a02cd2229d99bca094fe383d3dcace"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}

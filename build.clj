@@ -29,7 +29,14 @@
   opts)
 
 (defn run-tests [{:keys [aliases fail-fast? focus focus-meta randomize? watch?] :as opts}]
-  (let [extra-config (cond-> {}
+  (let [;; Run tests for polylith components changed since last stable tag
+        args ["clj" "-M:poly" "test"]
+        _ (println (str "run-tests: " (pr-str args)))
+        {:keys [exit]} (b/process {:command-args ["clj" "-M:poly" "test"]})
+        _ (when-not (zero? exit)
+            (System/exit 1))
+        ;; Run whole system tests
+        extra-config (cond-> {}
                        fail-fast? (assoc :kaocha/fail-fast? true)
                        focus (assoc :kaocha.filter/focus [focus])
                        focus-meta (assoc :kaocha.filter/focus-meta [focus-meta])
