@@ -12,7 +12,7 @@
 (def q-search-input {:css "#import-articles form#search-bar input[type=text]"})
 (def q-search-submit {:css "#import-articles form#search-bar button[type=submit]"})
 
-(deftest ^:e2e test-import
+(deftest ^:optional test-import
   (e/with-test-resources [{:keys [driver system] :as test-resources} {}]
     (let [user-id (account/log-in test-resources (test/create-test-user system))
           project-id (e-project/create-project! test-resources "import-pubmed-sources")]

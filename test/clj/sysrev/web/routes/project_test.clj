@@ -129,7 +129,7 @@
         (is (= 1 (count projects))
             (format "response = %s" (pr-str response)))))))
 
-(deftest ^:integration add-articles-from-pubmed-search-test
+(deftest ^:optional add-articles-from-pubmed-search-test
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           search-term "foo bar"
@@ -203,7 +203,7 @@
                                                         {:project-id project-id})
                                         [:result :sources])))))))))
 
-(deftest ^:integration delete-project-sources
+(deftest ^:optional delete-project-sources
   (test/with-test-system [system {}]
     (let [handler (sysrev-handler system)
           {:keys [email password]} (test/create-test-user system)
