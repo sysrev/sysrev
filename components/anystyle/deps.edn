@@ -1,4 +1,7 @@
 {:paths ["src"]
  :deps {cheshire/cheshire {:mvn/version "5.11.0"}
         clj-http/clj-http {:mvn/version "3.12.3"}}
- :aliases {:test {:extra-paths ["test"]}}}
+ :aliases
+ {:test
+  {:extra-deps {babashka/process {:mvn/version "0.5.21"}}
+   :extra-paths ["test"]}}}
