@@ -32,7 +32,6 @@
   (let [cf (spy/bin-connection-factory {:failure-mode "cancel"})
         conn (spy/bin-connection (str "localhost:" port) cf)]
     (try
-      (spy/get-stats conn) ;; For some reason spy/gets fails without this line
       (spy/gets conn "k")
       true
       (catch CancellationException _
