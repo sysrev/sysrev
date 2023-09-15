@@ -25,6 +25,11 @@
   [^String s]
   (core/sanitize-str s))
 
+(defn sha256-base64
+  "Returns the base64-encoded sha256 hash of `s`."
+  ^String [^String s]
+  (core/sha256-base64 s))
+
 (defn wait-timeout
   "Retries pred until it returns a truthy value or timeout-ms is reached.
    Calls timeout-f in that case."

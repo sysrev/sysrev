@@ -1,6 +1,7 @@
 (ns sysrev.util-lite.core
-  (:require
-   [clojure.tools.logging :as log]))
+  (:require [clojure.tools.logging :as log])
+  (:import java.security.MessageDigest
+           java.util.Base64))
 
 (defn full-name ^String [x]
   (cond
@@ -71,3 +72,8 @@
               (or (Character/isLowSurrogate c)
                   (Character/isHighSurrogate c))))))
        (apply str)))
+
+(defn sha256-base64 [s]
+  (let [digest (MessageDigest/getInstance "SHA-256")
+        bytes (.digest digest (.getBytes s "UTF-8"))]
+    (.encodeToString (Base64/getEncoder) bytes)))
