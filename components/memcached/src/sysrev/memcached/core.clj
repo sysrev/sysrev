@@ -1,19 +1,13 @@
 (ns sysrev.memcached.core
   (:require [babashka.process :as p]
-            [clojure.core.cache :as cache]
-            [clojure.core.cache.wrapped :as cw]
             [clojure.edn :as edn]
             [clojurewerkz.spyglass.client :as spy]
             [com.stuartsierra.component :as component]
             [sysrev.util-lite.interface :as ul])
   (:import (java.util.concurrent CancellationException)))
 
-(defn internal-cache []
-  (cache/ttl-cache-factory {} :ttl 2000))
-
 (defn flush! [{:keys [cache client] :as component}]
   @(spy/flush client)
-  (reset! cache (internal-cache))
   component)
 
 (defrecord TempClient [cache client server]
@@ -24,9 +18,7 @@
       (->> server :bound-port
            (str "localhost:")
            spy/bin-connection
-           (assoc this
-                  :cache (atom (internal-cache))
-                  :client))))
+           (assoc this :client))))
   (stop [this]
     (if-not client
       this
@@ -92,9 +84,5 @@
 (defmacro cache [component ^String key ^Long ttl-sec & body]
   `(let [component# ~component
          key# ~key]
-     (cw/lookup-or-miss
-      (:cache component#)
-      key#
-      (fn [_#]
-        (cache* component# key# ~ttl-sec
-                (fn [] ~@body))))))
+     (cache* component# key# ~ttl-sec
+             (fn [] ~@body))))

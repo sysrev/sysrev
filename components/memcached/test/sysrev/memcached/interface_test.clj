@@ -13,5 +13,5 @@
     (is (= 1 (mem/cache memcached "A" 5 1)) "Uncached value")
     (is (= 1 (mem/cache memcached "A" 5 2)) "Cached value")
     (is (= 2 (mem/cache memcached "B" 1 2)) "Uncached value")
-    (Thread/sleep 2000)
+    (Thread/sleep 1100)
     (is (= 3 (mem/cache memcached "B" 1 3)) "Expired value")))
