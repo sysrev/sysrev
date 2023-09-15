@@ -75,7 +75,12 @@
 (defn cache*
   [{:keys [client]} ^String key ^Long ttl-sec f]
   (if-let [v (spy/get client key)]
-    (edn/read-string v)
+    (try
+      (edn/read-string v)
+      (catch Exception e
+        (throw (ex-info "Failed to deserialize cached value"
+                        {:key key :ttl-sec ttl-sec :value v}
+                        e))))
     (let [r (f)]
       (spy/set client key ttl-sec (pr-str r))
       r)))
