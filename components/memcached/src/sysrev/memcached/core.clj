@@ -1,11 +1,10 @@
 (ns sysrev.memcached.core
-  (:require [clojure.core.cache :as cache]
+  (:require [babashka.process :as p]
+            [clojure.core.cache :as cache]
             [clojure.core.cache.wrapped :as cw]
             [clojure.edn :as edn]
             [clojurewerkz.spyglass.client :as spy]
             [com.stuartsierra.component :as component]
-            [sysrev.contajners.interface :as con]
-            [sysrev.contajners.interface.config :as conc]
             [sysrev.util-lite.interface :as ul])
   (:import (java.util.concurrent CancellationException)))
 
@@ -22,7 +21,7 @@
   (start [this]
     (if client
       this
-      (->> server :ports first val first
+      (->> server :bound-port
            (str "localhost:")
            spy/bin-connection
            (assoc this
@@ -35,11 +34,6 @@
 
 (defn temp-client []
   (map->TempClient {}))
-
-(defn container-config []
-  (-> {:HostConfig {:AutoRemove true}
-       :Image "docker.io/library/memcached:1.6.15"}
-      (conc/add-port 0 11211)))
 
 (defn available? [port]
   {:pre [(pos-int? port)]}
@@ -54,18 +48,38 @@
       (finally
         (spy/shutdown conn)))))
 
-(defn after-start [{:keys [ports] :as component}]
-  (let [port (-> ports first val first)]
-    (ul/wait-timeout
-     #(available? port)
-     :timeout-f #(throw (ex-info "Could not connect to memcached"
-                                 {:port port}))
-     :timeout-ms 30000))
-  component)
+(defn wait-until-available [port]
+  (ul/wait-timeout
+   #(available? port)
+   :timeout-f #(throw (ex-info "Could not connect to memcached"
+                               {:port port}))
+   :timeout-ms 30000))
 
-(defn temp-server []
-  (con/temp-container "tmp-memcached-" (container-config)
-                      :after-start-f after-start))
+(defn run-server [port]
+  (ul/retry
+   {:interval-ms 10
+    :n (if (zero? port) 0 3)}
+   (let [bound-port (if (zero? port) (+ 20000 (rand-int 10000)) port)
+         server (p/process
+                 {}
+                 "memcached" "-l" (str "127.0.0.1:" bound-port))]
+     (wait-until-available bound-port)
+     {:bound-port bound-port
+      :server server})))
+
+(defrecord TempServer [bound-port port server]
+  component/Lifecycle
+  (start [this]
+    (if server
+      this
+      (merge this (run-server port))))
+  (stop [this]
+    (if-not server
+      this
+      (assoc this :server nil))))
+
+(defn temp-server [& {:keys [port]}]
+  (map->TempServer {:port (or port 0)}))
 
 (defn cache*
   [{:keys [client]} ^String key ^Long ttl-sec f]

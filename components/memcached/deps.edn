@@ -1,6 +1,9 @@
 {:paths ["src"]
- :deps {clojurewerkz/spyglass {:mvn/version "1.2.0"}
+ :deps {babashka/process {:mvn/version "0.5.21"}
+        clojurewerkz/spyglass {:mvn/version "1.2.0"}
         net.spy/spymemcached {:mvn/version "2.12.3"}
 
-        poly/component {:local/root "../component"}
-        poly/contajners {:local/root "../contajners"}}}
+        poly/component {:local/root "../component"}}
+ :aliases
+ {:test
+  {:extra-paths ["test"]}}}

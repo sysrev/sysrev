@@ -67,6 +67,7 @@
             glibcLocales # postgres and rlwrap (used by clj) need this
             jdk
             (leiningen.override { jdk = jdk; })
+            memcached
             nix
             nixfmt
             pkgs-2205.nodePackages.npm # should come before nodejs
