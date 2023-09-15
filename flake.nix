@@ -29,7 +29,7 @@
         chrome-alias = writeShellScriptBin "chrome" ''
           ${chromium}/bin/chromium "$@"
         '';
-        jdk = openjdk11;
+        jdk = openjdk17;
         source = stdenv.mkDerivation {
           name = "SysRev source and docs";
           src = [
