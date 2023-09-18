@@ -13,6 +13,7 @@
         poly/reviewer-time {:local/root "../../components/reviewer-time"}
         poly/shutdown {:local/root "../../components/shutdown"}
         poly/sysrev {:local/root "."}
+        poly/tech-ml-parquet {:local/root "../../components/tech-ml-parquet"}
         poly/user {:local/root "../../components/user"}
         poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases {:test {:extra-paths ["../../config/test"]

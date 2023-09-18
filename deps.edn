@@ -103,6 +103,7 @@
         poly/shutdown {:local/root "components/shutdown"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
+        poly/tech-ml-parquet {:local/root "components/tech-ml-parquet"}
         poly/user {:local/root "components/user"}
         poly/util-lite {:local/root "components/util-lite"}}
  :aliases
