@@ -98,15 +98,6 @@
                      :fields (concat [:id :pmid] (or fields (all-pubmed-fields)))})
          (index-by :pmid))))
 
-(defn fetch-ris-articles-by-hash
-  "Queries datasource API to return article data for sequence `pmids`,
-   returning a map of pmid -> article."
-  [hash]
-  (->> (gquery [[:risFileCitationsByFileHash {:hash hash}
-                 [:TI :T1 :BT :CT :id]]])
-       (run-ds-query)
-       :body :data :risFileCitationsByFileHash))
-
 (defn fetch-entities
   "Queries datasource to return map of entity-id -> entity for `entity-ids`."
   [entity-ids]
