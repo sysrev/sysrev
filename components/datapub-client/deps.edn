@@ -2,7 +2,7 @@
  :deps {aleph/aleph {:mvn/version "0.5.0"}
         cheshire/cheshire {:mvn/version "5.11.0"}
         clj-http/clj-http {:mvn/version "3.12.3"}}
- :aliases {:test {:extra-paths ["test"]
+ :aliases {:test {:extra-paths ["test" "test-resources"]
                   :extra-deps {com.cognitect/test-runner
                                {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                 :sha "7284cda41fb9edc0f3bc6b6185cfb7138fc8a023"}
