@@ -513,16 +513,16 @@
 ;; see: https://stackoverflow.com/questions/978061/http-get-with-request-body
 
 ;; Return a vector of PMIDs associated with the given search term
-(dr (GET "/api/pubmed/search" request
+(dr (GET "/api/pubmed/search" {:as request :keys [sr-context]}
       (with-authorize request {}
         (let [{:keys [term page-number]} (-> :params request)]
-          (pubmed/get-search-query-response term (parse-integer page-number))))))
+          (pubmed/get-search-query-response sr-context term (parse-integer page-number))))))
 
 ;; Return article summaries for a list of PMIDs
-(dr (GET "/api/pubmed/summaries" request
+(dr (GET "/api/pubmed/summaries" {:as request :keys [sr-context]}
       (with-authorize request {}
         (let [{:keys [pmids]} (-> :params request)]
-          (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
+          (pubmed/get-pmids-summary sr-context (mapv parse-integer (str/split pmids #",")))))))
 
 ;;;
 ;;; Project settings

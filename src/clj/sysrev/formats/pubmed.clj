@@ -7,6 +7,7 @@
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
             [sysrev.config :as config]
+            [sysrev.memcached.interface :as mem]
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.util-lite.interface :as ul]))
 
@@ -17,21 +18,28 @@
   "Given a query and retstart value, fetch the json associated with that
   query. Return a EDN map of that data. A page size is 20 PMIDs and
   starts on page 1."
-  [query retmax retstart]
+  [{:keys [memcached]} query retmax retstart]
   (ul/retry
    {:interval-ms 1000
     :n 3
     :throw-pred #(-> % ex-data :query)}
    (try
-     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-                   {:query-params {"db" "pubmed"
-                                   "term" query
-                                   "retmode" "json"
-                                   "retmax" retmax
-                                   "retstart" retstart
-                                   "api_key" e-util-api-key}})
-         :body
-         util/read-json)
+     (let [params {"db" "pubmed"
+                   "term" query
+                   "retmode" "json"
+                   "retmax" retmax
+                   "retstart" retstart
+                   "api_key" e-util-api-key}
+           body (mem/cache
+                 memcached
+                 (str "sysrev.formats.pubmed/get-search-query/"
+                      (ul/sha256-base64 (pr-str params)))
+                 3600
+                 (:body
+                  (http/get
+                   "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+                   {:query-params params})))]
+       (util/read-json body))
      (catch clojure.lang.ExceptionInfo e
        (if (-> e ex-data :reason-phrase (= "Request-URI Too Long"))
          (throw (ex-info "Query too long" {:query query} e))
@@ -40,10 +48,10 @@
 (defn get-search-query-response
   "Given a query and page number, return a EDN map corresponding to a
   JSON response. A page size is 20 PMIDs and starts on page 1."
-  [query page-number]
+  [sr-context query page-number]
   (try
     (let [retmax 20
-          esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
+          esearch-result (:esearchresult (get-search-query sr-context query retmax (* (- page-number 1) retmax)))]
       (if (:ERROR esearch-result)
         {:pmids [] :count 0}
         {:pmids (mapv parse-integer (:idlist esearch-result))
@@ -55,27 +63,34 @@
 
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
-  [pmids]
+  [{:keys [memcached]} pmids]
   (ul/retry
    {:interval-ms 1000
     :n 3}
-   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-                 {:query-params {"db" "pubmed"
-                                 "retmode" "json"
-                                 "id" (str/join "," pmids)
-                                 "api_key" e-util-api-key}})
-       :body
-       (json/read-str :key-fn #(or (parse-integer %) (keyword %)))
-       :result)))
+   (let [params {"db" "pubmed"
+                 "retmode" "json"
+                 "id" (str/join "," (sort pmids))
+                 "api_key" e-util-api-key}
+         body (mem/cache
+               memcached
+               (str "sysrev.formats.pubmed/get-pmids-summary/"
+                    (ul/sha256-base64 (pr-str params)))
+               3600
+               (:body
+                (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                          {:query-params params})))]
+     (-> body
+         (json/read-str :key-fn #(or (parse-integer %) (keyword %)))
+         :result))))
 
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
-  [query]
-  (let [total-pmids (:count (get-search-query-response query 1))
+  [sr-context query]
+  (let [total-pmids (:count (get-search-query-response sr-context query 1))
         retmax (:max-import-articles config/env)
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
     (->> (for [page (range 0 max-pages)]
-           (->> (get-in (get-search-query query retmax (* page retmax))
+           (->> (get-in (get-search-query sr-context query retmax (* page retmax))
                         [:esearchresult :idlist])
                 (map parse-integer)))
          (apply concat)

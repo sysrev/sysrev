@@ -34,7 +34,7 @@
   [sr-context _ project-id {:keys [search-term]} {:as options}]
   (assert (string? search-term))
   (let [{:keys [max-import-articles]} config/env
-        pmids-count (:count (pubmed/get-search-query-response search-term 1))]
+        pmids-count (:count (pubmed/get-search-query-response sr-context search-term 1))]
     (cond
       (pubmed-source-exists? sr-context project-id search-term)
       {:error {:message (format "Source already exists for %s" (pr-str search-term))}}
@@ -50,11 +50,11 @@
         (import-source-impl
          sr-context project-id source-meta
          {:types {:article-type "academic" :article-subtype "pubmed"}
-          :get-article-refs #(pubmed/get-all-pmids-for-query search-term)
+          :get-article-refs #(pubmed/get-all-pmids-for-query sr-context search-term)
           :get-articles pubmed-get-articles}
          options)))))
 
-(defn get-new-articles-available [{:keys [source-id] :as source}]
+(defn get-new-articles-available [sr-context {:keys [source-id] :as source}]
   (let [prev-article-ids (->> (-> (select :article-data.external-id)
                                   (from [:article-source :asrc])
                                   (join :article [:= :asrc.article-id :article.article-id]
@@ -65,7 +65,7 @@
                               (filter string?)
                               (map read-string)
                               set)
-        new-article-ids (->> (pubmed/get-all-pmids-for-query (get-in source [:meta :search-term]))
+        new-article-ids (->> (pubmed/get-all-pmids-for-query sr-context (get-in source [:meta :search-term]))
                              (filter #(not (contains? prev-article-ids %))))]
     new-article-ids))
 
@@ -77,7 +77,7 @@
     (import-source-articles
      sr-context project-id source-id
      {:types {:article-type "academic" :article-subtype "pubmed"}
-      :article-refs (get-new-articles-available source)
+      :article-refs (get-new-articles-available sr-context source)
       :get-articles pubmed-get-articles}
      1))
   {:source-id source-id})

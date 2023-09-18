@@ -31,7 +31,7 @@
   (Thread/sleep 500))
 
 (deftest ^:optional pubmed-search-test
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:as system :keys [sr-context]} {}]
     (let [handler (sysrev-handler system)
           route-response (route-response-fn handler)
           {:keys [email password]} (test/create-test-user system)]
@@ -40,7 +40,7 @@
                                   {:email email :password password})
                   [:result :valid]))
       ;; the user can search pubmed from sysrev
-      (is (= (-> (pubmed/get-search-query-response "foo bar" 1)
+      (is (= (-> (pubmed/get-search-query-response sr-context "foo bar" 1)
                  :pmids count)
              (-> (route-response :get "/api/pubmed/search"
                                  {:term "foo bar"
@@ -49,7 +49,7 @@
       ;; the user can get article summaries from pubmed
       (is (= {:name "Aung T", :authtype "Author", :clusterid ""}
              (-> (route-response :get "/api/pubmed/summaries"
-                                 {:pmids (->> (pubmed/get-search-query-response "foo bar" 1)
+                                 {:pmids (->> (pubmed/get-search-query-response sr-context "foo bar" 1)
                                               :pmids (str/join ","))})
                  :result (get 25706626) :authors first))))))
 
@@ -204,7 +204,7 @@
                                         [:result :sources])))))))))
 
 (deftest ^:optional delete-project-sources
-  (test/with-test-system [system {}]
+  (test/with-test-system [{:as system :keys [sr-context]} {}]
     (let [handler (sysrev-handler system)
           {:keys [email password]} (test/create-test-user system)
           route-response (route-response-fn handler)
@@ -226,7 +226,7 @@
                              :search-term "foo bar" :source "PubMed"})
           _ (wait-for-project-import route-response project-id 1)
           _ (e/is-soon nil
-                       (= (count (pubmed/get-all-pmids-for-query "foo bar"))
+                       (= (count (pubmed/get-all-pmids-for-query sr-context "foo bar"))
                           (:article-count (get-pubmed-source "foo bar")))
                        20000 2000)
           foo-bar-search-source (get-pubmed-source "foo bar")
@@ -265,13 +265,13 @@
                                :search-term "grault" :source "PubMed"})
             _ (wait-for-project-import route-response project-id 2)
             _ (e/is-soon nil
-                         (= (count (pubmed/get-all-pmids-for-query "grault"))
+                         (= (count (pubmed/get-all-pmids-for-query sr-context "grault"))
                             (:article-count (get-pubmed-source "grault")))
                          20000 2000)
             grault-search-source (get-pubmed-source "grault")
             grault-search-source-id (:source-id grault-search-source)]
         ;; are the total project articles equivalent to the sum of its two sources?
-        (is (= (count (pubmed/get-all-pmids-for-query "grault"))
+        (is (= (count (pubmed/get-all-pmids-for-query sr-context "grault"))
                (:article-count grault-search-source)))
         (e/is-soon nil
                    (= (project/project-article-count project-id)

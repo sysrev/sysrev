@@ -19,7 +19,7 @@
   (test/with-test-system [{:keys [sr-context]} {}]
     (util/with-print-time-elapsed "import-pubmed-search"
       (let [search-term "foo bar"
-            pmids (:pmids (pubmed/get-search-query-response search-term 1))
+            pmids (:pmids (pubmed/get-search-query-response sr-context search-term 1))
             new-project (project/create-project "test-project")
             new-project-id (:project-id new-project)]
         (db/with-transaction
@@ -30,13 +30,13 @@
           ;; Do we have the correct amount of PMIDS?
         (is (= (count pmids) (project/project-article-count new-project-id)))
           ;; is the author of a known article included in the results from get-pmids-summary?
-        (is (= (-> (pubmed/get-pmids-summary pmids)
+        (is (= (-> (pubmed/get-pmids-summary sr-context pmids)
                    (get 25706626) :authors first)
                {:name "Aung T", :authtype "Author", :clusterid ""}))
           ;; can all PMIDs for a search term with more than 100000 results be retrieved?
         (let [query "animals and cancer and blood"]
-          (is (= (:count (pubmed/get-search-query-response query 1))
-                 (count (pubmed/get-all-pmids-for-query query)))))))))
+          (is (= (:count (pubmed/get-search-query-response sr-context query 1))
+                 (count (pubmed/get-all-pmids-for-query sr-context query)))))))))
 
 (defn get-test-file [fname]
   (let [url (str "https://s3.amazonaws.com/sysrev-test-files/" fname)
