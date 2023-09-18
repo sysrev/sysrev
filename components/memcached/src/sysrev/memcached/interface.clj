@@ -3,15 +3,12 @@
 
 (defmacro cache
   "Caches the body in memcached. The body will be serialized with
-   pr-str and must be deserializable by clojure.edn/read-string.
-
-   Executions for the same key that occur in a short time period will
-   be combined into a single execution."
+   pr-str and must be deserializable by clojure.edn/read-string."
   [component ^String key ^Long ttl-sec & body]
   `(core/cache ~component ~key ~ttl-sec ~@body))
 
 (defn flush!
-  "Empty the memcached server and the client's internal cache."
+  "Empty the memcached server."
   [component]
   (core/flush! component))
 

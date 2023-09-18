@@ -1,0 +1,10 @@
+{:paths ["src"]
+ :deps
+ {hato/hato {:mvn/version "0.9.0"}
+  org.clojure/data.xml {:mvn/version "0.2.0-alpha8"}
+
+  poly/memcached {:local/root "../memcached"}
+  poly/util-lite {:local/root "../util-lite"}}
+ :aliases
+ {:test
+  {:extra-paths ["test"]}}}
