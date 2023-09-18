@@ -10,6 +10,7 @@
         poly/notification {:local/root "../../components/notification"}
         poly/office {:local/root "../../components/office"}
         poly/postgres {:local/root "../../components/postgres"}
+        poly/pubmed-api {:local/root "../../components/pubmed-api"}
         poly/reviewer-time {:local/root "../../components/reviewer-time"}
         poly/shutdown {:local/root "../../components/shutdown"}
         poly/sysrev {:local/root "."}

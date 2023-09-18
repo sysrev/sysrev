@@ -2,16 +2,9 @@
   (:require [clojure.data.xml :as dxml]
             [clojure.string :as str]
             [hato.client :as hc]
-            [sysrev.memcached.interface :as mem]
-            [sysrev.util-lite.interface :as ul]))
+            [sysrev.memcached.interface :as mem]))
 
-(defn cache-key [prefix url hato-opts]
-  (->> hato-opts
-       :query-params
-       (sort-by key)
-       pr-str
-       ul/sha256-base64
-       (str prefix url)))
+(def default-ttl-sec 3600)
 
 ;; Rate limit is 10 requests per second per API key.
 ;; We try to limit requests to once per 100 ms to stay under on average.
@@ -49,65 +42,60 @@
 (defn tag-val [tag-name content]
   (some #(when (= tag-name (:tag %)) %) content))
 
-(defn get-search-results-page
-  [{:keys [api-key hato memcached ttl-sec]} query & {:keys [retmax retstart]}]
-  (let [url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-        hato-opts {:http-client hato
-                   :query-params
-                   {:db "pubmed"
-                    :key api-key
-                    :retmax (or retmax 100)
-                    :retstart (or retstart 0)
-                    :term query}}
-        body (mem/cache
-              memcached
-              (cache-key "pubmed-api/get-search-results/" url hato-opts)
-              ttl-sec
-              (:body (api-get url hato-opts)))
-        docs (-> body dxml/parse-str :content)
-        error-list (tag-val :ErrorList docs)]
-    (cond
-      (-> docs first :tag (= :ERROR))
-      (throw (ex-info "PubMed API error" {:error docs}))
+(defn- split-cached-fetches [{:keys [memcached]} pmids]
+  (let [pmids-and-articles (->> pmids
+                                (map parse-long)
+                                (map
+                                 #(mem/cache-get
+                                   memcached
+                                   (str "sysrev.pubmed-api/article/" %)
+                                   %)))]
+    [(remove number? pmids-and-articles) (filter number? pmids-and-articles)]))
 
-      (tag-val :PhraseNotFound (:content error-list))
-      {:count 0}
+(defn- fetch-uncached-articles
+  [{:as opts
+    :keys [api-key hato memcached ttl-sec]
+    :or {ttl-sec default-ttl-sec}}
+   pmids]
+  (when (seq pmids)
+    (lazy-seq
+     (let [chunk-size 20
+           chunk (take chunk-size pmids)
+           url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+           hato-opts {:http-client hato
+                      :query-params
+                      {:db "pubmed"
+                       :id (str/join "," chunk)
+                       :key api-key
+                       :retmode "text"
+                       :rettype "xml"}
+                      :timeout 10000}
+           articles (-> (api-get url hato-opts)
+                        :body
+                        ;; :supporting-external-entities is needed for "mathml-in-pubmed"
+                        (dxml/parse-str {:supporting-external-entities true})
+                        :content
+                        (->> (filter #(= :PubmedArticle (:tag %)))))]
+       (concat
+        (map
+         (fn [pmid article]
+           (mem/cache-set
+            memcached
+            (str "sysrev.pubmed-api/article/" pmid)
+            ttl-sec
+            (dxml/emit-str article))
+           article)
+         chunk
+         articles)
+        (fetch-uncached-articles opts (drop chunk-size pmids)))))))
 
-      error-list
-      (throw (ex-info "PubMed API query error" {:error-list error-list}))
-
-      :else
-      (let [ct (-> (tag-val :Count docs) :content first parse-long)
-            ret-start (-> (tag-val :RetStart docs) :content first parse-long)
-            id-list (-> (tag-val :IdList docs) :content)
-            next-start (+ ret-start (count id-list))]
-        {:count ct
-         :next-start next-start
-         :pmids (mapcat :content id-list)
-         :ret-start ret-start
-         #_(lazy-cat
-            (mapcat :content id-list)
-          ;; e-utils doesn't accept starts after 9998
-            (when (and (seq docs) (> ct next-start) (<= 9998 next-start))
-              (:pmids (get-search-results opts query next-start))))}))))
-
-(defn get-fetches [{:keys [api-key hato memcached ttl-sec]} pmids]
-  (let [url "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-        hato-opts {:http-client hato
-                   :query-params
-                   {:db "pubmed"
-                    :id (str/join "," pmids)
-                    :key api-key
-                    :retmode "text"
-                    :rettype "xml"}
-                   :timeout 10000}
-        body (mem/cache
-              memcached
-              (cache-key "pubmed-api/get-fetches" url hato-opts)
-              ttl-sec
-              (:body
-               (api-get url hato-opts)))]
-    (-> body
-        dxml/parse-str
-        :content
-        (->> (filter #(= :PubmedArticle (:tag %)))))))
+(defn get-fetches
+  [{:as opts
+    :keys [api-key hato memcached ttl-sec]
+    :or {ttl-sec default-ttl-sec}}
+   pmids]
+  (let [[cached-articles-raw uncached-pmids] (split-cached-fetches opts pmids)
+        cached-articles (map dxml/parse-str cached-articles-raw)]
+    (concat
+     cached-articles
+     (fetch-uncached-articles opts uncached-pmids))))
