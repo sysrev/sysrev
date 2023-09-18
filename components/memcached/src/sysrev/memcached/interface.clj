@@ -7,6 +7,16 @@
   [component ^String key ^Long ttl-sec & body]
   `(core/cache ~component ~key ~ttl-sec ~@body))
 
+(defn cache-get
+  "Gets a cached value."
+  [component ^String key & [not-found]]
+  (core/cache-get component key not-found))
+
+(defn cache-set
+  "Sets a key in the cache."
+  [component ^String key ^Long ttl-sec v]
+  (core/cache-set component key ttl-sec v))
+
 (defn flush!
   "Empty the memcached server."
   [component]

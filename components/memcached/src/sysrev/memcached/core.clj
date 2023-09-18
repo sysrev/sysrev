@@ -6,6 +6,8 @@
             [sysrev.util-lite.interface :as ul])
   (:import (java.util.concurrent CancellationException)))
 
+(defonce not-found-obj (Object.))
+
 (defn flush! [{:keys [cache client] :as component}]
   @(spy/flush client)
   component)
@@ -72,18 +74,29 @@
 (defn temp-server [& {:keys [port]}]
   (map->TempServer {:port (or port 0)}))
 
-(defn cache*
-  [{:keys [client]} ^String key ^Long ttl-sec f]
+(defn cache-get
+  [{:keys [client]} ^String key & [not-found]]
   (if-let [v (spy/get client key)]
     (try
       (edn/read-string v)
       (catch Exception e
         (throw (ex-info "Failed to deserialize cached value"
-                        {:key key :ttl-sec ttl-sec :value v}
+                        {:key key :value v}
                         e))))
-    (let [r (f)]
-      (spy/set client key ttl-sec (pr-str r))
-      r)))
+    not-found))
+
+(defn cache-set
+  [{:keys [client]} ^String key ^Long ttl-sec v]
+  @(spy/set client key ttl-sec (pr-str v)))
+
+(defn cache*
+  [{:as component :keys [client]} ^String key ^Long ttl-sec f]
+  (let [v (cache-get component key not-found-obj)]
+    (if-not (identical? not-found-obj v)
+      v
+      (let [r (f)]
+        (cache-set component key ttl-sec r)
+        r))))
 
 (defmacro cache [component ^String key ^Long ttl-sec & body]
   `(let [component# ~component
