@@ -143,7 +143,7 @@
                            poly/junit {:local/root "components/junit"}
                            poly/pdf-read {:local/root "components/pdf-read"}
                            poly/tesseract {:local/root "components/tesseract"}}}
-  :dev {:extra-paths ["config/dev" "development/src"]
+  :dev {:extra-paths ["config/dev"]
         :extra-deps {acyclic/squiggly-clojure {:mvn/version "0.1.9-20180723.201217-2"}
                      poly/datapub-import {:local/root "components/datapub-import"}
                      poly/fda-drugs {:local/root "components/fda-drugs"}

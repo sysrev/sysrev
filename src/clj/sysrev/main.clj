@@ -68,7 +68,7 @@
      :memcached (component/using
                  (mem/temp-client)
                  {:server :memcached-server})
-     :memcached-server (mem/temp-server)
+     :memcached-server (mem/temp-server (:memcached-server config))
      :postgres (component/using (pg/postgres) [:config])
      :postgres-run-after-start (component/using
                                 (postgres-run-after-start)
