@@ -126,6 +126,7 @@
                           "src/scripts/repl.clj"]}
  :lint-as {babashka.fs/with-temp-dir clojure.core/with-open
            datapub.test/with-test-system clojure.core/with-open
+           miner.ftp/with-ftp clojure.core/with-open
            orchestra.core/defn-spec clj-kondo.lint-as/def-catch-all
            reagent.core/with-let clojure.core/let
            sysrev.db.core/with-long-transaction clojure.core/with-open
@@ -135,5 +136,6 @@
            sysrev.lacinia.interface/with-tx-context clojure.core/with-open
            sysrev.pdf-read.core/with-PDDocument clojure.core/with-open
            sysrev.pdf-read.interface/with-PDDocument clojure.core/with-open
+           sysrev.pubmed-api.interface-test/with-system clojure.core/with-open
            sysrev.test.core/with-test-system clojure.core/with-open
            sysrev.test.e2e.core/with-test-resources clojure.core/with-open}}
