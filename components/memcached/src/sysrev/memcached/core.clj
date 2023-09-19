@@ -48,31 +48,33 @@
                                {:port port}))
    :timeout-ms 30000))
 
-(defn run-server [port]
+(defn run-server [mem-mb port]
   (ul/retry
    {:interval-ms 10
     :n (if (zero? port) 0 3)}
    (let [bound-port (if (zero? port) (+ 20000 (rand-int 10000)) port)
-         server (p/process
-                 {}
-                 "memcached" "-l" (str "127.0.0.1:" bound-port))]
+         args ["-l" (str "127.0.0.1:" bound-port)]
+         args (if mem-mb
+                (into args ["-m" (str mem-mb)])
+                args)
+         server (apply p/process "memcached" args)]
      (wait-until-available bound-port)
      {:bound-port bound-port
       :server server})))
 
-(defrecord TempServer [bound-port port server]
+(defrecord TempServer [bound-port mem-mb port server]
   component/Lifecycle
   (start [this]
     (if server
       this
-      (merge this (run-server port))))
+      (merge this (run-server mem-mb port))))
   (stop [this]
     (if-not server
       this
       (assoc this :server nil))))
 
-(defn temp-server [& {:keys [port]}]
-  (map->TempServer {:port (or port 0)}))
+(defn temp-server [& {:keys [mem-mb port]}]
+  (map->TempServer {:mem-mb mem-mb :port (or port 0)}))
 
 (defn cache-get
   [{:keys [client]} ^String key & [not-found]]

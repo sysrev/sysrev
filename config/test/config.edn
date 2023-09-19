@@ -11,6 +11,7 @@
  {:bucket-name "test.sysrev.us"
   :create? true
   :endpoint "us-east-1"}
+ :memcached-server {:mem-mb 1024}
  :paypal-client-id {:secrets-manager/arn "***REMOVED***"
                     :secrets-manager/key :client-id}
  :paypal-secret {:secrets-manager/arn "***REMOVED***"

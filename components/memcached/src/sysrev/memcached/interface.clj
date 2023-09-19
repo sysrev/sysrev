@@ -33,6 +33,11 @@
 
 (defn temp-server
   "Returns a record implementing com.stuartsierra.component/Lifecycle
-   that starts and stop a temporary memcached server"
-  []
-  (core/temp-server))
+   that starts and stop a temporary memcached server
+
+   Example:
+   (temp-server
+     {:mem-mb 1024
+      :port 0})"
+  [& [opts]]
+  (core/temp-server opts))
