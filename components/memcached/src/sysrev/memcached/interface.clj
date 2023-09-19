@@ -17,6 +17,14 @@
   [component ^String key ^Long ttl-sec v]
   (core/cache-set component key ttl-sec v))
 
+(defn client
+  "Returns a record implementing com.stuartsierra.component/Lifecycle
+   that starts and stop a memcached client
+
+   Example: `(client {:server-list \"localhost:11211\"})`"
+  [opts]
+  (core/client opts))
+
 (defn flush!
   "Empty the memcached server."
   [component]

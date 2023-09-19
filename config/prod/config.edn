@@ -2,6 +2,7 @@
  :datapub-endpoint "https://www.datapub.dev/api"
  :datapub-ws "wss://www.datapub.dev/ws"
  :graphql-endpoint "https://api.sysrev.com/graphql"
+ :memcached {:server-list "localhost:11211"}
  :nrepl {:port 7888}
  :postgres
  {:dbname "sysrev"

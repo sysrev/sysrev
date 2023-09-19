@@ -12,7 +12,7 @@
   @(spy/flush client)
   component)
 
-(defrecord TempClient [cache client server]
+(defrecord TempClient [client server]
   component/Lifecycle
   (start [this]
     (if client
@@ -28,6 +28,22 @@
 
 (defn temp-client []
   (map->TempClient {}))
+
+(defrecord Client [client ^String server-list]
+  component/Lifecycle
+  (start [this]
+    (if client
+      this
+      (->> server-list
+           spy/bin-connection
+           (assoc this :client))))
+  (stop [this]
+    (if-not client
+      this
+      (assoc this :client nil))))
+
+(defn client [opts]
+  (map->Client opts))
 
 (defn available? [port]
   {:pre [(pos-int? port)]}

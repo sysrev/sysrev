@@ -65,10 +65,13 @@
     (component/system-map
      :config config
      :localstack (localstack config)
-     :memcached (component/using
-                 (mem/temp-client)
-                 {:server :memcached-server})
-     :memcached-server (mem/temp-server (:memcached-server config))
+     :memcached (cond
+                  (:memcached config) (mem/client (:memcached config))
+                  (:memcached-server config) (component/using
+                                              (mem/temp-client)
+                                              {:server :memcached-server}))
+     :memcached-server (when (:memcached-server config)
+                         (mem/temp-server (:memcached-server config)))
      :postgres (component/using (pg/postgres) [:config])
      :postgres-run-after-start (component/using
                                 (postgres-run-after-start)
