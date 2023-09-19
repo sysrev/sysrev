@@ -32,22 +32,35 @@
         poly/shutdown {:local/root "../../components/shutdown"}
         poly/tesseract {:local/root "../../components/tesseract"}
         poly/util-lite {:local/root "../../components/util-lite"}}
- :aliases {:dev {:extra-paths ["test" "config/dev"]
-                 :extra-deps {poly/datapub-test {:local/root "datapub-test"}
-                              poly/datapub-client {:local/root "../../components/datapub-client"}}}
-           :prod {:extra-paths ["config/prod"]}
-           :staging {:extra-paths ["config/staging"]
-                     :extra-deps {poly/datapub-test {:local/root "datapub-test"}}}
-           :test {:extra-paths ["test" "config/test"]
-                  :extra-deps {poly/contajners {:local/root "../../components/contajners"}
-                               poly/datapub-test {:local/root "datapub-test"}
-                               poly/datapub-client {:local/root "../../components/datapub-client"}}
-                  :exec-fn datapub.test/run-tests}
-           :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
-                     :exec-fn hf.depstar/uberjar
-                     :exec-args {:aliases [:prod]
-                                 :jar "target/datapub.jar"}}
-           :uberjar-staging {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
-                             :exec-fn hf.depstar/uberjar
-                             :exec-args {:aliases [:staging]
-                                         :jar "target/datapub.jar"}}}}
+ :aliases
+ {:dev
+  {:extra-paths ["test" "config/dev"]
+   :extra-deps {poly/datapub-test {:local/root "datapub-test"}
+                poly/datapub-client {:local/root "../../components/datapub-client"}}}
+  :prod
+  {:extra-paths ["config/prod"]}
+  :staging
+  {:extra-paths ["config/staging"]
+   :extra-deps {poly/datapub-test {:local/root "datapub-test"}}}
+  :test
+  {:extra-paths ["test" "config/test"]
+   :extra-deps {polylith-kaocha/kaocha-wrapper
+                {:git/url "https://github.com/imrekoszo/polylith-kaocha"
+                 :git/tag "v0.8.2"
+                 :git/sha "d1fcd40"
+                 :deps/root "projects/kaocha-wrapper"}
+
+                poly/contajners {:local/root "../../components/contajners"}
+                poly/datapub-test {:local/root "datapub-test"}
+                poly/datapub-client {:local/root "../../components/datapub-client"}}
+   :exec-fn datapub.test/run-tests}
+  :uberjar
+  {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+   :exec-fn hf.depstar/uberjar
+   :exec-args {:aliases [:prod]
+               :jar "target/datapub.jar"}}
+  :uberjar-staging
+  {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+   :exec-fn hf.depstar/uberjar
+   :exec-args {:aliases [:staging]
+               :jar "target/datapub.jar"}}}}

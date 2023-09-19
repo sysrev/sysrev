@@ -10,4 +10,5 @@
             "datapub-importer" {:alias "dp-i"}
             "development" {:alias "dev"}
             "sysrev" {:alias "s"}
-            "sysrev-api" {:alias "s-api"}}}
+            "sysrev-api" {:alias "s-api"}}
+ :test {:create-test-runner polylith-kaocha.test-runner/create}}

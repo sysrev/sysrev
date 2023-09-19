@@ -153,10 +153,26 @@
   :dev-embedded {:extra-paths ["config/dev-embedded"]}
   :eastwood {:extra-deps {jonase/eastwood {:mvn/version "1.3.0"}}
              :main-opts ["-m" "eastwood.lint" "{:source-paths [\"src/clj\" \"src/cljc\"] :exclude-namespaces [sysrev.user]}"]}
-  :poly {:extra-deps {polylith/clj-poly
-                      {:deps/root "projects/poly"
-                       :git/url "https://github.com/polyfy/polylith.git"
-                       :sha "48d8a14d31a02cd2229d99bca094fe383d3dcace"}}
+  :poly {:extra-deps
+         {polylith/clj-poly
+          {:deps/root "projects/poly"
+           :git/url "https://github.com/polyfy/polylith.git"
+           :sha "48d8a14d31a02cd2229d99bca094fe383d3dcace"}
+          polylith-kaocha.components/util
+          {:git/url "https://github.com/imrekoszo/polylith-kaocha"
+           :git/tag "v0.8.2"
+           :git/sha "d1fcd40"
+           :deps/root "components/util"}
+          polylith-kaocha/kaocha-wrapper
+          {:git/url "https://github.com/imrekoszo/polylith-kaocha"
+           :git/tag "v0.8.2"
+           :git/sha "d1fcd40"
+           :deps/root "projects/kaocha-wrapper"}
+          polylith-kaocha/test-runner
+          {:git/url "https://github.com/imrekoszo/polylith-kaocha"
+           :git/tag "v0.8.2"
+           :git/sha "d1fcd40"
+           :deps/root "projects/test-runner"}}
          :main-opts  ["-m" "polylith.clj.core.poly-cli.core"]}
   :prod {:extra-paths ["config/prod" "flyway.conf"]}
   :repl {:main-opts ["-m" "sysrev.user"]}

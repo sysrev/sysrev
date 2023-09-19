@@ -7,8 +7,15 @@
         poly/file-util {:local/root "../../components/file-util"}
         poly/one-shot-runner {:local/root "../../bases/one-shot-runner"}
         poly/sqlite {:local/root "../../components/sqlite"}}
- :aliases {:prod {:replace-paths ["config/prod"]}
-           :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
-                     :exec-fn hf.depstar/uberjar
-                     :exec-args {:aliases [:prod]
-                                 :jar "target/datapub-importer.jar"}}}}
+ :aliases
+ {:prod {:replace-paths ["config/prod"]}
+  :test
+  {:extra-deps {polylith-kaocha/kaocha-wrapper
+                {:git/url "https://github.com/imrekoszo/polylith-kaocha"
+                 :git/tag "v0.8.2"
+                 :git/sha "d1fcd40"
+                 :deps/root "projects/kaocha-wrapper"}}}
+  :uberjar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
+            :exec-fn hf.depstar/uberjar
+            :exec-args {:aliases [:prod]
+                        :jar "target/datapub-importer.jar"}}}}
