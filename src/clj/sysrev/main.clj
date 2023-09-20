@@ -4,6 +4,7 @@
   (:gen-class)
   (:require [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
+            [medley.core :as medley]
             [sysrev.aws-client.interface :as aws-client]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
@@ -62,51 +63,53 @@
                    (merge postgres-overrides)
                    (->> (assoc config :postgres)
                         (secrets-manager/transform-secrets (aws-opts config))))]
-    (component/system-map
-     :config config
-     :localstack (localstack config)
-     :memcached (cond
-                  (:memcached config) (mem/client (:memcached config))
-                  (:memcached-server config) (component/using
-                                              (mem/temp-client)
-                                              {:server :memcached-server}))
-     :memcached-server (when (:memcached-server config)
-                         (mem/temp-server (:memcached-server config)))
-     :postgres (component/using (pg/postgres) [:config])
-     :postgres-run-after-start (component/using
-                                (postgres-run-after-start)
-                                [:postgres])
-     :postgres-listener (component/using
-                         (listeners/listener)
-                         [:postgres :sente])
-     :s3 (component/using
-          (aws-client/aws-client
-           :after-start s3/create-s3-buckets!
-           :client-opts (assoc (:aws config) :api :s3))
-          [:localstack])
-     :scheduler (component/using
-                 (if (#{:test :remote-test} (:profile env))
-                   (scheduler/mock-scheduler)
-                   (scheduler/scheduler))
-                 [:config :postgres :sr-context])
-     :sente (component/using
-             (sente/sente :receive-f sente/receive-sente-channel!)
-             [:config :postgres])
-     ;; The :sr-context (Sysrev context) holds components that many functions need
-     :sr-context (component/using
-                  {}
-                  [:config :memcached :postgres :s3 :sysrev-api-pedestal])
-     :sysrev-api-config (or (:sysrev-api-config config)
-                            (sysrev.sysrev-api.main/get-config))
-     :sysrev-api-pedestal (component/using
-                           (sysrev.sysrev-api.pedestal/pedestal)
-                           {:config :sysrev-api-config
-                            :postgres :postgres})
-     :web-server (component/using
-                  (web/web-server
-                   :handler-f web/sysrev-handler
-                   :port (-> config :server :port))
-                  [:sente :sr-context]))))
+    (->> {:config config
+          :localstack (localstack config)
+          :memcached (cond
+                       (:memcached config) (mem/client (:memcached config))
+                       (:memcached-server config) (component/using
+                                                   (mem/temp-client)
+                                                   {:server :memcached-server}))
+          :memcached-server (when (:memcached-server config)
+                              (mem/temp-server (:memcached-server config)))
+          :postgres (component/using (pg/postgres) [:config])
+          :postgres-run-after-start (component/using
+                                     (postgres-run-after-start)
+                                     [:postgres])
+          :postgres-listener (component/using
+                              (listeners/listener)
+                              [:postgres :sente])
+          :s3 (component/using
+               (aws-client/aws-client
+                :after-start s3/create-s3-buckets!
+                :client-opts (assoc (:aws config) :api :s3))
+               [:localstack])
+          :scheduler (component/using
+                      (if (#{:test :remote-test} (:profile env))
+                        (scheduler/mock-scheduler)
+                        (scheduler/scheduler))
+                      [:config :postgres :sr-context])
+          :sente (component/using
+                  (sente/sente :receive-f sente/receive-sente-channel!)
+                  [:config :postgres])
+          ;; The :sr-context (Sysrev context) holds components that many functions need
+          :sr-context (component/using
+                       {}
+                       [:config :memcached :postgres :s3 :sysrev-api-pedestal])
+          :sysrev-api-config (or (:sysrev-api-config config)
+                                 (sysrev.sysrev-api.main/get-config))
+          :sysrev-api-pedestal (component/using
+                                (sysrev.sysrev-api.pedestal/pedestal)
+                                {:config :sysrev-api-config
+                                 :postgres :postgres})
+          :web-server (component/using
+                       (web/web-server
+                        :handler-f web/sysrev-handler
+                        :port (-> config :server :port))
+                       [:sente :sr-context])}
+         (medley/remove-vals nil?)
+         (mapcat seq)
+         (apply component/system-map))))
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
