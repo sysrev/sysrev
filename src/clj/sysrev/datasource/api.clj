@@ -149,7 +149,8 @@
           (assoc :content-url contentUrl)))))
 
 (defmethod enrich-articles "datapub" [_ articles]
-  (let [{:keys [config]} @@(requiring-resolve 'sysrev.main/system)
+  (let [{:keys [config]} (-> @@(requiring-resolve 'sysrev.main/system)
+                             :donut.system/instances :sysrev)
         {:keys [graphql-endpoint sysrev-dev-key]} config]
     (vec (for [{:keys [content external-id] :as m} articles]
            (merge content

@@ -1,0 +1,5 @@
+{:paths ["src"]
+ :deps {party.donut/system {:mvn/version "0.0.214"}
+
+        poly/component {:local/root "../component"}
+        poly/medley {:local/root "../medley"}}}

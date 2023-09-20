@@ -4,7 +4,8 @@
   (:gen-class)
   (:require [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
-            [medley.core :as medley]
+            [donut.system :as ds]
+            [salmon.signal :as sig]
             [sysrev.aws-client.interface :as aws-client]
             [sysrev.config :refer [env]]
             [sysrev.db.core :as db]
@@ -20,6 +21,7 @@
             [sysrev.sente :as sente]
             [sysrev.sysrev-api.main]
             [sysrev.sysrev-api.pedestal]
+            [sysrev.system2.interface :as sys]
             [sysrev.util :as util]
             [sysrev.web.core :as web]))
 
@@ -58,62 +60,81 @@
 
 (defonce system (atom nil))
 
-(defn system-map [& {:keys [config postgres-overrides]}]
+(defn system-def [& {:keys [config postgres-overrides]}]
   (let [config (-> config :postgres
                    (merge postgres-overrides)
                    (->> (assoc config :postgres)
                         (secrets-manager/transform-secrets (aws-opts config))))]
-    (->> {:config config
-          :localstack (localstack config)
-          :memcached (cond
-                       (:memcached config) (mem/client (:memcached config))
-                       (:memcached-server config) (component/using
-                                                   (mem/temp-client)
-                                                   {:server :memcached-server}))
-          :memcached-server (when (:memcached-server config)
-                              (mem/temp-server (:memcached-server config)))
-          :postgres (component/using (pg/postgres) [:config])
-          :postgres-run-after-start (component/using
-                                     (postgres-run-after-start)
-                                     [:postgres])
-          :postgres-listener (component/using
-                              (listeners/listener)
-                              [:postgres :sente])
-          :s3 (component/using
-               (aws-client/aws-client
-                :after-start s3/create-s3-buckets!
-                :client-opts (assoc (:aws config) :api :s3))
-               [:localstack])
-          :scheduler (component/using
-                      (if (#{:test :remote-test} (:profile env))
-                        (scheduler/mock-scheduler)
-                        (scheduler/scheduler))
-                      [:config :postgres :sr-context])
-          :sente (component/using
-                  (sente/sente :receive-f sente/receive-sente-channel!)
-                  [:config :postgres])
-          ;; The :sr-context (Sysrev context) holds components that many functions need
-          :sr-context (component/using
-                       {}
-                       [:config :memcached :postgres :s3 :sysrev-api-pedestal])
-          :sysrev-api-config (or (:sysrev-api-config config)
-                                 (sysrev.sysrev-api.main/get-config))
-          :sysrev-api-pedestal (component/using
-                                (sysrev.sysrev-api.pedestal/pedestal)
-                                {:config :sysrev-api-config
-                                 :postgres :postgres})
-          :web-server (component/using
-                       (web/web-server
-                        :handler-f web/sysrev-handler
-                        :port (-> config :server :port))
-                       [:sente :sr-context])}
-         (medley/remove-vals nil?)
-         (mapcat seq)
-         (apply component/system-map))))
+    {::ds/defs
+     {:sysrev
+      {:config config
+       :localstack (sys/stuartsierra->ds (localstack config))
+       :memcached (-> (sys/stuartsierra->ds
+                       (cond
+                         (:memcached config) (mem/client (:memcached config))
+                         (:memcached-server config) (component/using
+                                                     (mem/temp-client)
+                                                     {:server :memcached-server})))
+                      (assoc ::ds/resume (fn [{::ds/keys [instance]}]
+                                           (mem/flush! instance)
+                                           instance)
+                             ::ds/suspend (fn [{::ds/keys [instance]}] instance)))
+       :memcached-server (when (:memcached-server config)
+                           (sys/stuartsierra->ds
+                            (mem/temp-server (:memcached-server config))))
+       :postgres (-> (sys/stuartsierra->ds
+                      (component/using (pg/postgres) [:config]))
+                     (assoc ::ds/resume (fn [{::ds/keys [instance]}]
+                                          (pg/recreate-db! instance)
+                                          instance)
+                            ::ds/suspend (fn [{::ds/keys [instance]}] instance)))
+       :postgres-run-after-start (sys/stuartsierra->ds
+                                  (component/using
+                                   (postgres-run-after-start)
+                                   [:postgres]))
+       :postgres-listener (let [{:as c ::ds/keys [start stop]}
+                                (-> (listeners/listener)
+                                    (component/using [:postgres :sente])
+                                    sys/stuartsierra->ds)]
+                            (assoc c ::ds/resume start ::ds/suspend stop))
+       :s3 (sys/stuartsierra->ds
+            (component/using
+             (aws-client/aws-client
+              :after-start s3/create-s3-buckets!
+              :client-opts (assoc (:aws config) :api :s3))
+             [:localstack]))
+       :scheduler (sys/stuartsierra->ds
+                   (component/using
+                    (if (#{:test :remote-test} (:profile env))
+                      (scheduler/mock-scheduler)
+                      (scheduler/scheduler))
+                    [:config :postgres :sr-context]))
+       :sente (sys/stuartsierra->ds
+               (component/using
+                (sente/sente :receive-f sente/receive-sente-channel!)
+                [:config :postgres]))
+       ;; The :sr-context (Sysrev context) holds components that many functions need
+       :sr-context (sys/stuartsierra->ds
+                    (component/using
+                     {}
+                     [:config :memcached :postgres :s3 :sysrev-api-pedestal]))
+       :sysrev-api-config (or (:sysrev-api-config config)
+                              (sysrev.sysrev-api.main/get-config))
+       :sysrev-api-pedestal (sys/stuartsierra->ds
+                             (component/using
+                              (sysrev.sysrev-api.pedestal/pedestal)
+                              {:config :sysrev-api-config
+                               :postgres :postgres}))
+       :web-server (sys/stuartsierra->ds
+                    (component/using
+                     (web/web-server
+                      :handler-f web/sysrev-handler
+                      :port (-> config :server :port))
+                     [:sente :sr-context]))}}}))
 
 (defn start-non-global!
   "Start a system and return it without touching the sysrev.main/system atom."
-  [& {:keys [config port-override postgres-overrides system-map-f]}]
+  [& {:keys [config port-override postgres-overrides system-def-f]}]
   (log/info "Starting system")
   (let [config (cond-> (or config env)
                  port-override (assoc-in [:server :port] port-override))
@@ -136,11 +157,11 @@
                                :graphql-endpoint graphql-endpoint
                                :sysrev-dev-key (:sysrev-dev-key config))))
                  config)
-        system (-> ((or system-map-f system-map)
+        system (-> ((or system-def-f system-def)
                     :config config
                     :postgres-overrides postgres-overrides)
-                   (assoc :datapub (or datapub {}))
-                   component/start)]
+                   (assoc-in [::ds/defs :datapub :system] (or datapub {}))
+                   sig/start!)]
     (log/info "System started")
     system))
 

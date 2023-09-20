@@ -78,7 +78,6 @@
         kanwei/sitemap {:mvn/version "0.3.1"} ;; sitemap alternative with clojure.spec fix
         clojurewerkz/quartzite {:mvn/version "2.1.0"}
         gravatar/gravatar {:mvn/version "1.1.1"}
-        party.donut/system {:mvn/version "0.0.214"}
         rs.shaffe/salmon {:mvn/version "0.11.0"}
 
         poly/anystyle {:local/root "components/anystyle"}
@@ -105,6 +104,7 @@
         poly/shutdown {:local/root "components/shutdown"}
         poly/sysrev-api {:local/root "bases/sysrev-api"}
         poly/sysrev-api-client {:local/root "components/sysrev-api-client"}
+        poly/system2 {:local/root "components/system2"}
         poly/tech-ml-parquet {:local/root "components/tech-ml-parquet"}
         poly/user {:local/root "components/user"}
         poly/util-lite {:local/root "components/util-lite"}}

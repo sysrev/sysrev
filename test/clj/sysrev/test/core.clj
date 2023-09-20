@@ -7,6 +7,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
+            [donut.system :as ds]
             [kaocha.repl :as kr]
             [kaocha.testable :as kt]
             [kaocha.watch :as kw]
@@ -14,6 +15,7 @@
             [next.jdbc :as jdbc]
             [orchestra.spec.test :as st]
             [ring.mock.request :as mock]
+            [salmon.signal :as sig]
             [sysrev.config :refer [env]]
             [sysrev.datasource.api :refer [ds-auth-key]]
             [sysrev.db.core :as db]
@@ -21,7 +23,6 @@
             [sysrev.file-util.interface :as file-util]
             [sysrev.junit.interface :as junit]
             [sysrev.main :as main]
-            [sysrev.memcached.interface :as mem]
             [sysrev.payment.plans :as plans]
             [sysrev.postgres.interface :as pg]
             [sysrev.test.fixtures :as test-fixtures]
@@ -60,7 +61,8 @@
            :url (str protocol "://" host (if port (str ":" port) "") "/"))))
 
 (defn init-db! [system db-name]
-  (let [{:keys [bound-port config]} (:postgres system)
+  (let [sysrev (-> system ::ds/instances :sysrev)
+        {:keys [bound-port config]} (:postgres sysrev)
         ds (-> (:postgres config)
                (assoc :dbname db-name
                       :port bound-port)
@@ -71,11 +73,11 @@
               db/*query-cache* (atom {})
               db/*query-cache-enabled* (atom false)
               db/*transaction-query-cache* nil
-              env (:config system)]
+              env (:config sysrev)]
       (migration/ensure-updated-db))))
 
 (defn start-test-system! []
-  (let [{:keys [config] :as system}
+  (let [system
         #__ (main/start-non-global!
              :config
              (medley/deep-merge
@@ -90,18 +92,18 @@
               :port 0
               :template-dbname "template_sysrev_test"
               :user "postgres"}
-             :system-map-f
-             #(-> (apply main/system-map %&)
-                  (dissoc :scheduler)))]
-    (init-db! system (-> config :postgres :template-dbname))
-    (init-db! system (-> config :postgres :dbname))
+             :system-def-f
+             #(-> (apply main/system-def %&)
+                  (assoc-in [::ds/defs :sysrev :scheduler] nil)))
+        {:keys [dbname template-dbname]} (-> system ::ds/instances :sysrev :config :postgres)]
+    (init-db! system template-dbname)
+    (init-db! system dbname)
     system))
 
-(defn refresh! [{:keys [memcached postgres postgres-listener] :as system}]
-  (let [listener (component/stop postgres-listener)]
-    (pg/recreate-db! postgres)
-    (mem/flush! memcached)
-    (assoc system :postgres-listener (component/start listener))))
+(defn refresh! [system]
+  (-> system
+      (sig/signal! ::ds/suspend)
+      (sig/signal! ::ds/resume)))
 
 (defmacro with-test-system [[name-sym opts] & body]
   `(binding [db/*active-db* (atom nil)
@@ -126,10 +128,11 @@
                          (refresh! system#)
                          (do (st/instrument)
                              (start-test-system!)))
-               ~name-sym system#]
+               sysrev# (-> system# ::ds/instances :sysrev)
+               ~name-sym sysrev#]
            (try
-             (reset! db/*active-db* (:postgres system#))
-             (binding [env (merge config# (:config system#))]
+             (reset! db/*active-db* (:postgres sysrev#))
+             (binding [env (merge config# (:config sysrev#))]
                (let [result# (do ~@body)]
                  (when-not remote?#
                    (swap! test-systems

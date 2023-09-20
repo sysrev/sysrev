@@ -13,6 +13,7 @@
         poly/pubmed-api {:local/root "../../components/pubmed-api"}
         poly/shutdown {:local/root "../../components/shutdown"}
         poly/sysrev {:local/root "."}
+        poly/system2 {:local/root "../../components/system2"}
         poly/tech-ml-parquet {:local/root "../../components/tech-ml-parquet"}
         poly/util-lite {:local/root "../../components/util-lite"}}
  :aliases
@@ -23,6 +24,6 @@
                  :git/tag "v0.8.2"
                  :git/sha "d1fcd40"
                  :deps/root "projects/kaocha-wrapper"}
-                
+
                 poly/fixtures {:local/root "../../components/fixtures"}
                 poly/postgres {:local/root "../../components/postgres-embedded"}}}}}
