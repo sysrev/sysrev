@@ -12,7 +12,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v4
@@ -25,7 +25,7 @@ jobs:
           nix develop -c which clj-kondo
 
       - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.14.0
+        uses: 8398a7/action-slack@v3.15.1
         if: always()
         with:
           status: custom

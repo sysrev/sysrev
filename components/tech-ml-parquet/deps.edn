@@ -7,9 +7,9 @@
  {techascent/tech.ml.dataset {:mvn/version "7.007"}
 
   ;; From https://techascent.github.io/tech.ml.dataset/tech.v3.libs.parquet.html
-  org.apache.parquet/parquet-hadoop {:mvn/version "1.12.0"
+  org.apache.parquet/parquet-hadoop {:mvn/version "1.13.1"
                                      :exclusions [org.slf4j/slf4j-log4j12]}
-  org.apache.hadoop/hadoop-common {:mvn/version "3.3.0"
+  org.apache.hadoop/hadoop-common {:mvn/version "3.3.6"
                                    :exclusions  [com.sun.jersey/jersey-core
                                                  com.sun.jersey/jersey-json
                                                  com.sun.jersey/jersey-server
@@ -59,7 +59,7 @@
                                                  log4j/log4j
                                                  org.slf4j/slf4j-log4j12]}
   ;; We literally need this for 1 POJO formatting object.
-  org.apache.hadoop/hadoop-mapreduce-client-core {:mvn/version "3.3.0"
+  org.apache.hadoop/hadoop-mapreduce-client-core {:mvn/version "3.3.6"
                                                   :exclusions  [org.slf4j/slf4j-log4j12
                                                                 org.apache.avro/avro
                                                                 org.apache.hadoop/hadoop-yarn-client
@@ -69,5 +69,5 @@
                                                                 io.netty/netty
                                                                 com.google.inject.extensions/guice-servlet]}
   ;; M-1 mac support for snappy
-  org.xerial.snappy/snappy-java {:mvn/version "1.1.8.4"}}
+  org.xerial.snappy/snappy-java {:mvn/version "1.1.10.3"}}
  :aliases {:test {:extra-paths ["test" "test-resources"]}}}

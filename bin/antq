@@ -7,10 +7,10 @@ clojure -M:antq \
         --exclude=ch.qos.logback/logback-classic \
         --exclude=clojure-csv/clojure-csv \
         --exclude=com.google.api-client/google-api-client \
+        --exclude=etaoin/etaoin \
         --exclude=honeysql/honeysql \
         --exclude=javax.servlet/javax.servlet-api \
         --exclude=john-shaffer/aws-cloudformation-github-deploy \
-        --exclude=john-shaffer/cache \
         --exclude=lambdaisland/kaocha \
         --exclude=net.sourceforge.tess4j/tess4j \
         --exclude=nilenso/honeysql-postgres \

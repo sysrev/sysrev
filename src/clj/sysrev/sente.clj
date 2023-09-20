@@ -7,7 +7,7 @@
             [sysrev.util-lite.interface :as ul]
             [sysrev.web.app :refer [current-user-id]]
             [taoensso.sente :refer [make-channel-socket!]]
-            [taoensso.sente.server-adapters.aleph :refer [get-sch-adapter]]))
+            [taoensso.sente.server-adapters.community.aleph :refer [get-sch-adapter]]))
 
 (defn sente-send! [sente & args]
   (apply (get-in sente [:chsk :send-fn]) args))

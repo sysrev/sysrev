@@ -1,6 +1,6 @@
 {:paths ["src"]
  :deps {aleph/aleph {:mvn/version "0.5.0"}
-        cheshire/cheshire {:mvn/version "5.11.0"}
+        cheshire/cheshire {:mvn/version "5.12.0"}
         clj-http/clj-http {:mvn/version "3.12.3"}}
  :aliases {:test {:extra-paths ["test" "test-resources"]
                   :extra-deps {com.cognitect/test-runner

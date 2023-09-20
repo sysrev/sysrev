@@ -15,25 +15,23 @@ jobs:
       code-bucket: ${{ steps.get-stack-outputs.outputs.CodeBucket }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Configure AWS staging credentials
         if: github.ref_name == 'staging'
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
-          mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
         if: github.ref_name == 'production'
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: us-east-1
-          mask-aws-account-id: no
 
       - name: Get Sysrev-Global-Resources stack outputs
         if: github.ref_name == 'staging' || github.ref_name == 'production'
@@ -49,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache npm dependencies
         uses: actions/cache@v3
@@ -121,21 +119,19 @@ jobs:
 
       - name: Configure AWS staging credentials
         if: github.ref_name == 'staging'
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
           aws-region: us-east-1
-          mask-aws-account-id: no
 
       - name: Configure AWS prod credentials
         if: github.ref_name == 'production'
-        uses: aws-actions/configure-aws-credentials@v1-node16
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: us-east-1
-          mask-aws-account-id: no
 
       - name: Set APOLLO_KEY
         if: github.ref_name == 'production'
@@ -160,7 +156,7 @@ jobs:
           nix develop -c clojure -X:prod:dev sysrev.infra.core/deploy! :groups [:graphql-gateway]
 
       - name: Log job run to Slack
-        uses: 8398a7/action-slack@v3.14.0
+        uses: 8398a7/action-slack@v3.15.1
         if: always()
         with:
           status: custom

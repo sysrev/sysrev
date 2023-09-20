@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {com.cognitect.aws/secretsmanager {:mvn/version "825.2.1262.0"}}}
+ :deps {com.cognitect.aws/secretsmanager {:mvn/version "847.2.1387.0"}}}

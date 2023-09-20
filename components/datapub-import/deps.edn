@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {lambdaisland/uri {:mvn/version "1.13.95"}
+ :deps {lambdaisland/uri {:mvn/version "1.15.125"}
         org.clojure/tools.logging {:mvn/version "1.2.4"}
         poly/datapub-client {:local/root "../datapub-client"}
         poly/fda-drugs {:local/root "../fda-drugs"}
