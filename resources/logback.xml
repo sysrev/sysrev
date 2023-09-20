@@ -22,5 +22,6 @@
   <logger name="com.datastax.driver.core" level="WARN" />
   <logger name="com.datastax.driver.core.Cluster" level="INFO" />
   <logger name="clj-antlr.common" level="ERROR" />
+  <logger name="net.spy.memcached.MemcachedConnection" level="ERROR" />
   <logger name="org.apache.pdfbox.pdmodel.font" level="ERROR" />
 </configuration>
