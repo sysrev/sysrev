@@ -1,6 +1,7 @@
 (ns sysrev.secrets-manager.interface
   (:require [aws-api-failjure :as aaf]
             [com.rpl.specter :as sp]
+            [donut.system :as-alias ds]
             [sysrev.aws-client.interface :as aws-client]
             [sysrev.json.interface :as json]))
 
@@ -25,3 +26,19 @@
            (throw (ex-info "Key not found in secret value" {:arn arn :key key}))
            v)))
      m)))
+
+(defn transformer-component
+  "Returns a donut.system component that transforms secret refs into their values.
+
+   Secrets are represented by maps in this format:
+   `{:secrets-manager/arn \"***REMOVED***\"
+     :secrets-manager/key :token}`
+
+   Secrets will be resolved from AWS Secrets Manager and decoded as JSON objects."
+  [client-opts m]
+  {::ds/config {:client-opts client-opts :m m}
+   ::ds/start
+   (fn [{::ds/keys [instance] {:keys [client-opts m]} ::ds/config}]
+     (or instance
+         (transform-secrets client-opts m)))
+   ::ds/stop (constantly nil)})

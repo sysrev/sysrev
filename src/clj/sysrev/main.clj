@@ -63,11 +63,10 @@
 (defn system-def [& {:keys [config postgres-overrides]}]
   (let [config (-> config :postgres
                    (merge postgres-overrides)
-                   (->> (assoc config :postgres)
-                        (secrets-manager/transform-secrets (aws-opts config))))]
+                   (->> (assoc config :postgres)))]
     {::ds/defs
      {:sysrev
-      {:config config
+      {:config (secrets-manager/transformer-component (aws-opts config) config)
        :localstack (sys/stuartsierra->ds (localstack config))
        :memcached (-> (sys/stuartsierra->ds
                        (cond
