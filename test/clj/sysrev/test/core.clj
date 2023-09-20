@@ -311,7 +311,7 @@
   (create-target-dir!)
   (let [test-ids (tests-by-kind extra-config)
         get-tests (fn [kind] (get test-ids #{kind}))
-        test-kinds (filter #(when-not (= :optional %)
+        test-kinds (filter #(when-not (#{:e2e :optional} %)
                               (seq (get-tests %)))
                            test-kind-order)
         junit-target (file-util/get-path "target/junit.xml")]
