@@ -1,0 +1,6 @@
+{:paths ["src"]
+ :deps {io.github.lukaszkorecki/tolkien {:git/tag "v0.1.4" :git/sha "65aeb98"}
+        net.clojars.wkok/openai-clojure {:git/url "https://github.com/insilica/openai-clojure.git"
+                                         :git/sha "425e3769278e6ee9fab209c308d4fe7c9c1583bc"}
+
+        poly/util-lite {:local/root "../util-lite"}}}
