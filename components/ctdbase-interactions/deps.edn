@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {lambdaisland/deep-diff2 {:mvn/version "2.10.211"}
+
+        poly/openai-helpers {:local/root "../openai-helpers"}}}

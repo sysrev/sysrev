@@ -84,6 +84,7 @@
         poly/aws-client {:local/root "components/aws-client"}
         poly/config {:local/root "components/config"}
         poly/contajners {:local/root "components/contajners"}
+        poly/ctdbase-interactions {:local/root "components/ctdbase-interactions"}
         poly/datapub-client {:local/root "components/datapub-client"}
         poly/file-util {:local/root "components/file-util"}
         poly/flyway {:local/root "components/flyway"}
