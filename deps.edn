@@ -123,7 +123,7 @@
   ;; shared config for :test and :dev
   :test-code {:jvm-opts ["-Djdk.attach.allowAttachSelf" ; for clj-async-profiler
                          "-Djava.util.logging.config.file=resources/logging.properties"
-                         "-Xms600m" "-Xmx1200m"]
+                         "-Xms600m" "-Xmx2400m"]
               :extra-paths ["test/clj" "test-resources"
                             "components/office/test-resources"
                             "components/ris/test-resources"]
