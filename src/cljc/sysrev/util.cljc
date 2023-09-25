@@ -540,7 +540,7 @@
             (/ (Math/round (* d factor)) factor))))
 
 #?(:clj (defn byte-array->sha-1-hash
-          "Convert a byte-array into an md5 hash"
+          "Convert a byte-array into a SHA-1 hash"
           [^"[B" bytes]
           (let [algorithm (MessageDigest/getInstance "SHA-1")
                 raw (.digest algorithm bytes)]
