@@ -1,4 +1,4 @@
 {:paths ["src"]
- :deps {hickory/hickory {:mvn/version "0.7.1"}
+ :deps {org.clj-commons/hickory {:mvn/version "0.7.3"}
         org.clojure/data.csv {:mvn/version "1.0.1"}
         poly/file-util {:local/root "../file-util"}}}
