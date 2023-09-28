@@ -14,6 +14,7 @@
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.panels.create-org]
             [sysrev.views.panels.create-project]
+            [sysrev.views.panels.enterprise]
             [sysrev.views.panels.landing-pages.data-extraction]
             [sysrev.views.panels.landing-pages.lit-review]
             [sysrev.views.panels.landing-pages.managed-review]
