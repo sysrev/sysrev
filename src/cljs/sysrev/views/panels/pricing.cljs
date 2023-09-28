@@ -102,7 +102,7 @@
           [Row
            (PricingSegment
             :class "pricing-free"
-            :title "Basic" :price "$0" :per-item "Per Month"
+            :title "Basic" :price "$0" :per-item "Per month"
             :intro "The basics of Sysrev for every researcher"
             :benefits [FreeBenefits]
             :content
@@ -132,15 +132,20 @@
                 "Already signed up!" "Choose Premium")]))
            (PricingSegment
             :class "pricing-enterprise"
-            :title "Enterprise" :price [:a {:href "mailto:info@insilica.co"}
-                                        "Contact Sales for pricing"]
+            :title "Enterprise" :price "$1000" :per-item "Per month"
             :intro "Customized plans tailored to your organization's needs"
             :benefits [EnterpriseBenefits]
             :content
             (list
-             [:p.team-pricing {:key :team-pricing}
-              [:a {:href "mailto:info@insilica.co"} "Contact us"]
-              " about designing a custom data processing and analysis solution to meet your needs today!"]))]]]))))
+             [Button {:key :button
+                      :href (if @logged-in?
+                              "https://buy.stripe.com/4gwg0P96T5674Mg7st"
+                              (make-url "/register"
+                                        {:redirect "/user/plans"
+                                         :redirect_message
+                                         "Create a free account to upgrade to Enterprise Plan"}))
+                      :fluid true :primary true}
+              "Choose Enterprise"]))]]]))))
 
 (def-panel :uri "/pricing" :panel panel
   :on-route (dispatch [:set-active-panel panel])
