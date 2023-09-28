@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For assistance related to logback-translator or configuration  -->
+<!-- files in general, please contact the logback user mailing list -->
+<!-- at http://www.qos.ch/mailman/listinfo/logback-user             -->
+<!--                                                                -->
+<!-- For professional support please see                            -->
+<!--    http://www.qos.ch/shop/products/professionalSupport         -->
+<!--                                                                -->
+<configuration>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-6level [%logger] %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="console" />
+  </root>
+  <logger name="com.zaxxer.hikari" level="WARN" />
+  <logger name="org.apache.http.client" level="ERROR" />
+  <logger name="com.google.javascript.jscomp" level="ERROR" />
+  <logger name="com.datastax.driver.core" level="WARN" />
+  <logger name="com.datastax.driver.core.Cluster" level="INFO" />
+  <logger name="clj-antlr.common" level="ERROR" />
+  <logger name="net.spy.memcached.MemcachedConnection" level="ERROR" />
+  <logger name="org.apache.pdfbox.pdmodel.font" level="ERROR" />
+</configuration>
