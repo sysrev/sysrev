@@ -1,7 +1,6 @@
 {:paths ["src/cljs"
          "src/cljc"
          "resources"
-         "components/notification/src"
          "components/user/src"
          "test"]
  :deps {;;; Newer versions require JVM 11+

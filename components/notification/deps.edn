@@ -1,5 +1,0 @@
-{:paths ["src"]
- :deps {honeysql/honeysql {:mvn/version "1.0.461"}
-        orchestra/orchestra {:mvn/version "2021.01.01-1"}
-
-        poly/medley {:local/root "../medley"}}}
