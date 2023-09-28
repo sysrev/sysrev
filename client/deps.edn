@@ -1,7 +1,6 @@
 {:paths ["src/cljs"
          "src/cljc"
          "resources"
-         "components/user/src"
          "test"]
  :deps {;;; Newer versions require JVM 11+
         thheller/shadow-cljs {:mvn/version "2.17.8"}
