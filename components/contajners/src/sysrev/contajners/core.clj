@@ -85,7 +85,8 @@
         (throw e)))))
 
 (defn up! [name {:keys [Image] :as config} & {:as op-map}]
-  (pull-image! Image op-map)
+  (when-not (image-exists? Image op-map)
+    (pull-image! Image op-map))
   (while (not (image-exists? Image op-map))
     (Thread/sleep 1000))
   (create-container! name config op-map)
