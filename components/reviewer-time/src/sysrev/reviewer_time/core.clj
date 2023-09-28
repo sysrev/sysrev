@@ -2,7 +2,6 @@
   (:require [com.walmartlabs.lacinia.executor :as executor]
             [com.walmartlabs.lacinia.selection :as selection]
             [medley.core :as medley]
-            [sysrev.db.core :as db]
             [sysrev.postgres.interface :as pg])
   (:import (java.sql Timestamp)
            (java.time Duration Instant LocalDateTime ZoneId ZoneOffset)))
@@ -138,7 +137,7 @@
         :else (recur (selection/selections v) more)))))
 
 (defn Project-reviewerTime [context {:keys [end start reviewerIds]} {:keys [id]}]
-  (let [conn (:datasource @db/*active-db*)
+  (let [conn (-> context :request :sr-context :postgres :datasource)
         intervals-map (get-project-intervals
                        conn id
                        :end (when end (->LocalDateTime end))
