@@ -220,9 +220,9 @@
   (let [{:keys [error import]}
         (try (f args)
              (catch Exception e
-               (log/error "wrap-import-handler -" (.getMessage e))
+               (log/error "wrap-import-handler -" (ex-message e))
                (log/error (with-out-str (print-cause-trace-custom e)))
-               {:error {:message "Import error"}}))]
+               {:error {:message (str "Import error: " (ex-message e))}}))]
 
     (if error
       {:error error}
