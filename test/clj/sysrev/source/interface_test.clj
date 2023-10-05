@@ -56,7 +56,7 @@
                            project-id input {:use-future? false}))))
         (is (= 200 (project/project-article-count project-id)))
         (log/info "checking articles-csv export")
-        (let [articles-csv (rest (export/export-articles-csv project-id))
+        (let [articles-csv (rest (export/export-articles-csv sr-context project-id))
               article-ids (set (project/project-article-ids project-id))]
           (is (= (count articles-csv) (count article-ids)))
           (is (every? (fn [article-id]

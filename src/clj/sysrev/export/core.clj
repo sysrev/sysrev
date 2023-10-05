@@ -5,7 +5,7 @@
    [medley.core :as medley]
    [sysrev.api :refer [graphql-request]]
    [sysrev.datasource.api :as ds-api]
-   [sysrev.db.core :refer [do-query with-transaction]]
+   [sysrev.db.core :as db :refer [do-query]]
    [sysrev.db.queries :as q]
    [sysrev.label.core :as label]
    [sysrev.project.core :as project]
@@ -38,8 +38,8 @@
   value of (user,article). article-ids optionally specifies a subset
   of articles within project to include; by default, all enabled
   articles will be included."
-  [project-id & {:keys [article-ids separator]}]
-  (with-transaction
+  [sr-context project-id & {:keys [article-ids separator]}]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (let [all-labels (-> (q/select-label-where
                             project-id
                             [:= nil :root-label-id-local]
@@ -97,8 +97,8 @@
   contains answers for one article. article-ids optionally specifies a
   subset of articles within project to include; by default, all
   enabled articles will be included."
-  [project-id & {:keys [article-ids separator]}]
-  (with-transaction
+  [sr-context project-id & {:keys [article-ids separator]}]
+  (db/with-long-transaction[_ (:postgres sr-context)]
     (let [project-url (str "https://sysrev.com/p/" project-id)
           all-labels (-> (q/select-label-where
                           project-id
@@ -172,8 +172,8 @@
   included. article-ids optionally specifies a subset of articles
   within project to include; by default, all enabled articles will be
   included."
-  [project-id & {:keys [article-ids separator]}]
-  (with-transaction
+  [sr-context project-id & {:keys [article-ids separator]}]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (let [project-url (str "https://sysrev.com/p/" project-id)
           article-ids (or (seq article-ids) (project/project-article-ids project-id))
           all-articles (ds-api/get-articles-content article-ids)
@@ -220,8 +220,8 @@
   one annotation. article-ids optionally specifies a subset of
   articles within project to include; by default, all enabled articles
   will be included."
-  [project-id & {:keys [article-ids separator]}]
-  (with-transaction
+  [sr-context project-id & {:keys [article-ids separator]}]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (->>
      (-> (q/select-project-articles
           project-id [:al.article-id :al.label-id :al.user-id :al.answer
@@ -247,8 +247,8 @@
 
 (defn export-group-label-csv
   "Export the group label-id in project-id"
-  [project-id & {:keys [article-ids separator label-id]}]
-  (with-transaction
+  [sr-context project-id & {:keys [article-ids separator label-id]}]
+  (db/with-long-transaction [_ (:postgres sr-context)]
     (let [graphql-resp (->> (graphql-request
                              (venia/graphql-query
                               {:venia/queries

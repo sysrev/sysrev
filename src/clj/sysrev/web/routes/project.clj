@@ -734,21 +734,25 @@
               tempfile (case export-type
                          :user-answers
                          (-> (export/export-user-answers-csv
+                              sr-context
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
                          :article-answers
                          (-> (export/export-article-answers-csv
+                              sr-context
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
                          :articles-csv
                          (-> (export/export-articles-csv
+                              sr-context
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
                          :annotations-csv
                          (-> (export/export-annotations-csv
+                              sr-context
                               project-id :article-ids article-ids :separator separator)
                              (write-csv)
                              (create-export-tempfile))
@@ -756,7 +760,7 @@
                          (project-to-endnote-xml
                           project-id :article-ids article-ids :to-file true)
                          :group-label-csv
-                         (-> (export/export-group-label-csv project-id :label-id label-id)
+                         (-> (export/export-group-label-csv sr-context project-id :label-id label-id)
                              (write-csv)
                              (create-export-tempfile))
                          :json
@@ -822,9 +826,10 @@
                         :uploaded-article-pdfs-zip (ring-io/piped-input-stream (fn [os] (io/copy file os)))))))))
 
 ;; Legacy route for existing API code
-(dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
+(dr (GET "/api/export-user-answers-csv/:project-id/:filename"
+      {:as request :keys [sr-context]}
       (with-authorize request {:allow-public true}
-        (-> (export/export-user-answers-csv (active-project request))
+        (-> (export/export-user-answers-csv sr-context (active-project request))
             (write-csv)
             (app/csv-file-response (-> request :params :filename))))))
 
