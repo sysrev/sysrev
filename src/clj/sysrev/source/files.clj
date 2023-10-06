@@ -446,10 +446,13 @@
   (util/log-errors
    (doseq [[type f] job-type->fn
            {:job/keys [id payload]} (get-jobs sr-context type)]
-     (locking job-lock
+     (try
+       (.acquire job-lock)
        (start-job! sr-context id)
        (f sr-context id payload)
        (->> {:update :job
              :set {:status "done"}
              :where [:= :id id]}
-            (db/execute-one! sr-context))))))
+            (db/execute-one! sr-context))
+       (finally
+         (.release job-lock))))))
