@@ -1,16 +1,26 @@
 (ns sysrev.export.core
-  (:require
-   [clojure.string :as str]
-   [honeysql.helpers :as sqlh :refer [merge-join merge-where order-by]]
-   [medley.core :as medley]
-   [sysrev.api :refer [graphql-request]]
-   [sysrev.datasource.api :as ds-api]
-   [sysrev.db.core :as db :refer [do-query]]
-   [sysrev.db.queries :as q]
-   [sysrev.label.core :as label]
-   [sysrev.project.core :as project]
-   [sysrev.util :as util :refer [in? index-by]]
-   [venia.core :as venia]))
+  (:require [clojure-csv.core :as csv]
+            [clojure.data.json :as json]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [honeysql.helpers :as sqlh :refer [merge-join merge-where order-by]]
+            [medley.core :as medley]
+            [sysrev.api :refer [graphql-request]]
+            [sysrev.article.core :as article]
+            [sysrev.datasource.api :as ds-api]
+            [sysrev.db.core :as db :refer [do-query]]
+            [sysrev.db.queries :as q]
+            [sysrev.export.endnote :as endnote]
+            [sysrev.file.article :as article-file]
+            [sysrev.file.s3 :as s3-file]
+            [sysrev.label.core :as label]
+            [sysrev.postgres.interface :as pg]
+            [sysrev.project.article-list :as alist]
+            [sysrev.project.core :as project]
+            [sysrev.util :as util :refer [in? index-by]]
+            [venia.core :as venia])
+  (:import [java.io File]
+           [java.util.zip ZipEntry ZipOutputStream]))
 
 (def default-csv-separator "|||")
 
@@ -21,6 +31,54 @@
     (cond (and (seqable? x) (empty? x))  ""
           (sequential? x)                (str/join separator (map str x))
           :else                          (str x))))
+
+(def utf8-bom (String. (byte-array (mapv int [239 187 191]))))
+
+(defn write-csv
+  "Return a string of `table` in CSV format, with the UTF-8 BOM added for
+  Excel.
+
+  See https://www.edmundofuentes.com/blog/2020/06/13/excel-utf8-csv-bom-string/"
+  [table & opts]
+  (str utf8-bom
+       (apply csv/write-csv table opts)))
+
+(defn create-export-tempfile [^String content]
+  (let [tempfile (util/create-tempfile)]
+    (with-open [w (io/writer tempfile)]
+      (.write w content))
+    tempfile))
+
+(defn insert-job! [sr-context payload]
+  (->> {:insert-into :job
+        :returning :id
+        :values [{:max-retries 1
+                  :payload (pg/jsonb-pgobject payload)
+                  :status "new"
+                  :type "generate-project-export"}]}
+       (db/execute-one! sr-context)))
+
+(defn get-export [sr-context authorized-project-id job-id]
+  (db/with-tx [sr-context sr-context]
+    (let [{:job/keys [payload status]}
+          #__ (->> {:select [:payload :status]
+                    :from :job
+                    :where [:and
+                            [:= :id job-id]
+                            [:= :type "generate-project-export"]]}
+                   (db/execute-one! sr-context))
+          {:keys [project-id]} payload]
+      (when (= authorized-project-id project-id)
+        (let [{:project-export/keys [filename url]}
+              #__ (when (= "done" status)
+                    (->> {:select [:filename :url]
+                          :from :project-export
+                          :where [:= :job-id job-id]}
+                         (db/execute-one! sr-context)))]
+          {:error nil
+           :filename filename
+           :status status
+           :url url})))))
 
 (defn project-labeled-article-ids [project-id]
   (q/find-article
@@ -307,3 +365,159 @@
                     (apply concat)
                     (into []))]
       (cons header rows))))
+
+(defn project-json [project-id]
+  (let [req [[:project {:id project-id}
+              [:name :id :date_created
+               [:labelDefinitions
+                [:consensus :enabled :name :question :required :type]]
+               [:groupLabelDefinitions
+                [:enabled :name :question :required :type
+                 [:labels [:consensus :enabled :name :question :required :type]]]]
+               [:articles
+                [:datasource_id :enabled :id :uuid
+                 [:groupLabels
+                  [[:answer
+                    [:id :answer :name :question :required :type]]
+                   :confirmed :consensus :created :id :name :question
+                   :required :updated :type
+                   [:reviewer [:id :name]]]]
+                 [:labels
+                  [:answer :confirmed :consensus :created :id :name :question
+                   :required :updated :type
+                   [:reviewer [:id :name]]]]]]]]]
+        resp (graphql-request (util/gquery req))]
+    (if (:errors resp)
+      {:status 500
+       :errors (:errors resp)}
+      (:data resp))))
+
+(defn article-pdfs
+  "Given an article-id, return a vector of maps that correspond to the
+  files associated with article-id"
+  [article-id]
+  (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
+    {:success true
+     :files (->> (article-file/get-article-file-maps article-id)
+                 (mapv #(assoc % :open-access?
+                               (= (:s3-id %) pmcid-s3-id))))}))
+
+(defn project-article-pdfs-zip
+  "download all article pdfs associated with a project. name pdf by article-id"
+  [sr-context project-id]
+  (let [articles (project/project-article-ids project-id)
+        pdfs (mapcat (fn [aid]
+                       (->> (:files (article-pdfs aid))
+                            (map-indexed (fn [i art]
+                                           (if (= i 0)
+                                             {:key (:key art) :name (format "%s.pdf" aid)}
+                                             {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
+                     articles)
+        tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
+    (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
+      (doseq [f pdfs]
+        (util/ignore-exceptions
+         (with-open [is ^java.io.Closeable (s3-file/get-file-stream sr-context (:key f) :pdf)]
+           (.putNextEntry zip (ZipEntry. (str (:name f))))
+           (io/copy is zip)))))
+    tmpzip))
+
+;;;
+;;; Manage references to export files generated for download.
+;;;
+
+(defonce project-export-refs (atom {}))
+
+(defn get-project-exports [project-id]
+  (get @project-export-refs project-id))
+
+(defn add-project-export [project-id export-type tempfile &
+                          [{:keys [filters] :as extra}]]
+  (assert (isa? (type tempfile) File))
+  (let [entry (merge extra {:download-id (util/random-id 5)
+                            :export-type export-type
+                            :tempfile-path (str tempfile)
+                            :added-time db/sql-now})]
+    (swap! project-export-refs update-in [project-id] #(conj % entry))
+    entry))
+
+(defn generate-project-export! [sr-context job-id payload]
+  (let [{:keys [export-type filters label-id project-id separator]} payload
+        export-type (keyword export-type)
+        article-ids (when filters
+                      (alist/query-project-article-ids {:project-id project-id} filters))
+        tempfile (case export-type
+                   :user-answers
+                   (-> (export-user-answers-csv
+                        sr-context
+                        project-id :article-ids article-ids :separator separator)
+                       write-csv
+                       create-export-tempfile)
+                   :article-answers
+                   (-> (export-article-answers-csv
+                        sr-context
+                        project-id :article-ids article-ids :separator separator)
+                       write-csv
+                       create-export-tempfile)
+                   :articles-csv
+                   (-> (export-articles-csv
+                        sr-context
+                        project-id :article-ids article-ids :separator separator)
+                       write-csv
+                       create-export-tempfile)
+                   :annotations-csv
+                   (-> (export-annotations-csv
+                        sr-context
+                        project-id :article-ids article-ids :separator separator)
+                       write-csv
+                       create-export-tempfile)
+                   :endnote-xml
+                   (endnote/project-to-endnote-xml
+                    project-id :article-ids article-ids :to-file true)
+                   :group-label-csv
+                   (-> (export-group-label-csv sr-context project-id :label-id label-id)
+                       write-csv
+                       create-export-tempfile)
+                   :json
+                   (-> (project-json project-id)
+                       json/write-str
+                       create-export-tempfile)
+                   :uploaded-article-pdfs-zip
+                   (project-article-pdfs-zip sr-context project-id))
+        {:keys [download-id]
+         :as entry} (add-project-export
+                     project-id export-type tempfile
+                     {:filters filters :separator separator})
+        filename-base (case export-type
+                        :user-answers     "UserAnswers"
+                        :article-answers  "Answers"
+                        :endnote-xml      "Articles"
+                        :articles-csv     "Articles"
+                        :annotations-csv  "Annotations"
+                        :group-label-csv  "GroupLabel"
+                        :uploaded-article-pdfs-zip "UPLOADED_PDFS"
+                        :json             "JSON")
+        filename-ext (case export-type
+                       (:user-answers
+                        :article-answers
+                        :articles-csv
+                        :annotations-csv
+                        :group-label-csv)  "csv"
+                       :endnote-xml        "xml"
+                       :json               "json"
+                       :uploaded-article-pdfs-zip "zip")
+        filename-project (str "P" project-id)
+        filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
+        filename-date (util/today-string "MMdd")
+        filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id label/get-label :short-label)) filename-articles)]
+                           (str/join "_"))
+                      "." filename-ext)]
+   (->> {:insert-into :project-export
+         :values [(-> (select-keys entry [:download-id])
+                      (assoc :export-type (name export-type)
+                             :filename filename
+                             :job-id job-id
+                             :url (str/join "/" ["/api/download-project-export" project-id
+                                                 (name export-type) download-id
+                                                 (str/replace filename "/" "%2F")])))]}
+        (db/execute-one! sr-context))))

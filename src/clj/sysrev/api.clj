@@ -65,8 +65,7 @@
             [sysrev.user.core :refer [user-by-username]]
             [sysrev.util :as util :refer
              [in? index-by req-un sum uuid-from-string]]
-            [sysrev.web.app :as app])
-  (:import (java.util.zip ZipEntry ZipOutputStream)))
+            [sysrev.web.app :as app]))
 
 ;; HTTP error codes
 (def payment-required 402)
@@ -822,36 +821,6 @@
       ;; there was nothing available
       :else {:available? false})))
 
-(defn article-pdfs
-  "Given an article-id, return a vector of maps that correspond to the
-  files associated with article-id"
-  [article-id]
-  (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
-    {:success true
-     :files (->> (article-file/get-article-file-maps article-id)
-                 (mapv #(assoc % :open-access?
-                               (= (:s3-id %) pmcid-s3-id))))}))
-
-(defn project-article-pdfs-zip
-  "download all article pdfs associated with a project. name pdf by article-id"
-  [sr-context project-id]
-  (let [articles (project/project-article-ids project-id)
-        pdfs (mapcat (fn [aid]
-                       (->> (:files (article-pdfs aid))
-                            (map-indexed (fn [i art]
-                                           (if (= i 0)
-                                             {:key (:key art) :name (format "%s.pdf" aid)}
-                                             {:key (:key art) :name (format "%s-%d.pdf" aid i)})))))
-                     articles)
-        tmpzip (util/create-tempfile :suffix (format "%d.zip" project-id))]
-    (with-open [zip (ZipOutputStream. (io/output-stream tmpzip))]
-      (doseq [f pdfs]
-        (util/ignore-exceptions
-         (with-open [is ^java.io.Closeable (s3-file/get-file-stream sr-context (:key f) :pdf)]
-           (.putNextEntry zip (ZipEntry. (str (:name f))))
-           (io/copy is zip)))))
-    tmpzip))
-
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
@@ -1312,32 +1281,6 @@
     (try (json/read-str body :key-fn keyword)
          (catch Exception _
            body))))
-
-(defn project-json [project-id]
-  (let [req [[:project {:id project-id}
-              [:name :id :date_created
-               [:labelDefinitions
-                [:consensus :enabled :name :question :required :type]]
-               [:groupLabelDefinitions
-                [:enabled :name :question :required :type
-                 [:labels [:consensus :enabled :name :question :required :type]]]]
-               [:articles
-                [:datasource_id :enabled :id :uuid
-                 [:groupLabels
-                  [[:answer
-                    [:id :answer :name :question :required :type]]
-                   :confirmed :consensus :created :id :name :question
-                   :required :updated :type
-                   [:reviewer [:id :name]]]]
-                 [:labels
-                  [:answer :confirmed :consensus :created :id :name :question
-                   :required :updated :type
-                   [:reviewer [:id :name]]]]]]]]]
-        resp (graphql-request (util/gquery req))]
-    (if (:errors resp)
-      {:status internal-server-error
-       :errors (:errors resp)}
-      (:data resp))))
 
 (defn managed-review-request [request]
   (let [name        (:name  (:body request))

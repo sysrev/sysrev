@@ -1,6 +1,5 @@
 (ns sysrev.web.routes.project
-  (:require [clojure-csv.core :as csv]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST PUT]]
@@ -17,7 +16,6 @@
             [sysrev.db.queries :as q]
             [sysrev.encryption :as enc]
             [sysrev.export.core :as export]
-            [sysrev.export.endnote :refer [project-to-endnote-xml]]
             [sysrev.file.article :as article-file]
             [sysrev.file.document :as doc-file]
             [sysrev.file.s3 :as s3-file]
@@ -42,8 +40,7 @@
             [sysrev.util :as util :refer [parse-integer]]
             [sysrev.web.app :as app :refer [active-project current-user-id
                                             with-authorize]]
-            [sysrev.web.routes.core :refer [setup-local-routes]])
-  (:import (java.io File)))
+            [sysrev.web.routes.core :refer [setup-local-routes]]))
 
 ;; for clj-kondo
 (declare project-routes dr finalize-routes)
@@ -51,17 +48,6 @@
 ;;;
 ;;; Functions for project routes
 ;;;
-
-(def utf8-bom (String. (byte-array (mapv int [239 187 191]))))
-
-(defn write-csv
-  "Return a string of `table` in CSV format, with the UTF-8 BOM added for
-  Excel.
-
-  See https://www.edmundofuentes.com/blog/2020/06/13/excel-utf8-csv-bom-string/"
-  [table & opts]
-  (str utf8-bom
-       (apply csv/write-csv table opts)))
 
 (defn record-user-project-interaction [request]
   (let [user-id (current-user-id request)
@@ -94,7 +80,7 @@
         article (article/get-article article-id)]
     {:article (-> article
                   prepare-article-response
-                  (assoc :pdfs (:files (api/article-pdfs article-id))
+                  (assoc :pdfs (:files (export/article-pdfs article-id))
                          :predictions (article/article-predictions article-id)
                          :review-status (label/article-consensus-status project-id article-id)
                          :resolve (merge resolve {:labels resolve-labels})))
@@ -154,31 +140,6 @@
                           :progress progress}
                   :subscription-lapsed? subscription-lapsed?))
        :users users})))
-
-;;;
-;;; Manage references to export files generated for download.
-;;;
-
-(defonce project-export-refs (atom {}))
-
-(defn get-project-exports [project-id]
-  (get @project-export-refs project-id))
-
-(defn add-project-export [project-id export-type tempfile &
-                          [{:keys [user-id filters] :as extra}]]
-  (assert (isa? (type tempfile) File))
-  (let [entry (merge extra {:download-id (util/random-id 5)
-                            :export-type export-type
-                            :tempfile-path (str tempfile)
-                            :added-time db/sql-now})]
-    (swap! project-export-refs update-in [project-id] #(conj % entry))
-    entry))
-
-(defn create-export-tempfile [^String content]
-  (let [tempfile (util/create-tempfile)]
-    (with-open [w (io/writer tempfile)]
-      (.write w content))
-    tempfile))
 
 (defn project-not-found [project-id]
   {:error {:status 404
@@ -718,7 +679,7 @@
 
 (dr (GET "/api/project-exports" request
       (with-authorize request {:allow-public true}
-        (get-project-exports (active-project request)))))
+        (export/get-project-exports (active-project request)))))
 
 (dr (POST "/api/generate-project-export/:project-id/:export-type"
       {:keys [body params sr-context] :as request}
@@ -729,86 +690,30 @@
               {:keys [filters text-search separator label-id]} body
               text-search (not-empty text-search)
               filters (vec (concat filters (when text-search [{:text-search text-search}])))
-              article-ids (when filters
-                            (alist/query-project-article-ids {:project-id project-id} filters))
-              tempfile (case export-type
-                         :user-answers
-                         (-> (export/export-user-answers-csv
-                              sr-context
-                              project-id :article-ids article-ids :separator separator)
-                             (write-csv)
-                             (create-export-tempfile))
-                         :article-answers
-                         (-> (export/export-article-answers-csv
-                              sr-context
-                              project-id :article-ids article-ids :separator separator)
-                             (write-csv)
-                             (create-export-tempfile))
-                         :articles-csv
-                         (-> (export/export-articles-csv
-                              sr-context
-                              project-id :article-ids article-ids :separator separator)
-                             (write-csv)
-                             (create-export-tempfile))
-                         :annotations-csv
-                         (-> (export/export-annotations-csv
-                              sr-context
-                              project-id :article-ids article-ids :separator separator)
-                             (write-csv)
-                             (create-export-tempfile))
-                         :endnote-xml
-                         (project-to-endnote-xml
-                          project-id :article-ids article-ids :to-file true)
-                         :group-label-csv
-                         (-> (export/export-group-label-csv sr-context project-id :label-id label-id)
-                             (write-csv)
-                             (create-export-tempfile))
-                         :json
-                         (-> (api/project-json project-id)
-                             (clojure.data.json/write-str)
-                             (create-export-tempfile))
-                         :uploaded-article-pdfs-zip
-                         (api/project-article-pdfs-zip sr-context project-id))
-              {:keys [download-id]
-               :as entry} (add-project-export
-                           project-id export-type tempfile
-                           {:user-id user-id :filters filters :separator separator})
-              filename-base (case export-type
-                              :user-answers     "UserAnswers"
-                              :article-answers    "Answers"
-                              :endnote-xml      "Articles"
-                              :articles-csv     "Articles"
-                              :annotations-csv  "Annotations"
-                              :group-label-csv  "GroupLabel"
-                              :uploaded-article-pdfs-zip "UPLOADED_PDFS"
-                              :json             "JSON")
-              filename-ext (case export-type
-                             (:user-answers
-                              :article-answers
-                              :articles-csv
-                              :annotations-csv
-                              :group-label-csv)  "csv"
-                             :endnote-xml        "xml"
-                             :json               "json"
-                             :uploaded-article-pdfs-zip "zip")
-              filename-project (str "P" project-id)
-              filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
-              filename-date (util/today-string "MMdd")
-              filename (str (->> [filename-base filename-project filename-date (if (= export-type :group-label-csv)  (str "Group-Label-" (-> label-id label/get-label :short-label)) filename-articles)]
-                                 (str/join "_"))
-                            "." filename-ext)]
-          {:entry (-> (select-keys entry [:download-id :export-type :added-time])
-                      (assoc :filename filename
-                             :url (str/join "/" ["/api/download-project-export" project-id
-                                                 (name export-type) download-id
-                                                 (str/replace filename "/" "%2F")])))}))))
+              job-id (->> {:export-type export-type
+                           :filters filters
+                           :label-id label-id
+                           :project-id project-id
+                           :separator separator
+                           :user-id user-id}
+                          (export/insert-job! sr-context)
+                          :job/id)]
+          ;; Try to kick off export immediately
+          (future (files/import-from-job-queue! sr-context))
+          {:job-id job-id}))))
+
+(dr (GET "/api/get-project-export/:project-id/:job-id"
+      {:keys [params sr-context] :as request}
+      (with-authorize request {:allow-public true}
+        (let [{:keys [job-id project-id]} params]
+          (export/get-export sr-context (parse-long project-id) (parse-long job-id))))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
       (with-authorize request {:allow-public true}
         (let [project-id (active-project request)
               export-type (-> request :params :export-type keyword)
               {:keys [download-id filename]} (-> request :params)
-              entry (->> (get-project-exports project-id)
+              entry (->> (export/get-project-exports project-id)
                          (filter #(and (= (:export-type %) export-type)
                                        (= (:download-id %) download-id)))
                          first)
@@ -824,14 +729,6 @@
                         (-> (io/reader file) (app/xml-file-response filename))
                         :json (-> (io/reader file) (app/text-file-response filename))
                         :uploaded-article-pdfs-zip (ring-io/piped-input-stream (fn [os] (io/copy file os)))))))))
-
-;; Legacy route for existing API code
-(dr (GET "/api/export-user-answers-csv/:project-id/:filename"
-      {:as request :keys [sr-context]}
-      (with-authorize request {:allow-public true}
-        (-> (export/export-user-answers-csv sr-context (active-project request))
-            (write-csv)
-            (app/csv-file-response (-> request :params :filename))))))
 
 ;;;
 ;;; Project support subscriptions
@@ -882,7 +779,7 @@
 (dr (GET "/api/files/:project-id/article/:article-id/article-pdfs" request
       (with-authorize request {:roles ["member"]}
         (let [{:keys [article-id]} (:params request)]
-          (api/article-pdfs (parse-integer article-id))))))
+          (export/article-pdfs (parse-integer article-id))))))
 
 (dr (GET "/api/files/:project-id/article/:article-id/download/:key"
       {:keys [params sr-context] :as request}

@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.project.export-data
-  (:require [re-frame.core :refer [subscribe dispatch reg-sub]]
+  (:require [re-frame.core :refer [subscribe dispatch reg-event-fx reg-sub trim-v]]
             [sysrev.action.core :as action :refer [def-action]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.views.panels.project.define-labels :refer [label-settings-config]]
             [sysrev.views.semantic :refer [Dropdown]]
             [sysrev.util :as util :refer [css]]
@@ -12,21 +13,53 @@
 (setup-panel-state panel [:project :project :export-data]
                    :state state :get [panel-get ::get] :set [panel-set ::set])
 
+(def-data :project-export-status
+  :loaded? (fn [db project-id job-id]
+             (seq (get-in db [:data :project-export-status project-id job-id])))
+  :uri     (fn [project-id job-id]
+             (str "/api/get-project-export/" project-id "/" job-id))
+  :process (fn [{:keys [db]} [project-id job-id] result]
+             {:db (assoc-in db [:data :project-export-status project-id job-id]
+                            (select-keys result [:error :filename :status :url]))})
+  :hide-loading true)
+
+(reg-sub :project/export-status
+         (fn [db [_ project-id job-id]]
+           (get-in db [:data :project-export-status project-id job-id])))
+
 (def-action :project/generate-export
   :uri (fn [project-id export-type _]
          (str "/api/generate-project-export/" project-id "/" (name export-type)))
   :content (fn [_ _ options]
              (merge options {}))
-  :process (fn [{:keys [db]} [project-id export-type options] {:keys [entry]}]
-             {:db (assoc-in db [:data :project-exports [project-id export-type options]] entry)})
+  :process (fn [{:keys [db]} [project-id export-type options] {:keys [job-id]}]
+             {:db (assoc-in db [:data :project-exports [project-id export-type options]] {:job-id job-id})
+              :dispatch-n [[:poll-export-status project-id job-id]]})
   :on-error (fn [{:keys [db error]} [project-id export-type options] _]
               {:db (assoc-in db [:data :project-exports [project-id export-type options]]
                              {:error error})})
-  :timeout (* 10 60 1000))
+  :timeout (* 30 1000))
 
 (reg-sub :project/export-file
          (fn [db [_ project-id export-type options]]
            (get-in db [:data :project-exports [project-id export-type options]])))
+
+(defn poll-export-status [project-id job-id]
+  (dispatch [:fetch [:project-export-status project-id job-id]])
+  (let [export-status (subscribe [:project/export-status project-id job-id])]
+    (util/continuous-update-until
+     (fn [] (dispatch [:fetch [:project-export-status project-id job-id]]))
+     (fn []
+       (#{"done" "failed"} (:status @export-status)))
+     (fn []
+       (dispatch [:reload [:project project-id]]))
+     1000)))
+
+(reg-event-fx :poll-export-status [trim-v]
+              (fn [_ [project-id job-id]]
+                (-> #(poll-export-status project-id job-id)
+                    (js/setTimeout 200))
+                {}))
 
 (defn ProjectExportNavigateForm [export-type]
   [:a.ui.fluid.right.labeled.icon.primary.button

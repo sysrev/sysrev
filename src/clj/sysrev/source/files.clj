@@ -9,6 +9,7 @@
             [sysrev.datapub-client.interface :as dpc]
             [sysrev.datapub-client.interface.queries :as dpcq]
             [sysrev.db.core :as db]
+            [sysrev.export.core :as export]
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3]
             [sysrev.formats.endnote :as endnote]
@@ -19,7 +20,10 @@
             [sysrev.source.core :as source]
             [sysrev.source.pubmed :as pubmed]
             [sysrev.util :as util]
-            [sysrev.util-lite.interface :as ul]))
+            [sysrev.util-lite.interface :as ul])
+  (:import [java.util.concurrent Semaphore]))
+
+(defonce job-lock (Semaphore. 4))
 
 (defn insert-job!
   [context type payload & {:keys [started-at status] :or {status "new"}}]
@@ -322,7 +326,7 @@
             (babashka.fs/copy (s3/get-file-stream sr-context s3-key :import) tempfile)
             (assoc file :tempfile tempfile))))))
 
-(defn import-files! [sr-context {:keys [files source-id]}]
+(defn import-files! [sr-context _job-id {:keys [files source-id]}]
   (let [{:project-source/keys [dataset-id meta project-id]}
         (->> {:select [:dataset-id :meta :project-id] :from :project-source :where [:= :source-id source-id]}
              (db/execute-one! sr-context))]
@@ -350,11 +354,12 @@
     ((if sync? deref identity)
      (future
        (util/log-errors
-        (import-files! sr-context {:files files :source-id source-id})
-        (->> {:update :job
-              :set {:status "done"}
-              :where [:= :id job-id]}
-             (db/execute-one! sr-context)))))
+        (locking job-lock
+          (import-files! sr-context job-id {:files files :source-id source-id})
+          (->> {:update :job
+                :set {:status "done"}
+                :where [:= :id job-id]}
+               (db/execute-one! sr-context))))))
     {:success true}))
 
 (defn import-entities! [sr-context project-id source-id dataset-id entity-ids]
@@ -384,7 +389,7 @@
       (when hasNextPage
         (get-dataset-entity-ids datapub-opts dataset-id endCursor))))))
 
-(defn import-project-source-articles! [sr-context {:keys [source-id]}]
+(defn import-project-source-articles! [sr-context _job-id {:keys [source-id]}]
   (let [{:project-source/keys [dataset-id project-id]}
         #__ (->> {:select [:dataset-id :project-id]
                   :from :project-source
@@ -432,16 +437,18 @@
          (db/execute! sr-context))))
 
 (def job-type->fn
-  {"import-files" import-files!
+  {"generate-project-export" export/generate-project-export!
+   "import-files" import-files!
    "import-project-source-articles" import-project-source-articles!})
 
 (defn import-from-job-queue! [sr-context]
   (util/log-errors
    (doseq [[type f] job-type->fn
            {:job/keys [id payload]} (get-jobs sr-context type)]
-     (start-job! sr-context id)
-     (f sr-context payload)
-     (->> {:update :job
-           :set {:status "done"}
-           :where [:= :id id]}
-          (db/execute-one! sr-context)))))
+     (locking job-lock
+       (start-job! sr-context id)
+       (f sr-context id payload)
+       (->> {:update :job
+             :set {:status "done"}
+             :where [:= :id id]}
+            (db/execute-one! sr-context))))))

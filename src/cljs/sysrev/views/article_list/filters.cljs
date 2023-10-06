@@ -771,9 +771,10 @@
         options (merge @(subscribe [::al/export-filter-args (al/cached context)])
                        {:separator @(subscribe [::csv-separator])})
         action [:project/generate-export project-id export-type options]
-        running? (action/running? action)
-        entry @(subscribe [:project/export-file project-id export-type options])
-        {:keys [filename url error]} entry
+        {:keys [job-id]} @(subscribe [:project/export-file project-id export-type options])
+        entry (when job-id @(subscribe [:project/export-status project-id job-id]))
+        {:keys [error filename url status]} entry
+        running? (or (#{"new" "started"} status) (action/running? action))
         {:keys [expand-export]} @(subscribe [::al/display-options context])
         expanded? (= expand-export (name export-type))
         file? (and entry (not error))
