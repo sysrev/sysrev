@@ -432,7 +432,8 @@
   (db/with-long-tx [sr-context sr-context]
     (->> {:update :job
           :set {:retries [:+ 1 :retries]
-                :started-at [:now]}
+                :started-at [:now]
+                :status "started"}
           :where [:= :id job-id]}
          (db/execute! sr-context))))
 
