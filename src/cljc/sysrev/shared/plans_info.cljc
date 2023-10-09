@@ -1,7 +1,7 @@
 (ns sysrev.shared.plans-info
   (:require [clojure.string :as str]))
 
-(def version-suffix "_v2")
+(def version-suffix "_v3")
 
 (def premium-product "Premium")
 

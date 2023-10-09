@@ -114,7 +114,7 @@
                    (if @logged-in? "Create a Free Team" "Choose Free")]))
            (PricingSegment
             :class "pricing-team-pro"
-            :title "Premium" :price "$10" :per-item "Per member / month"
+            :title "Premium" :price "$50" :per-item "Per member / month"
             :intro "Advanced collaboration and management tools for teams"
             :benefits [TeamProBenefits]
             :content
