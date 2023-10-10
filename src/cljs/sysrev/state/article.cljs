@@ -184,10 +184,6 @@
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:pdfs article)))
 
-(reg-sub :article/open-access-available?
-         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
-         (fn [article] (:open-access-available? article)))
-
 (reg-sub :article/key
          (fn [[_ article-id]] (subscribe [:article/raw article-id]))
          (fn [article] (:key article)))

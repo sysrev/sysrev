@@ -6,7 +6,6 @@
             [honeysql.helpers :as sqlh :refer [merge-join merge-where order-by]]
             [medley.core :as medley]
             [sysrev.api :refer [graphql-request]]
-            [sysrev.article.core :as article]
             [sysrev.datasource.api :as ds-api]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
@@ -394,11 +393,8 @@
   "Given an article-id, return a vector of maps that correspond to the
   files associated with article-id"
   [article-id]
-  (let [pmcid-s3-id (some-> article-id article/article-pmcid article-file/pmcid->s3-id)]
-    {:success true
-     :files (->> (article-file/get-article-file-maps article-id)
-                 (mapv #(assoc % :open-access?
-                               (= (:s3-id %) pmcid-s3-id))))}))
+  {:success true
+   :files (article-file/get-article-file-maps article-id)})
 
 (defn project-article-pdfs-zip
   "download all article pdfs associated with a project. name pdf by article-id"

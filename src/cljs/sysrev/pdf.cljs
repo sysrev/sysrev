@@ -22,29 +22,10 @@
 (set! react-pdf/pdfjs.GlobalWorkerOptions.workerSrc
       "/js/pdfjs-dist/build/pdf.worker.min.js")
 
-(defn pdf-url-open-access?
-  "Given a pdf-url, is it an open access pdf?"
-  [pdf-url]
-  (boolean (re-matches #"/api/open-access/(\d+)/view/.*" pdf-url)))
-
 (defn pdf-url->key
   "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
   [pdf-url]
-  (if (pdf-url-open-access? pdf-url)
-    (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
-    (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
-
-(def-data :pdf/open-access-available?
-  :loaded? (fn [db _project-id article-id]
-             (-> (article/get-article db article-id)
-                 (contains? :open-access-available?)))
-  :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
-  :prereqs (fn [project-id article-id]
-             [[:article project-id article-id]])
-  :process (fn [{:keys [db]} [_ article-id] {:keys [available? key]}]
-             {:db (article/update-article db article-id {:open-access-available? available?
-                                                         :key key})})
-  :hide-loading true)
+  (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2))
 
 (def-data :pdf/article-pdfs
   :loaded? (fn [db _project-id article-id]
@@ -75,21 +56,6 @@
 ;;
 ;; this was ultimately based off of
 ;; https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
-
-(defn view-open-access-pdf-url [article-id key]
-  (str "/api/open-access/" article-id "/view/" key))
-
-(defn ArticlePdfEntryOpenAccess [article-id]
-  (when @(subscribe [:article/open-access-available? article-id])
-    [:div.field>div.fields
-     [:div
-      [:a.ui.labeled.icon.button
-       {:href (view-open-access-pdf-url
-               article-id @(subscribe [:article/key article-id]))
-        :target "_blank"
-        :download (str article-id ".pdf")}
-       [:i.download.icon]
-       (str article-id ".pdf")]]]))
 
 (defn view-s3-pdf-url [project-id article-id key _filename]
   (str "/api/files/" project-id "/article/" article-id "/view/" key))
@@ -129,8 +95,7 @@
                "No"]]]])]))))
 
 (defn ArticlePdfListS3 [article-id]
-  (when-let [pdfs (seq (->> @(subscribe [:article/pdfs article-id])
-                            (remove :open-access?)))]
+  (when-let [pdfs (seq @(subscribe [:article/pdfs article-id]))]
     [:div
      (doall (map-indexed
              (fn [i file-map] ^{:key i}
@@ -147,7 +112,6 @@
                     [:pdf/article-pdfs project-id article-id]] {}
         (let [project-id @(subscribe [:active-project-id])
               full-size? (util/full-size?)
-              #_loading? #_#(loading/any-loading? :only :pdf/open-access-available?)
               upload-form (fn []
                             [:div.field>div.fields
                              [UploadButton
@@ -156,26 +120,20 @@
                               #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
                               "Upload PDF"
                               nil {:margin 0}]])
-              open-access? @(subscribe [:article/open-access-available? article-id])
               logged-in? @(subscribe [:self/logged-in?])
               member? @(subscribe [:self/member?])
               authorized? (and logged-in? member?)]
-          (dispatch [:require [:pdf/open-access-available?
-                               project-id article-id]])
-          (when (or authorized? open-access?)
+          (when authorized?
             [:div#article-pdfs.ui.segment>div.ui.grid>div.row
              [:div.left.aligned
               {:class (css [full-size? "twelve" :else "eleven"] "wide column")}
               [:div {:class (css "ui" [full-size? "small" :else "tiny"] "form")}
-               [ArticlePdfEntryOpenAccess article-id]
                ;; need better permissions for PDFs, for now, simple don't allow
                ;; people who aren't logged in to view PDFs
-               (when logged-in?
-                 [ArticlePdfListS3 article-id])]]
-             (when logged-in?
-               [:div.right.aligned
-                {:class (css [full-size? "four" :else "five"] "wide column")}
-                [upload-form]])]))))))
+               [ArticlePdfListS3 article-id]]]
+             [:div.right.aligned
+              {:class (css [full-size? "four" :else "five"] "wide column")}
+              [upload-form]]]))))))
 
 ;; `npm install react-pdf` will install the version of pdfjs that it requires, check in node_modules/pdfjs-dist/package.json to set this
 

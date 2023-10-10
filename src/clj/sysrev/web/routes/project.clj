@@ -753,19 +753,6 @@
 ;;; PDF files
 ;;;
 
-(dr (GET "/api/open-access/:article-id/availability"
-      {:keys [params sr-context]}
-      (api/open-access-available?
-       sr-context
-       (parse-integer (:article-id params)))))
-
-;; TODO: article-id is ignored; check value or remove
-(dr (GET "/api/open-access/:article-id/view/:key"
-      {:keys [params sr-context]}
-      (->  (s3-file/get-file-stream sr-context (:key params) :pdf)
-           response/response
-           (response/header "Content-Type" "application/pdf"))))
-
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf"
       {:keys [params sr-context] :as request}
       (with-authorize request {:roles ["member"]}

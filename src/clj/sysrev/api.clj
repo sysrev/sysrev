@@ -7,7 +7,6 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-time.core :as time]
-            [me.raynes.fs :as fs]
             [medley.core :as medley]
             [orchestra.core :refer [defn-spec]]
             [ring.mock.request :as mock]
@@ -27,7 +26,6 @@
             [sysrev.file.core :as file]
             [sysrev.file.s3 :as s3-file]
             [sysrev.file.user-image :as user-image]
-            [sysrev.formats.pubmed :as pubmed]
             [sysrev.graphql.handler :refer [graphql-handler sysrev-schema]]
             [sysrev.group.core :as group]
             [sysrev.label.core :as label]
@@ -792,34 +790,6 @@
   {:success true, :key (:key (article-file/save-article-pdf
                               sr-context
                               {:article-id article-id :filename filename :file file}))})
-
-(defn open-access-available? [sr-context article-id]
-  (let [pmcid (-> article-id article/article-pmcid)]
-    (cond
-      ;; the pdf exists in the store already
-      (article-file/pmcid->s3-id pmcid)
-      {:available? true, :key (-> pmcid article-file/pmcid->s3-id file/s3-key)}
-      ;; there is an open access pdf filename, but we don't have it yet
-      (pubmed/pdf-ftp-link pmcid)
-      (try
-        (let [^String filename (-> article-id
-                                   article/article-pmcid
-                                   pubmed/article-pmcid-pdf-filename)
-              file (java.io.File. filename)
-              save-article-result (save-article-pdf sr-context article-id file filename)
-              key (:key save-article-result)
-              s3-id (file/lookup-s3-id filename key)]
-          ;; delete the temporary file
-          (fs/delete filename)
-          ;; associate the pmcid with the s3store item
-          (article-file/associate-pmcid-s3store pmcid s3-id)
-          ;; finally, return the pdf from our own archive
-          {:available? true, :key (-> pmcid article-file/pmcid->s3-id file/s3-key)})
-        (catch Throwable e
-          {:error {:message (str "open-access-available?: " (type e))}}))
-
-      ;; there was nothing available
-      :else {:available? false})))
 
 (defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
