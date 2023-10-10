@@ -6,6 +6,7 @@
             [orchestra.core :refer [defn-spec]]
             [sysrev.aws-client.interface :as aws-client]
             [sysrev.config :refer [env]]
+            [sysrev.memcached.interface :as mem]
             [sysrev.util :as util :refer [in? opt-keys]]))
 
 (defonce ^:private byte-array-type (type (byte-array 1)))
@@ -54,13 +55,22 @@
     file-key))
 
 (defn-spec save-file ::file-key
-  [sr-context map? file any?, bucket ::bucket & {:keys [file-key]} (opt-keys ::file-key)]
-  (save-byte-array
-   sr-context
-   (util/file->byte-array file)
-   bucket
-   (when file-key
-     {:file-key file-key})))
+  [{:as sr-context :keys [memcached]} map?
+   file any?,
+   bucket ::bucket
+   & {:keys [file-key]} (opt-keys ::file-key)]
+  (let [file-key (save-byte-array
+                  sr-context
+                  (util/file->byte-array file)
+                  bucket
+                  (when file-key
+                    {:file-key file-key}))]
+    (mem/cache-set
+     memcached
+     (str "sysrev.file.core/s3-key/" bucket "/" file-key)
+     86400
+     true)
+    file-key))
 
 (defn-spec lookup-file ::s3-response
   [sr-context map? file-key ::file-key, bucket ::bucket]
@@ -78,3 +88,24 @@
 
 (defn get-file-stream [sr-context file-key bucket]
   (:Body (lookup-file sr-context file-key bucket)))
+
+; s3store doesn't save any bucket information, making it useless
+; for existence checks.
+(defn-spec s3-key-exists? boolean?
+  [{:keys [memcached s3]} map? bucket ::bucket key ::file-key]
+  (mem/cache
+   memcached
+   (str "sysrev.file.core/s3-key/" bucket "/" key)
+   86400
+   (try
+     (aws-client/invoke!
+      s3
+      {:op :HeadObject
+       :request {:Bucket (lookup-bucket bucket)
+                 :Key key}})
+     true
+     (catch Exception e
+       (if (-> e ex-data :result :cognitect.anomalies/category
+               (= :cognitect.anomalies/not-found))
+         false
+         (throw e))))))

@@ -22,10 +22,6 @@
       s3-id
       (q/create :s3store fields, :returning :s3-id))))
 
-(defn-spec s3-key-exists? boolean?
-  [key (s/nilable ::key)]
-  (when key (boolean (q/find :s3store {:key key} :key))))
-
 (defn-spec lookup-s3-id (s/nilable ::s3-id)
   [filename ::filename, key ::key]
   (q/find-one :s3store {:filename filename :key key} :s3-id))
@@ -46,7 +42,7 @@
   (util/assert-single file file-bytes)
   (let [file-key (or (some-> file util/file->sha-1-hash)
                      (some-> file-bytes util/byte-array->sha-1-hash))]
-    (when-not (s3-key-exists? file-key)
+    (when-not (s3/s3-key-exists? sr-context bucket file-key)
       (cond file        (s3/save-file sr-context file bucket :file-key file-key)
             file-bytes  (s3/save-byte-array sr-context file-bytes bucket :file-key file-key)))
     (db/with-transaction
