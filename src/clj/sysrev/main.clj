@@ -208,7 +208,7 @@
 (comment
   ;; List active transactions
   (db/execute!
-   (:sr-context @system)
+   (-> @system ::ds/instances :sysrev :sr-context)
    {:select [:pid [[:- [:now] :query-start] :duration]
              :query :state]
     :from :pg-stat-activity
