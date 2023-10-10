@@ -544,7 +544,7 @@
           [^"[B" bytes]
           (let [algorithm (MessageDigest/getInstance "SHA-1")
                 raw (.digest algorithm bytes)]
-            (format "%x" (BigInteger. 1 raw)))))
+            (format "%040x" (BigInteger. 1 raw)))))
 
 #?(:clj (defn file->byte-array
           "Convert a file into a byte-array"
