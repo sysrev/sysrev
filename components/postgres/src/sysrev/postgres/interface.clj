@@ -63,3 +63,43 @@
    The transaction can often be successfully retried when these errors occur."
   [^Throwable e]
   (core/serialization-error? e))
+
+(defmacro with-tx
+  "Either use an existing transaction in the context, or create a new
+   transaction and add it to the context.
+
+   The context can be any map, but is usually an sr-context map,
+   a donut.system instance, or a lacinia context map.
+
+   Keys used in the context:
+   :datasource Postgres JDBC datasource
+   :jdbc-opts Extra options passed to [[next.jdbc/with-transaction]]
+     Default: {:isolation :serializable}
+   :tx Postgres JDBC transaction
+
+   Usage:
+
+   ```
+   (pg/with-tx [instance instance]
+    (->> {:update :job
+          :set {:status \"failed\"}
+          :where [:= :id job-id]}
+         (pg/execute-one! instance)))
+   ```"
+  [[name-sym context] & body]
+  `(core/with-tx [~name-sym ~context]
+     ~@body))
+
+(defmacro with-read-tx
+  "Same as [[with-tx]] with [:jdbc-opts :read-only] set to true.
+
+   Usage:
+
+   ```
+   (pg/with-read-tx [instance instance]
+    (->> {:select :* :from :job}
+         (pg/execute-one! instance)))
+   ```"
+  [[name-sym context] & body]
+  `(core/with-tx [~name-sym ~context]
+     ~@body))

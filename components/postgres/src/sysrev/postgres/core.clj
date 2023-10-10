@@ -10,6 +10,22 @@
             [sysrev.util-lite.interface :as ul])
   (:import (org.postgresql.util PGobject PSQLException)))
 
+(defmacro with-tx
+  [[name-sym context] & body]
+  `(let [context# ~context]
+     (if-let [tx# (:tx context#)]
+       (let [~name-sym context#] ~@body)
+       (jdbc/with-transaction [tx# (get-in context# [:datasource])
+                               (merge {:isolation :serializable}
+                                      (:jdbc-opts context#))]
+         (let [~name-sym (assoc context# :tx tx#)]
+           ~@body)))))
+
+(defmacro with-read-tx
+  [[name-sym context] & body]
+  `(with-tx [~name-sym (assoc-in ~context [:jdbc-opts :read-only] true)]
+     ~@body))
+
 (defn jsonb-pgobject [x]
   (doto (PGobject.)
     (.setType "jsonb")
