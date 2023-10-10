@@ -253,13 +253,13 @@
       (if (not= ::timeout response)
         response
         (let [cancelled (future-cancel fut)]
-          (log/warn (str "Request cancelled due to timeout after " timeout-ms " ms") uri)
+          (log/warn (str "Request cancelled due to timeout after " timeout-ms " ms for " uri))
           (cond
             (and cancelled (future-done? fut))
             (try
               @fut
               (catch Throwable e
-                (throw (ex-info (str "Request cancelled due to timeout after " timeout-ms " ms")
+                (throw (ex-info (str "Request cancelled due to timeout after " timeout-ms " ms for " uri)
                                 {:cause e
                                  :request (dissoc request :sr-context)
                                  :timeout-ms timeout-ms}))))
@@ -268,7 +268,7 @@
             @fut
 
             :else
-            (throw (ex-info (str "Failed to cancel request due to timeout after " timeout-ms " ms")
+            (throw (ex-info (str "Failed to cancel request due to timeout after " timeout-ms " ms for " uri)
                             {:request (dissoc request :sr-context)
                              :timeout-ms timeout-ms}))))))))
 
