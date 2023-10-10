@@ -89,6 +89,8 @@
         poly/datapub-client {:local/root "components/datapub-client"}
         poly/file-util {:local/root "components/file-util"}
         poly/flyway {:local/root "components/flyway"}
+        poly/job-queue {:local/root "components/job-queue"}
+        poly/job-runner {:local/root "components/job-runner"}
         poly/json {:local/root "components/json"}
         poly/lacinia {:local/root "components/lacinia"}
         poly/lacinia-pedestal {:local/root "components/lacinia-pedestal"}

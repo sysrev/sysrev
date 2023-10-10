@@ -1,6 +1,7 @@
 (ns sysrev.project-api.source
   (:require [com.walmartlabs.lacinia.resolve :as resolve]
             [sysrev.datapub-client.interface :as dpc]
+            [sysrev.job-queue.interface :as jq]
             [sysrev.lacinia.interface :as sl]
             [sysrev.postgres.interface :as pg]
             [sysrev.project-api.core :as core]))
@@ -33,12 +34,11 @@
        (sl/execute-one! context)
        :project-source/source-id))
 
-(defn insert-job! [context source-id]
-  (->> {:insert-into :job
-        :values [{:payload (pg/jsonb-pgobject {:source-id source-id})
-                  :status "new"
-                  :type "import-project-source-articles"}]}
-       (sl/execute-one! context)))
+(defn create-job! [{:keys [job-queue]} source-id]
+  (jq/create-job!
+   job-queue
+   "import-project-source-articles"
+   {:source-id source-id}))
 
 (defn create-project-source!
   [context {{:keys [create]} :input} _]
@@ -64,5 +64,5 @@
           {:datasetId datasetId
            :message "Dataset does not exist"}))
        (let [source-id (insert-source! context project-id datasetId)]
-         (insert-job! context source-id)
+         (create-job! context source-id)
          {:projectSource {:id (str source-id)}})))))

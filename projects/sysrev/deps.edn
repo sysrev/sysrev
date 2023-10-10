@@ -5,6 +5,8 @@
         poly/contajners {:local/root "../../components/contajners"}
         poly/datapub-client {:local/root "../../components/datapub-client"}
         poly/flyway {:local/root "../../components/flyway"}
+        poly/job-queue {:local/root "../../components/job-queue"}
+        poly/job-runner {:local/root "../../components/job-runner"}
         poly/json {:local/root "../../components/json"}
         poly/memcached {:local/root "../../components/memcached"}
         poly/office {:local/root "../../components/office"}

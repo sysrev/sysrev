@@ -696,10 +696,8 @@
                            :project-id project-id
                            :separator separator
                            :user-id user-id}
-                          (export/insert-job! sr-context)
-                          :job/id)]
+                          (export/create-job! sr-context))]
           ;; Try to kick off export immediately
-          (future (files/import-from-job-queue! sr-context))
           {:job-id job-id}))))
 
 (dr (GET "/api/get-project-export/:project-id/:job-id"

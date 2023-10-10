@@ -4,10 +4,23 @@
             [clojurewerkz.quartzite.jobs :as j]
             [clojurewerkz.quartzite.schedule.simple :refer [schedule repeat-forever with-interval-in-seconds]]
             [clojurewerkz.quartzite.triggers :as t]
+            [sysrev.job-queue.interface :as jq]
+            [sysrev.export.core :as export]
             [sysrev.source.files :as files]))
 
-(defn run [sr-context]
-  (files/import-from-job-queue! sr-context))
+(def job-type->fn
+  {"generate-project-export" export/generate-project-export!
+   "import-files" files/import-files!
+   "import-project-source-articles" files/import-project-source-articles!})
+
+(defn run-job [{:job/keys [id payload type]} sr-context]
+  ((job-type->fn type) sr-context id payload))
+
+(defn run [{:as sr-context :keys [job-queue]}]
+  (jq/process-job-queue!
+   job-queue
+   (fn [_ job]
+     (run-job job sr-context))))
 
 #_:clj-kondo/ignore
 (j/defjob Job [ctx]

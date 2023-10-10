@@ -13,8 +13,8 @@
             [sysrev.export.endnote :as endnote]
             [sysrev.file.article :as article-file]
             [sysrev.file.s3 :as s3-file]
+            [sysrev.job-queue.interface :as jq]
             [sysrev.label.core :as label]
-            [sysrev.postgres.interface :as pg]
             [sysrev.project.article-list :as alist]
             [sysrev.project.core :as project]
             [sysrev.util :as util :refer [in? index-by]]
@@ -49,14 +49,12 @@
       (.write w content))
     tempfile))
 
-(defn insert-job! [sr-context payload]
-  (->> {:insert-into :job
-        :returning :id
-        :values [{:max-retries 1
-                  :payload (pg/jsonb-pgobject payload)
-                  :status "new"
-                  :type "generate-project-export"}]}
-       (db/execute-one! sr-context)))
+(defn create-job! [{:keys [job-queue]} payload]
+  (jq/create-job!
+   job-queue
+   "generate-project-export"
+   payload
+   :max-retries 1))
 
 (defn get-export [sr-context authorized-project-id job-id]
   (db/with-tx [sr-context sr-context]

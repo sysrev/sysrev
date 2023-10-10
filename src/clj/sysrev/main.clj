@@ -12,11 +12,14 @@
             [sysrev.db.listeners :as listeners]
             [sysrev.db.migration :as migration]
             [sysrev.file.s3 :as s3]
+            [sysrev.job-queue.interface :as jq]
+            [sysrev.job-runner.interface :as jr]
             [sysrev.localstack.interface :as localstack]
             [sysrev.memcached.interface :as mem]
             [sysrev.nrepl.interface :as nrepl]
             [sysrev.postgres.core :as pg]
             [sysrev.scheduler.core :as scheduler]
+            [sysrev.scheduler.job-queue :as job-queue]
             [sysrev.secrets-manager.interface :as secrets-manager]
             [sysrev.sente :as sente]
             [sysrev.sysrev-api.main]
@@ -67,6 +70,10 @@
     {::ds/defs
      {:sysrev
       {:config (secrets-manager/transformer-component (aws-opts config) config)
+       :job-queue (jq/component {:datasource (ds/local-ref [:postgres :datasource-long-running])})
+       :job-runner (jr/component {:args [(ds/local-ref [:sr-context])]
+                                  :f job-queue/run-job
+                                  :job-queue (ds/local-ref [:job-queue])})
        :localstack (sys/stuartsierra->ds (localstack config))
        :memcached (-> (sys/stuartsierra->ds
                        (cond
@@ -113,16 +120,20 @@
                 (sente/sente :receive-f sente/receive-sente-channel!)
                 [:config :postgres]))
        ;; The :sr-context (Sysrev context) holds components that many functions need
-       :sr-context (sys/stuartsierra->ds
-                    (component/using
-                     {}
-                     [:config :memcached :postgres :s3 :sysrev-api-pedestal]))
+       :sr-context (sys/config-component
+                    {:config (ds/local-ref [:config])
+                     :job-queue (ds/local-ref [:job-queue])
+                     :memcached (ds/local-ref [:memcached])
+                     :postgres (ds/local-ref [:postgres])
+                     :s3 (ds/local-ref [:s3])
+                     :sysrev-api-pedestal (ds/local-ref [:sysrev-api-pedestal])})
        :sysrev-api-config (or (:sysrev-api-config config)
                               (sysrev.sysrev-api.main/get-config))
        :sysrev-api-pedestal (sys/stuartsierra->ds
                              (component/using
                               (sysrev.sysrev-api.pedestal/pedestal)
                               {:config :sysrev-api-config
+                               :job-queue :job-queue
                                :postgres :postgres}))
        :web-server (sys/stuartsierra->ds
                     (component/using

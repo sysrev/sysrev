@@ -3,6 +3,14 @@
             [donut.system :as ds]
             [medley.core :as medley]))
 
+(defn config-component
+  "Returns a component whose instance is the same as its config,
+   but with refs resolved. The instance is nil when stopped."
+  [config]
+  {::ds/config config,
+   ::ds/start (fn [{::ds/keys [config]}] config),
+   ::ds/stop (fn [_] nil)})
+
 (defn- stuartsierra-deps->config [component]
   (->> (meta component)
        ::component/dependencies

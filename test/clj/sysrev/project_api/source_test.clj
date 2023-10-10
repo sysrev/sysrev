@@ -1,7 +1,6 @@
 (ns sysrev.project-api.source-test
   (:require [clojure.test :refer :all]
             [sysrev.project.core :as project]
-            [sysrev.source.files :as files]
             [sysrev.sysrev-api-client.interface.queries :as sacq]
             [sysrev.sysrev-api.test :as api-test]
             [sysrev.test.core :as test]))
@@ -12,7 +11,7 @@
       api-test/throw-errors))
 
 (deftest ^:integration test-create-project-source!
-  (test/with-test-system [{:keys [sr-context] :as system} {}]
+  (test/with-test-system [system {}]
     (let [{:keys [api-token]} (test/create-test-user system)
           project-id (-> (ex! system (sacq/create-project "project{id}")
                               {:input {:create {:name "a"}}}
@@ -47,6 +46,5 @@
                   {:api-token dev-key})
                  :body :errors first :message))
           "Can't create a source for a non-existent Project")
-      (files/import-from-job-queue! sr-context)
       (is (test/wait-not-importing? system project-int-id))
       (is (= 11 (project/project-article-count project-int-id))))))
