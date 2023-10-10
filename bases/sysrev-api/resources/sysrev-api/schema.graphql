@@ -154,14 +154,6 @@ input ProjectSourceInput {
   projectId: ID
 }
 
-input CreateProjectSourceInput {
-  create: ProjectSourceInput!
-}
-
-type CreateProjectSourcePayload {
-  projectSource: ProjectSource
-}
-
 type Query {
   getProject(id: ID!): Project
   getProjectLabel(id: ID!): ProjectLabel
@@ -171,7 +163,6 @@ type Query {
 type Mutation {
   createProject(input: CreateProjectInput!): CreateProjectPayload
   createProjectLabel(input: CreateProjectLabelInput!): CreateProjectLabelPayload
-  createProjectSource(input: CreateProjectSourceInput!): CreateProjectSourcePayload
 }
 
 schema {

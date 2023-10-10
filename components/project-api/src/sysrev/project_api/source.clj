@@ -1,8 +1,5 @@
 (ns sysrev.project-api.source
-  (:require [com.walmartlabs.lacinia.resolve :as resolve]
-            [sysrev.datapub-client.interface :as dpc]
-            [sysrev.job-queue.interface :as jq]
-            [sysrev.lacinia.interface :as sl]
+  (:require [sysrev.lacinia.interface :as sl]
             [sysrev.postgres.interface :as pg]
             [sysrev.project-api.core :as core]))
 
@@ -33,36 +30,3 @@
         :returning :source-id}
        (sl/execute-one! context)
        :project-source/source-id))
-
-(defn create-job! [{:keys [job-queue]} source-id]
-  (jq/create-job!
-   job-queue
-   "import-project-source-articles"
-   {:source-id source-id}))
-
-(defn create-project-source!
-  [context {{:keys [create]} :input} _]
-  (sl/with-tx-context [context context]
-    (let [{:keys [datasetId projectId]} create
-          project-id (parse-long projectId)]
-      (or
-       (core/check-not-blank datasetId "datasetId")
-       (core/check-not-blank projectId "projectId")
-       (core/dev-key-check context)
-       (when-not (sl/execute-one! context {:select :project-id
-                                           :from :project
-                                           :where [:= :project-id project-id]})
-         (resolve/resolve-as
-          nil
-          {:projectId projectId
-           :message "Project does not exist"}))
-       (when-not (dpc/get-dataset datasetId "id"
-                                  :auth-token (core/bearer-token context)
-                                  :endpoint (core/graphql-endpoint context))
-         (resolve/resolve-as
-          nil
-          {:datasetId datasetId
-           :message "Dataset does not exist"}))
-       (let [source-id (insert-source! context project-id datasetId)]
-         (create-job! context source-id)
-         {:projectSource {:id (str source-id)}})))))

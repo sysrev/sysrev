@@ -6,7 +6,6 @@
   resolvers
   {:CreateProjectLabelPayload {:projectLabel #'core/resolve-create-project-label-payload#project-label}
    :CreateProjectPayload {:project #'core/resolve-project-field}
-   :CreateProjectSourcePayload {:projectSource #'source/resolve-project-source-field}
    :Project {:labels #'core/resolve-project#labels}
    :ProjectLabel {:project #'core/resolve-project-field}
    :ProjectSource {:project #'core/resolve-project-field}
@@ -14,8 +13,7 @@
            :getProjectLabel #'core/get-project-label
            :getProjectSource #'source/get-project-source}
    :Mutation {:createProject #'core/create-project!
-              :createProjectLabel #'core/create-project-label!
-              :createProjectSource #'source/create-project-source!}})
+              :createProjectLabel #'core/create-project-label!}})
 
 (defn project-name-error
   "Returns an error message if the project name is valid, or else nil."
