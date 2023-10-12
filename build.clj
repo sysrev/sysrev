@@ -10,7 +10,7 @@
          (str "-" (subs (b/git-process {:git-args "rev-parse HEAD"}) 0 9)
               "-SNAPSHOT"))))
 
-;; Most fns should return the opts map so they can be easily threeaded
+;; Most fns should return the opts map so they can be easily threaded
 
 (defn build-cljs [opts]
   (b/process {:command-args ["npx" "shadow-cljs" "release" "prod"]
