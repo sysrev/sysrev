@@ -19,7 +19,7 @@ This repository holds the full Sysrev web app (Clojure/ClojureScript project and
 
 ## Installation
 
-- Install Nix: `sh <(curl -L https://nixos.org/nix/install)`
+- Install Nix: `curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install`
   - See [macOS Installation](https://nixos.org/manual/nix/stable/installation/installing-binary.html?highlight=macos#macos-installation-a-namesect-macos-installation-change-store-prefixaa-namesect-macos-installation-encrypted-volumeaa-namesect-macos-installation-symlinkaa-namesect-macos-installation-recommended-notesa) in case of issues
    - Configure Nix with `mkdir -p ~/.config/nixpkgs && echo "{allowUnfree=true;}" > ~/.config/nixpkgs/config.nix`
 - Install Docker
