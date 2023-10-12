@@ -14,14 +14,8 @@
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    srvc = {
-      url = "github:insilica/rs-srvc/844973dc6c45c4373d146dbfc42bbf45aee07314";
-      inputs.flake-compat.follows = "flake-compat";
-      inputs.flake-utils.follows = "flake-utils";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
-  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, anystyle-api, srvc, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-2205, flake-utils, anystyle-api, ... }@inputs:
     flake-utils.lib.eachDefaultSystem (system:
       with import nixpkgs { inherit system; };
       let
@@ -76,7 +70,7 @@
             postgresql
             python39Packages.cfn-lint
             rlwrap
-            srvc.packages.${system}.default
+            srvc
             time
             yarn
             zip
