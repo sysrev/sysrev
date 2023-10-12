@@ -1,7 +1,5 @@
 # Sysrev web
 
-[![CodeScene Code Health](https://codescene.io/projects/24744/status-badges/code-health)](https://codescene.io/projects/24744) [![CodeScene System Mastery](https://codescene.io/projects/24744/status-badges/system-mastery)](https://codescene.io/projects/24744)
-
 This repository holds the full Sysrev web app (Clojure/ClojureScript project and all other files).
 
 * [Initial Setup](#markdown-header-initial-setup)
